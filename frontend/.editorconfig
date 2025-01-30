@@ -1,3 +1,7 @@
 [*.{ts,tsx}]
 indent_style = space
 indent_size = 2
+
+[*.{wgsl}]
+indent_style = space
+indent_size = 4
