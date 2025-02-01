@@ -1,5 +1,5 @@
-import type { Route } from "./+types/home";
 import ShaderRenderer from "~/components/renderer/ShaderRenderer";
+import type { Route } from "./+types/home";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -9,5 +9,13 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export default function Home() {
-  return <ShaderRenderer />;
+  return (
+    <>
+      <div className="flex justify-center items-center h-screen">
+        <div className="w-[400px] h-[300px] bg-gray-200 p-4 flex justify-center items-center">
+          <ShaderRenderer shaderId="your-shader-id" />
+        </div>
+      </div>
+    </>
+  );
 }

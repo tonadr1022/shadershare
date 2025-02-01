@@ -1,52 +1,91 @@
 import { useEffect, useRef, useState } from "react";
-export default function ShaderRenderer() {
+import { createRenderer } from "./Renderer";
+
+type Props = { shaderId: string };
+
+const ShaderRenderer = ({ shaderId }: Props) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [validRenderer, setValidRenderer] = useState(false);
+  const [canvasSize, setCanvasSize] = useState<{
+    width: number;
+    height: number;
+  }>({
+    width: 0,
+    height: 0,
+  });
+
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (canvas) {
-      const ctx = canvas.getContext("2d");
-      if (ctx) {
-        ctx.fillStyle = "green";
-        ctx.fillRect(10, 10, 100, 100);
-      }
-    }
-  }, []);
+    const container = containerRef.current;
+    if (!canvas || !container) return;
 
-  return <canvas ref={canvasRef}></canvas>;
-}
-
-const WebGPUComponent: React.FC = () => {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [gpuAvailable, setGpuAvailable] = useState<boolean>(false);
-
-  useEffect(() => {
-    // Check if WebGPU is supported
-    if (!navigator.gpu) {
-      console.error("WebGPU is not supported in this browser.");
+    const renderer = createRenderer(canvas);
+    setValidRenderer(renderer !== null);
+    if (!renderer) {
       return;
     }
 
-    const initialize = async () => {
-      try {
-        const webgpuSupported = navigator.gpu!!;
-      } catch (error) {
-        console.error("Error initializing WebGPU", error);
-      }
+    let resizeTimeout: ReturnType<typeof setTimeout>;
+    const resizeCanvas = () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        const containerWidth = container.offsetWidth;
+        const containerHeight = container.offsetHeight;
+
+        setCanvasSize({ width: containerWidth, height: containerHeight });
+        renderer.onResize(containerWidth, containerHeight);
+      }, 10);
     };
 
-    initialize();
-    setGpuAvailable(true);
+    const resizeObserver = new ResizeObserver(resizeCanvas);
+    resizeObserver.observe(container);
+
+    const render = () => {
+      renderer.render();
+      requestAnimationFrame(render);
+    };
+
+    renderer.initialize({
+      shaderDatas: [
+        {
+          vertexCode: `#version 300 es
+in vec3 aPos;
+
+void main() {
+    gl_Position = vec4(aPos, 1.0);
+}`,
+          fragmentCode: `#version 300 es
+precision mediump float;
+
+out vec4 FragColor;
+void main() {
+    FragColor = vec4(0.0, 0.0, 1.0, 1.0); // Blue color
+}`,
+        },
+      ],
+    });
+    render();
+
+    return () => {
+      resizeObserver.disconnect();
+    };
   }, []);
 
   return (
-    <div>
-      {gpuAvailable ? (
-        <canvas ref={canvasRef} width="800" height="600"></canvas>
-      ) : (
-        <p>WebGPU is not available in your browser.</p>
-      )}
+    <div
+      ref={containerRef}
+      className="flex flex-col justify-center items-center h-full w-full"
+    >
+      <canvas
+        ref={canvasRef}
+        style={{
+          width: `${canvasSize.width}px`,
+          height: `${canvasSize.height}px`,
+        }}
+      />
     </div>
   );
 };
 
-export { WebGPUComponent };
+export default ShaderRenderer;

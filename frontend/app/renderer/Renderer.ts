@@ -104,11 +104,11 @@ class WebGLRenderer extends Renderer {
   drawFragmentShader(): void {}
 }
 
-const createRenderer = (
-  canvas: HTMLCanvasElement,
-  overrideUseWebGPU: boolean,
-): Renderer => {
-  return overrideUseWebGPU || navigator.gpu
-    ? new WebGPURenderer(canvas)
-    : new WebGLRenderer(canvas);
-};
+// const createRenderer = (
+//   canvas: HTMLCanvasElement,
+//   overrideUseWebGPU: boolean,
+// ): Renderer => {
+//   return overrideUseWebGPU || navigator.gpu
+//     ? new WebGPURenderer(canvas)
+//     : new WebGLRenderer(canvas);
+// };
