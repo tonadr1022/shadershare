@@ -9,7 +9,13 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@uiw/codemirror-theme-tokyo-night": "^4.23.7",
+    "@codemirror/lang-cpp": "^6.0.2",
+    "@codemirror/language": "^6.10.8",
+    "@replit/codemirror-emacs": "^6.1.0",
+    "@replit/codemirror-vim": "^6.2.1",
+    "@replit/codemirror-vscode-keymap": "^6.0.2",
+    "@uiw/codemirror-extensions-basic-setup": "^4.23.7",
+    "@uiw/codemirror-extensions-line-numbers-relative": "^4.23.7",
     "@uiw/react-codemirror": "^4.23.7",
     "next": "15.1.6",
     "react": "^19.0.0",

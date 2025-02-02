@@ -1,23 +1,32 @@
 "use client";
-import CodeMirror from "@uiw/react-codemirror";
-import { tokyoNight } from "@uiw/codemirror-theme-tokyo-night";
-
 import ShaderRenderer from "../renderer/ShaderRenderer";
-// import dynamic from "next/dynamic";
-// const ShaderRenderer = dynamic(() => import("./renderer/ShaderRenderer"), {
-//   ssr: false,
-// });
-// import "codemirror/lib/codemirror.css";
-// import "codemirror/theme/material.css";
 import { useCallback, useEffect, useRef, useState } from "react";
+import Editor from "./Editor";
+import { createRenderer } from "../renderer/Renderer";
+import { createEmptyResult } from "../util";
+type Props = {
+  shaderId: string;
+};
 
-type Props = {};
-
-const ShaderEditor = (props: Props) => {
+const ShaderEditor = ({ shaderId }: Props) => {
   const shaderRendererRef = useRef<HTMLDivElement | null>(null);
   const editorRef = useRef<HTMLDivElement | null>(null);
   const [height, setHeight] = useState(0);
   const [smallScreen, setSmallScreen] = useState(false);
+  const [renderer, setRenderer] = useState<IRenderer | null>(null);
+  // TODO: Import from somewhere else
+  const [savedText, setSavedText] =
+    useState(`void imageMain(vec2 fragCoord, vec3 iResolution) {
+    // Normalized pixel coordinates (from 0 to 1)
+    vec2 uv = fragCoord/iResolution.xy;
+
+    // Time varying pixel color
+    vec3 col = 0.5 + 0.5*cos(iTime+uv.xyx+vec3(0,2,4));
+
+    // Output to screen
+    FragColor = vec4(col,1.0);
+}`);
+
   const [totEditorSize, setTotEditorSize] = useState<{
     width: number;
     height: number;
@@ -32,11 +41,15 @@ const ShaderEditor = (props: Props) => {
     width: 0,
     height: 0,
   });
-  const [code, setCode] = useState("console.log('hello world!');");
-  const onChange = useCallback((val, viewUpdate) => {
-    console.log(val, viewUpdate);
-    setCode(val);
-  }, []);
+  const onCompile = useCallback(
+    (text: string): EmptyResult => {
+      if (!renderer) return createEmptyResult();
+      const res = renderer?.setShader(text);
+      setSavedText(text);
+      return res;
+    },
+    [renderer],
+  );
 
   // 800x450,640/360,512x288,420x236
   useEffect(() => {
@@ -48,7 +61,7 @@ const ShaderEditor = (props: Props) => {
     const resizeObserver = new ResizeObserver(resizeCanvas);
     resizeObserver.observe(container);
 
-    const onEditorResize = () => {
+    const onViewEditorResize = () => {
       const containerWidth = container.offsetWidth;
       setHeight(containerWidth / 1.7777777777);
       setSmallScreen(containerWidth < 800);
@@ -58,10 +71,11 @@ const ShaderEditor = (props: Props) => {
         height: editor.offsetHeight,
       });
     };
-    const editorResizeObserver = new ResizeObserver(onEditorResize);
-    editorResizeObserver.observe(editor);
+    const viewEditorResizeObserver = new ResizeObserver(onViewEditorResize);
+    viewEditorResizeObserver.observe(editor);
+    setRenderer(createRenderer());
     return () => {
-      editorResizeObserver.disconnect();
+      viewEditorResizeObserver.disconnect();
       resizeObserver.disconnect();
     };
   }, []);
@@ -69,7 +83,7 @@ const ShaderEditor = (props: Props) => {
   return (
     <div className="flex flex-col md:bg-blue-500 lg:bg-green-700 sm:bg-red-500 xl:bg-yellow-500 bg-purple-500 h-screen">
       <h1 className="">
-        shader editor {canvasSize.width}x{canvasSize.height}
+        shader viewer {canvasSize.width}x{canvasSize.height}. {shaderId}
       </h1>
       <div
         className="flex justify-center items-center h-full bg-black"
@@ -85,10 +99,14 @@ const ShaderEditor = (props: Props) => {
             // lg:w-[640px] lg:h-[360px] xl:w-[800px] xl:h-[450px]
             className="bg-gray-200 p-0 relative w-full md:w-[400px] md:h-[236px] lg:w-[512px] lg:h-[288px] md:flex-grow"
           >
-            <ShaderRenderer shaderId="your-shader-id" />
+            <ShaderRenderer
+              renderer={renderer}
+              initialData={{ fragmentText: savedText }}
+            />
           </div>
           <div className="w-full lg:w-[800px]">
-            <CodeMirror value={code} theme={tokyoNight} onChange={onChange} />
+            <Editor onCompile={onCompile} initialValue={savedText} />
+            <div>saved: {savedText}</div>
           </div>
         </div>
       </div>

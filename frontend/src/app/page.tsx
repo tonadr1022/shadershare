@@ -3,7 +3,7 @@ import ShaderEditor from "@/components/editor/ShaderEditor";
 export default function Home() {
   return (
     <>
-      <ShaderEditor />
+      <ShaderEditor shaderId="test" />
     </>
   );
   // return (
