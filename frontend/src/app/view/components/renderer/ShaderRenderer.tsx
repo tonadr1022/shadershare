@@ -72,16 +72,20 @@ const ShaderRenderer = (props: Props) => {
       return;
     }
 
+    let resizeTimeout: ReturnType<typeof setTimeout>;
     const resizeCanvas = (entries: ResizeObserverEntry[]) => {
-      console.log(entries);
       if (!Array.isArray(entries) || !entries.length) {
         return;
       }
-      if (document.fullscreenElement === null) {
-        renderer.onResize(container.offsetWidth, container.offsetHeight);
-      } else {
-        renderer.onResize(window.innerWidth, window.innerHeight);
-      }
+      // delay the resize slightly to prevent flickering
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        if (document.fullscreenElement === null) {
+          renderer.onResize(container.offsetWidth, container.offsetHeight);
+        } else {
+          renderer.onResize(window.innerWidth, window.innerHeight);
+        }
+      }, 1);
     };
 
     const resizeObserver = new ResizeObserver(resizeCanvas);

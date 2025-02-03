@@ -6,6 +6,7 @@ import {
   createRenderer,
   initialFragmentShaderText,
 } from "../renderer/Renderer";
+import { ModeToggle } from "@/app/components/ModeToggle";
 
 type Props = {
   shaderId: string;
@@ -38,17 +39,18 @@ const ShaderEditor = ({ shaderId }: Props) => {
   }, []); // Empty dependency array ensures this effect runs once after the component is mounted
 
   return (
-    <div className="flex flex-col h-screen bg-black">
+    <div className="flex flex-col h-screen bg-background">
       <h1 className="text-white text-center py-4">
         Shader Viewer - {shaderId}
       </h1>
+      <ModeToggle />
       <div className="flex flex-col lg:flex-row w-full h-full gap-8">
         <div
           ref={shaderRendererRef}
           style={{
             height: `${rendererHeight}px`, // Use dynamically calculated height
           }}
-          className=" w-full lg:w-1/2 bg-gray-200 p-0"
+          className=" w-full lg:w-1/2 bg-background p-0"
         >
           <ShaderRenderer
             renderer={renderer}
@@ -57,7 +59,7 @@ const ShaderEditor = ({ shaderId }: Props) => {
             }}
           />
         </div>
-        <div className="w-full lg:w-1/2 bg-gray-800">
+        <div className="w-full lg:w-1/2 bg-background">
           {renderer && (
             <Editor
               renderer={renderer}
