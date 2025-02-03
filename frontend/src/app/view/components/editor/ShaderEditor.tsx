@@ -40,9 +40,7 @@ const ShaderEditor = ({ shaderId }: Props) => {
 
   return (
     <div className="flex flex-col h-screen bg-background">
-      <h1 className="text-white text-center py-4">
-        Shader Viewer - {shaderId}
-      </h1>
+      <h1 className="text-white text-center py-4">shader - {shaderId}</h1>
       <ModeToggle />
       <div className="flex flex-col lg:flex-row w-full h-full gap-8">
         <div
