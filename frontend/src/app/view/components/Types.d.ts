@@ -16,11 +16,17 @@ type Result<T> = {
   error: boolean;
 };
 
+type ErrMsg = {
+  line: number;
+  message: string;
+};
+
 type IRenderer = {
   initialize: (params: ShaderRendererParams) => void;
   setShader: (fragmentText: string) => EmptyResult;
   setData: (params: RenderData) => void;
   render: () => void;
+  shutdown: () => void;
   onResize: (width: number, height: number) => void;
-  exists: () => boolean;
+  getErrorMessages: (text: string) => ErrMsg[];
 };

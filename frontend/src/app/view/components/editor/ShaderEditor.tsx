@@ -1,9 +1,11 @@
 "use client";
 import ShaderRenderer from "../renderer/ShaderRenderer";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Editor from "./Editor";
-import { createRenderer } from "../renderer/Renderer";
-import { createEmptyResult } from "../util";
+import {
+  createRenderer,
+  initialFragmentShaderText,
+} from "../renderer/Renderer";
 type Props = {
   shaderId: string;
 };
@@ -14,18 +16,6 @@ const ShaderEditor = ({ shaderId }: Props) => {
   const [height, setHeight] = useState(0);
   const [smallScreen, setSmallScreen] = useState(false);
   const [renderer, setRenderer] = useState<IRenderer | null>(null);
-  // TODO: Import from somewhere else
-  const [savedText, setSavedText] =
-    useState(`void imageMain(vec2 fragCoord, vec3 iResolution) {
-    // Normalized pixel coordinates (from 0 to 1)
-    vec2 uv = fragCoord/iResolution.xy;
-
-    // Time varying pixel color
-    vec3 col = 0.5 + 0.5*cos(iTime+uv.xyx+vec3(0,2,4));
-
-    // Output to screen
-    FragColor = vec4(col,1.0);
-}`);
 
   const [totEditorSize, setTotEditorSize] = useState<{
     width: number;
@@ -34,22 +24,6 @@ const ShaderEditor = ({ shaderId }: Props) => {
     width: 0,
     height: 0,
   });
-  const [canvasSize, setCanvasSize] = useState<{
-    width: number;
-    height: number;
-  }>({
-    width: 0,
-    height: 0,
-  });
-  const onCompile = useCallback(
-    (text: string): EmptyResult => {
-      if (!renderer) return createEmptyResult();
-      const res = renderer?.setShader(text);
-      setSavedText(text);
-      return res;
-    },
-    [renderer],
-  );
 
   // 800x450,640/360,512x288,420x236
   useEffect(() => {
@@ -65,7 +39,7 @@ const ShaderEditor = ({ shaderId }: Props) => {
       const containerWidth = container.offsetWidth;
       setHeight(containerWidth / 1.7777777777);
       setSmallScreen(containerWidth < 800);
-      setCanvasSize({ width: containerWidth, height: container.offsetHeight });
+      // setCanvasSize({ width: containerWidth, height: container.offsetHeight });
       setTotEditorSize({
         width: editor.offsetWidth,
         height: editor.offsetHeight,
@@ -82,9 +56,7 @@ const ShaderEditor = ({ shaderId }: Props) => {
 
   return (
     <div className="flex flex-col md:bg-blue-500 lg:bg-green-700 sm:bg-red-500 xl:bg-yellow-500 bg-purple-500 h-screen">
-      <h1 className="">
-        shader viewer {canvasSize.width}x{canvasSize.height}. {shaderId}
-      </h1>
+      <h1 className="">shader viewer {shaderId}</h1>
       <div
         className="flex justify-center items-center h-full bg-black"
         ref={editorRef}
@@ -101,12 +73,18 @@ const ShaderEditor = ({ shaderId }: Props) => {
           >
             <ShaderRenderer
               renderer={renderer}
-              initialData={{ fragmentText: savedText }}
+              initialData={{
+                fragmentText: initialFragmentShaderText,
+              }}
             />
           </div>
           <div className="w-full lg:w-[800px]">
-            <Editor onCompile={onCompile} initialValue={savedText} />
-            <div>saved: {savedText}</div>
+            {renderer && (
+              <Editor
+                renderer={renderer}
+                initialValue={initialFragmentShaderText}
+              />
+            )}
           </div>
         </div>
       </div>

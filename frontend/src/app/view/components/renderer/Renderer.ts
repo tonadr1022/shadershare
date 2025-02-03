@@ -3,14 +3,9 @@
 import { createEmptyResult } from "../util";
 import { webgl2Utils, WebGL2Utils } from "./Util";
 
-type ShaderErrorCallbackParams = {
-  lineNumber: number;
-};
-
 type ShaderRendererParams = {
   canvas: HTMLCanvasElement;
   renderData: RenderData;
-  shaderErrorCallback?: (params: ShaderErrorCallbackParams) => void;
 };
 
 const vertexCode = `#version 300 es
@@ -38,17 +33,27 @@ void imageMain(vec2 fragCoord, vec3 iResolution);
 void main() {
     imageMain(vec2(gl_FragCoord.xy), iResolution);
 }
-
 `;
 
+export const initialFragmentShaderText = `void imageMain(vec2 fragCoord, vec3 iResolution) {
+    // Normalized pixel coordinates (from 0 to 1)
+    vec2 uv = fragCoord/iResolution.xy;
+
+    // Time varying pixel color
+    vec3 col = 0.5 + 0.5*cos(iTime+uv.xyx+vec3(0,2,4));
+
+    // Output to screen
+    FragColor = vec4(col,1.0);
+}
+`;
 const webGL2Renderer = (): IRenderer => {
+  const fragmentHeaderLC = fragmentHeader.split(/\r\n|\r|\n/).length;
   let canvas: HTMLCanvasElement;
   let gl: WebGL2RenderingContext;
   let time: number;
   let program: WebGLProgram = 0;
   let uboBuffer: WebGLBuffer;
   let initialized = false;
-  console.log("making renderer");
 
   const uboVariableInfo: Record<string, { index: number; offset: number }> = {};
 
@@ -86,6 +91,8 @@ const webGL2Renderer = (): IRenderer => {
   };
 
   const initialize = (params: ShaderRendererParams) => {
+    console.log("init params", params);
+    if (initialized) return;
     canvas = params.canvas;
     if (!canvas) {
       return;
@@ -163,11 +170,31 @@ const webGL2Renderer = (): IRenderer => {
     setData: (params: RenderData) => {
       console.error("unimplemented", params);
     },
+    getErrorMessages: (text: string): ErrMsg[] => {
+      const lines = text.split(/\r\n|\r|\n/);
+      const res: ErrMsg[] = [];
+      for (const lineText of lines) {
+        if (lineText.length <= 12) {
+          continue;
+        }
+        const match = lineText.match(/ERROR: \d+:(\d+): (.*)/);
+        if (match) {
+          const line = parseInt(match[1], 10) - fragmentHeaderLC + 1;
+          const message = match[2];
+          res.push({ line: line, message });
+        }
+      }
+      return res;
+    },
+    shutdown: () => {
+      if (!initialized) return;
+      console.log("shutting down webGL2Renderer");
+      gl.getExtension("WEBGL_lose_context")?.loseContext();
+    },
     setShader: setShader,
     initialize: initialize,
     render: render,
     onResize: onResize,
-    exists: () => true,
   };
 };
 

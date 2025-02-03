@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import CodeMirror, {
   ReactCodeMirrorRef,
   StateEffect,
@@ -17,10 +17,18 @@ import { ErrorWidget } from "./ErrorWidget";
 
 type Props = {
   initialValue: string;
-  onCompile: (text: string) => EmptyResult;
+  renderer: IRenderer;
 };
 
-const errorEffect = StateEffect.define<{ line: number; message: string }>();
+type EditorOptions = {
+  fontSize: number;
+  keyBinding: "vim";
+  tabSize: 4;
+  relativeLineNumber: true;
+};
+
+const clearErrorsEffect = StateEffect.define<void>();
+const errorEffect = StateEffect.define<ErrMsg>();
 const errorField = StateField.define<DecorationSet>({
   create: () => Decoration.none,
   update: (decorations, transaction) => {
@@ -30,9 +38,12 @@ const errorField = StateField.define<DecorationSet>({
         const linePos = transaction.state.doc.line(effect.value.line);
         const deco = Decoration.widget({
           widget: new ErrorWidget(effect.value.message),
-          side: 1, // Place below the line
+          side: 1,
         }).range(linePos.to);
         return decorations.update({ add: [deco] });
+      }
+      if (effect.is(clearErrorsEffect)) {
+        return Decoration.none;
       }
     }
     return decorations;
@@ -41,37 +52,44 @@ const errorField = StateField.define<DecorationSet>({
 });
 
 const Editor = (props: Props) => {
-  const { initialValue, onCompile: onCompileFunc } = props;
-  const [code, setCode] = useState(initialValue);
-  const [error, setError] = useState("");
+  const { initialValue, renderer } = props;
+
+  const onCompileFunc = useCallback(
+    (text: string): ErrMsg[] => {
+      if (!renderer) return [];
+      const res = renderer?.setShader(text);
+      return renderer.getErrorMessages(res.message || "");
+    },
+    [renderer],
+  );
   const editorRef = useRef<ReactCodeMirrorRef | null>(null);
   const codeRef = useRef<string>(initialValue);
 
-  const onChange = useCallback((val, viewUpdate) => {
-    setCode(val);
+  const onChange = useCallback((val: string) => {
     codeRef.current = val;
   }, []);
 
   const onCompile = useCallback(async () => {
-    const result = onCompileFunc(codeRef.current);
-    setError(result?.message || "");
-    // const line = getLine(result?.message || "");
-    const line = 5;
+    // clear existing errors
     const view = editorRef.current?.view;
-    if (view) {
-      view.dispatch({
-        effects: errorEffect.of({
-          line,
-          message: result.message || "no message",
+    if (!view) return;
+    view.dispatch({ effects: clearErrorsEffect.of() });
+
+    // compile
+    const result = onCompileFunc(codeRef.current);
+    if (result.length === 0) return;
+    view.dispatch({
+      effects: result.map((err) =>
+        errorEffect.of({
+          line: err.line,
+          message: err.message || "",
         }),
-      });
-    }
+      ),
+    });
   }, [onCompileFunc]);
 
-  useEffect(() => {
-    Vim.defineEx("write", "w", onCompile);
-    const handleKeyDown = (event: KeyboardEvent) => {
-      // Focus on Ctrl + E (Windows/Linux) or Cmd + E (macOS)
+  const handleKeyDown = useCallback(
+    (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key === "e") {
         event.preventDefault();
         editorRef.current?.view?.focus();
@@ -83,36 +101,36 @@ const Editor = (props: Props) => {
       if (event.key === "Enter" && event.altKey) {
         onCompile();
       }
-    };
-    console.log("add event listener");
+    },
+    [onCompile],
+  );
+
+  useEffect(() => {
+    Vim.defineEx("write", "w", onCompile);
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onCompile]);
+  }, [onCompile, handleKeyDown]);
 
+  const extensions = useMemo(
+    () => [
+      cpp(),
+      indentUnit.of("    "),
+      vim({ status: true }),
+      drawSelection({ cursorBlinkRate: 0 }),
+      errorField,
+    ],
+    [],
+  );
   return (
     <div className="flex flex-col">
       <CodeMirror
         ref={editorRef}
-        value={code}
+        value={initialValue}
         theme={"dark"}
         onChange={onChange}
         autoFocus={false}
-        extensions={[
-          cpp(),
-          indentUnit.of("    "),
-          vim(),
-          drawSelection({ cursorBlinkRate: 0 }),
-          errorField,
-        ]}
+        extensions={extensions}
       />
-      <style>
-        {`
-          .error-line {
-            background-color: rgba(255, 0, 0, 0.2);
-          }
-        `}
-      </style>
-      {error && <div>error: {error}</div>}
     </div>
   );
 };

@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { initialFragmentShaderText } from "./Renderer";
 
 type Props = {
   initialData: RenderData;
@@ -48,8 +49,30 @@ const ShaderRenderer = (props: Props) => {
       return;
     }
 
-    let resizeTimeout: ReturnType<typeof setTimeout>;
+    const render = () => {
+      renderer.render();
+      requestAnimationFrame(render);
+    };
 
+    renderer.initialize({
+      canvas: canvasRef.current,
+      renderData: { fragmentText: initialFragmentShaderText },
+    });
+    render();
+
+    return () => {};
+  }, [renderer]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const container = containerRef.current;
+    if (!canvas || !container) return;
+
+    if (!renderer) {
+      return;
+    }
+
+    let resizeTimeout: ReturnType<typeof setTimeout>;
     const resizeCanvas = (entries: ResizeObserverEntry[]) => {
       if (!Array.isArray(entries) || !entries.length) {
         return;
@@ -74,14 +97,6 @@ const ShaderRenderer = (props: Props) => {
       }
     };
     document.addEventListener("keydown", handleEscapeKey);
-
-    const render = () => {
-      renderer.render();
-      requestAnimationFrame(render);
-    };
-
-    renderer.initialize({ canvas: canvasRef.current, renderData: initialData });
-    render();
 
     return () => {
       document.removeEventListener("keydown", handleEscapeKey);
