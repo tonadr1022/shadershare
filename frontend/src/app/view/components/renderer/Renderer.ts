@@ -44,6 +44,7 @@ export const initialFragmentShaderText = `void imageMain(vec2 fragCoord, vec3 iR
 
     // Output to screen
     FragColor = vec4(col,1.0);
+    FragColor = vec4(uv,0.,1.0);
 }
 `;
 const webGL2Renderer = (): IRenderer => {

@@ -72,20 +72,16 @@ const ShaderRenderer = (props: Props) => {
       return;
     }
 
-    let resizeTimeout: ReturnType<typeof setTimeout>;
     const resizeCanvas = (entries: ResizeObserverEntry[]) => {
+      console.log(entries);
       if (!Array.isArray(entries) || !entries.length) {
         return;
       }
-      // delay the resize slightly to prevent flickering
-      clearTimeout(resizeTimeout);
-      resizeTimeout = setTimeout(() => {
-        if (document.fullscreenElement === null) {
-          renderer.onResize(container.offsetWidth, container.offsetHeight);
-        } else {
-          renderer.onResize(window.innerWidth, window.innerHeight);
-        }
-      }, 1);
+      if (document.fullscreenElement === null) {
+        renderer.onResize(container.offsetWidth, container.offsetHeight);
+      } else {
+        renderer.onResize(window.innerWidth, window.innerHeight);
+      }
     };
 
     const resizeObserver = new ResizeObserver(resizeCanvas);
@@ -105,14 +101,14 @@ const ShaderRenderer = (props: Props) => {
   }, [initialData, renderer]);
 
   return (
-    <>
+    <div className="flex flex-col w-full h-full">
       <div
         ref={containerRef}
-        className="h-full w-full p-0 m-0 bg-white flex items-center justify-center"
+        className="w-full h-full p-0 m-0 bg-white aspect-w-16 aspect-h-9"
       >
-        <canvas ref={canvasRef} />
+        <canvas ref={canvasRef}></canvas>
       </div>
-      <div className="w-full h-10 bg-white flex">
+      <div className="w-full h-[40px] flex bg-blue-500">
         <button
           onClick={toggleFullscreen}
           className="bg-blue-500 p-2 cursor-pointer border-none"
@@ -124,7 +120,7 @@ const ShaderRenderer = (props: Props) => {
           {(canvasRef.current && canvasRef.current.height) || 0}
         </div>
       </div>
-    </>
+    </div>
   );
 };
 

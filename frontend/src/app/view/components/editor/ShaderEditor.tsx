@@ -1,91 +1,69 @@
 "use client";
 import ShaderRenderer from "../renderer/ShaderRenderer";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Editor from "./Editor";
 import {
   createRenderer,
   initialFragmentShaderText,
 } from "../renderer/Renderer";
+
 type Props = {
   shaderId: string;
 };
 
 const ShaderEditor = ({ shaderId }: Props) => {
   const shaderRendererRef = useRef<HTMLDivElement | null>(null);
-  const editorRef = useRef<HTMLDivElement | null>(null);
-  const [height, setHeight] = useState(0);
-  const [smallScreen, setSmallScreen] = useState(false);
   const [renderer, setRenderer] = useState<IRenderer | null>(null);
+  const [rendererHeight, setRendererHeight] = useState<number>(0);
 
-  const [totEditorSize, setTotEditorSize] = useState<{
-    width: number;
-    height: number;
-  }>({
-    width: 0,
-    height: 0,
-  });
-
-  // 800x450,640/360,512x288,420x236
   useEffect(() => {
-    const container = shaderRendererRef.current;
-    const editor = editorRef.current;
-    if (!container || !editor) return;
-
-    const resizeCanvas = () => {};
-    const resizeObserver = new ResizeObserver(resizeCanvas);
-    resizeObserver.observe(container);
-
-    const onViewEditorResize = () => {
-      const containerWidth = container.offsetWidth;
-      setHeight(containerWidth / 1.7777777777);
-      setSmallScreen(containerWidth < 800);
-      // setCanvasSize({ width: containerWidth, height: container.offsetHeight });
-      setTotEditorSize({
-        width: editor.offsetWidth,
-        height: editor.offsetHeight,
-      });
-    };
-    const viewEditorResizeObserver = new ResizeObserver(onViewEditorResize);
-    viewEditorResizeObserver.observe(editor);
     setRenderer(createRenderer());
-    return () => {
-      viewEditorResizeObserver.disconnect();
-      resizeObserver.disconnect();
-    };
   }, []);
 
+  // This useLayoutEffect ensures that the height is updated after the DOM is rendered.
+  useLayoutEffect(() => {
+    const updateHeight = () => {
+      if (shaderRendererRef.current) {
+        const width = shaderRendererRef.current.offsetWidth;
+        setRendererHeight(width / 1.7777777 + 40); // Set height dynamically based on the width
+      }
+    };
+
+    // Initial height calculation
+    updateHeight();
+
+    // Set up the resize event listener to update the height on window resize
+    window.addEventListener("resize", updateHeight);
+    return () => window.removeEventListener("resize", updateHeight);
+  }, []); // Empty dependency array ensures this effect runs once after the component is mounted
+
   return (
-    <div className="flex flex-col md:bg-blue-500 lg:bg-green-700 sm:bg-red-500 xl:bg-yellow-500 bg-purple-500 h-screen">
-      <h1 className="">shader viewer {shaderId}</h1>
-      <div
-        className="flex justify-center items-center h-full bg-black"
-        ref={editorRef}
-      >
-        <div className="flex flex-col md:flex-row w-full h-full gap-8">
-          <div
-            ref={shaderRendererRef}
-            style={{
-              height:
-                smallScreen || totEditorSize.width > 800 ? `${height}px` : "", // only set the height if small
+    <div className="flex flex-col h-screen bg-black">
+      <h1 className="text-white text-center py-4">
+        Shader Viewer - {shaderId}
+      </h1>
+      <div className="flex flex-col lg:flex-row w-full h-full gap-8">
+        <div
+          ref={shaderRendererRef}
+          style={{
+            height: `${rendererHeight}px`, // Use dynamically calculated height
+          }}
+          className=" w-full lg:w-1/2 bg-gray-200 p-0"
+        >
+          <ShaderRenderer
+            renderer={renderer}
+            initialData={{
+              fragmentText: initialFragmentShaderText,
             }}
-            // lg:w-[640px] lg:h-[360px] xl:w-[800px] xl:h-[450px]
-            className="bg-gray-200 p-0 relative w-full md:w-[400px] md:h-[236px] lg:w-[512px] lg:h-[288px] md:flex-grow"
-          >
-            <ShaderRenderer
+          />
+        </div>
+        <div className="w-full lg:w-1/2 bg-gray-800">
+          {renderer && (
+            <Editor
               renderer={renderer}
-              initialData={{
-                fragmentText: initialFragmentShaderText,
-              }}
+              initialValue={initialFragmentShaderText}
             />
-          </div>
-          <div className="w-full lg:w-[800px]">
-            {renderer && (
-              <Editor
-                renderer={renderer}
-                initialValue={initialFragmentShaderText}
-              />
-            )}
-          </div>
+          )}
         </div>
       </div>
     </div>
