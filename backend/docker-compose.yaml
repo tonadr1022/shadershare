@@ -4,10 +4,10 @@ services:
       db:
         condition: service_healthy
     build:
-      context: ./backend
+      context: .
       dockerfile: cmd/server/Dockerfile.dev
     volumes:
-      - ./backend:/app
+      - .:/app
     container_name: shadershare_backend
     hostname: shadershare_backend
     ports:
@@ -21,7 +21,7 @@ services:
       - localnet
   db:
     image: postgres
-    container_name: postgres
+    container_name: postgres_db
     restart: always
     environment:
       POSTGRES_USER: postgres
@@ -35,12 +35,32 @@ services:
       - pgdata:/var/lib/postgresql/data
     networks:
       - localnet
-    # expose:
-    #   - 5432
-    #   - 8080
-    # ports:
-    #   - 5432:5432
-    #   - 8080:8080
+
+  migrate: &basemigrate
+    container_name: migrate
+    profiles: ["tools"]
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - localnet
+    image: migrate/migrate
+    entrypoint:
+      ["migrate", "-path", "/migrations", "-database", "${DATABASE_URL}"]
+    command: up
+    links:
+      - db
+    volumes:
+      - ./db/migrations:/migrations
+    environment:
+      - DATABASE_URL=postgres://postgres:password@db:5432/postgres?sslmode=disable
+  migrate-create:
+    <<: *basemigrate
+    entrypoint: migrate create -dir /migrations -ext sql
+    command: ""
+  database-reset:
+    <<: *basemigrate
+    command: ["drop", "-f"]
 
 volumes:
   pgdata:
