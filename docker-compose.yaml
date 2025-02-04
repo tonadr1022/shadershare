@@ -1,0 +1,49 @@
+services:
+  backend:
+    depends_on:
+      db:
+        condition: service_healthy
+    build:
+      context: ./backend
+      dockerfile: cmd/server/Dockerfile.dev
+    volumes:
+      - ./backend:/app
+    container_name: shadershare_backend
+    hostname: shadershare_backend
+    ports:
+      - 8080:8080
+    deploy:
+      restart_policy:
+        condition: on-failure
+    environment:
+      - DATABASE_URL=postgres://postgres:password@db:5432/postgres?sslmode=disable
+    networks:
+      - localnet
+  db:
+    image: postgres
+    container_name: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d postgres -U postgres"]
+      interval: 1s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - localnet
+    # expose:
+    #   - 5432
+    #   - 8080
+    # ports:
+    #   - 5432:5432
+    #   - 8080:8080
+
+volumes:
+  pgdata:
+networks:
+  localnet:
+    driver: bridge
