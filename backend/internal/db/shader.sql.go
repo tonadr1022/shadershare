@@ -14,22 +14,26 @@ import (
 
 const createShader = `-- name: CreateShader :one
 INSERT INTO shaders (
-    description, user_id
+    title, description, user_id
 ) VALUES (
-    $1, $2
-) RETURNING id, description, user_id, created_at, updated_at
+    $1, $2, $3
+)
+ON CONFLICT (title) DO NOTHING
+RETURNING id, title, description, user_id, created_at, updated_at
 `
 
 type CreateShaderParams struct {
+	Title       string
 	Description pgtype.Text
 	UserID      uuid.UUID
 }
 
 func (q *Queries) CreateShader(ctx context.Context, arg CreateShaderParams) (Shader, error) {
-	row := q.db.QueryRow(ctx, createShader, arg.Description, arg.UserID)
+	row := q.db.QueryRow(ctx, createShader, arg.Title, arg.Description, arg.UserID)
 	var i Shader
 	err := row.Scan(
 		&i.ID,
+		&i.Title,
 		&i.Description,
 		&i.UserID,
 		&i.CreatedAt,
@@ -39,7 +43,7 @@ func (q *Queries) CreateShader(ctx context.Context, arg CreateShaderParams) (Sha
 }
 
 const getShader = `-- name: GetShader :one
-SELECT id, description, user_id, created_at, updated_at FROM shaders
+SELECT id, title, description, user_id, created_at, updated_at FROM shaders
 WHERE id = $1 LIMIT 1
 `
 
@@ -48,6 +52,7 @@ func (q *Queries) GetShader(ctx context.Context, id uuid.UUID) (Shader, error) {
 	var i Shader
 	err := row.Scan(
 		&i.ID,
+		&i.Title,
 		&i.Description,
 		&i.UserID,
 		&i.CreatedAt,
@@ -56,8 +61,47 @@ func (q *Queries) GetShader(ctx context.Context, id uuid.UUID) (Shader, error) {
 	return i, err
 }
 
+const getUserShaderList = `-- name: GetUserShaderList :many
+SELECT id, title, description, user_id, created_at, updated_at FROM shaders 
+WHERE user_id = $1
+LIMIT $2 OFFSET $3
+`
+
+type GetUserShaderListParams struct {
+	UserID uuid.UUID
+	Limit  int32
+	Offset int32
+}
+
+func (q *Queries) GetUserShaderList(ctx context.Context, arg GetUserShaderListParams) ([]Shader, error) {
+	rows, err := q.db.Query(ctx, getUserShaderList, arg.UserID, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Shader
+	for rows.Next() {
+		var i Shader
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Description,
+			&i.UserID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listShaders = `-- name: ListShaders :many
-SELECT id, description, user_id, created_at, updated_at FROM shaders
+SELECT id, title, description, user_id, created_at, updated_at FROM shaders
 ORDER BY id LIMIT $1 OFFSET $2
 `
 
@@ -77,6 +121,7 @@ func (q *Queries) ListShaders(ctx context.Context, arg ListShadersParams) ([]Sha
 		var i Shader
 		if err := rows.Scan(
 			&i.ID,
+			&i.Title,
 			&i.Description,
 			&i.UserID,
 			&i.CreatedAt,

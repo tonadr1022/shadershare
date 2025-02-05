@@ -4,12 +4,15 @@ import (
 	"context"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 )
 
 type (
-	Identity interface {
-		GetID() string
+	UserClaims struct {
+		ID    uuid.UUID `json:"id"`
+		Email string    `json:"email"`
+		jwt.RegisteredClaims
 	}
 
 	User struct {
@@ -19,6 +22,10 @@ type (
 		Password  string    `json:"password"`
 		CreatedAt time.Time
 		UpdatedAt time.Time
+	}
+
+	UserCtx struct {
+		ID uuid.UUID
 	}
 
 	CreateUserPayload struct {
@@ -49,6 +56,6 @@ type (
 	}
 )
 
-func (u User) GetID() string {
-	return u.ID.String()
+func (u User) GetID() uuid.UUID {
+	return u.ID
 }

@@ -1,10 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"shadershare/internal/app"
+	"shadershare/internal/config"
 )
 
 func main() {
-	server := app.NewApiServer()
-	server.Run()
+	fmt.Println("Starting Shadershare Server...")
+	config.LoadConfig()
+	app.Run()
 }

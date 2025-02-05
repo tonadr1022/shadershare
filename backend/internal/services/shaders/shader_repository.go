@@ -4,6 +4,7 @@ import (
 	"context"
 	"shadershare/internal/db"
 	"shadershare/internal/domain"
+	"shadershare/internal/e"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -15,31 +16,30 @@ type shaderRepository struct {
 	db      *pgx.Conn
 }
 
-// // CreateRenderPass implements domain.ShaderRepository.
-// func (r *shaderRepository) CreateRenderPass(ctx context.Context, payload domain.CreateRenderPassPayload) error {
-// 	panic("unimplemented")
-// }
-//
-// // CreateShader implements domain.ShaderRepository.
-// func (r *shaderRepository) CreateShader(shader domain.Shader) error {
-// 	panic("unimplemented")
-// }
-
-func (r shaderRepository) CreateShader(ctx context.Context, userID uuid.UUID, shaderPayload domain.CreateShaderPayload, renderPasses []domain.RenderPass) error {
+func (r shaderRepository) CreateShader(ctx context.Context, userID uuid.UUID, shaderPayload domain.CreateShaderPayload) (*domain.ShaderWithRenderPasses, error) {
 	tx, err := r.db.Begin(ctx)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback(ctx)
-	// make shader
-	var shader db.Shader
-	shader, err = r.queries.CreateShader(ctx, db.CreateShaderParams{Description: pgtype.Text{String: shaderPayload.Description, Valid: true}, UserID: userID})
 	if err != nil {
 		return nil, err
 	}
+	defer tx.Rollback(ctx)
+	var shader db.Shader
+	params := db.CreateShaderParams{
+		Title:       shaderPayload.Title,
+		Description: pgtype.Text{String: shaderPayload.Description, Valid: true},
+		UserID:      userID,
+	}
+	shader, err = r.queries.CreateShader(ctx, params)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, e.ErrShaderWithTitleExists
+		}
+		return nil, err
+	}
 
-	for _, renderPass := range renderPasses {
-		_, err := r.queries.CreateRenderPass(ctx, db.CreateRenderPassParams{
+	// make render passes for the shader
+	outRenderPasses := make([]domain.RenderPass, len(shaderPayload.RenderPasses))
+	for i, renderPass := range shaderPayload.RenderPasses {
+		rp, err := r.queries.CreateRenderPass(ctx, db.CreateRenderPassParams{
 			ShaderID:  shader.ID,
 			Code:      renderPass.Code,
 			PassIndex: int32(renderPass.PassIndex),
@@ -47,14 +47,14 @@ func (r shaderRepository) CreateShader(ctx context.Context, userID uuid.UUID, sh
 		if err != nil {
 			return nil, err
 		}
+		outRenderPasses[i] = r.RenderPassFromDB(rp)
 	}
 	err = tx.Commit(ctx)
 	if err != nil {
 		return nil, err
 	}
-	//    shaderWithRenderPasses
-	// make render passes
-	panic("unimplemented")
+	shaderWithRenderPasses := &domain.ShaderWithRenderPasses{Shader: r.ShaderFromDB(shader), RenderPasses: outRenderPasses}
+	return shaderWithRenderPasses, nil
 }
 
 func NewShaderRepository(db *pgx.Conn, queries *db.Queries) domain.ShaderRepository {
@@ -71,13 +71,39 @@ func (r shaderRepository) GetShaderList(ctx context.Context, sort string, limit 
 	}
 	apiShaders := make([]domain.Shader, len(dbShaders))
 	for i, dbShader := range dbShaders {
-		apiShaders[i] = domain.Shader{
-			ID:          dbShader.ID,
-			Description: dbShader.Description.String,
-			UserID:      dbShader.UserID.String(),
-			CreatedAt:   dbShader.CreatedAt.Time,
-			UpdatedAt:   dbShader.UpdatedAt.Time,
-		}
+		apiShaders[i] = r.ShaderFromDB(dbShader)
+	}
+	return apiShaders, nil
+}
+
+func (r shaderRepository) RenderPassFromDB(dbRenderPass db.RenderPass) domain.RenderPass {
+	return domain.RenderPass{
+		ID:        dbRenderPass.ID,
+		ShaderID:  dbRenderPass.ShaderID.String(),
+		Code:      dbRenderPass.Code,
+		PassIndex: int(dbRenderPass.PassIndex),
+	}
+}
+
+func (r shaderRepository) ShaderFromDB(dbShader db.Shader) domain.Shader {
+	return domain.Shader{
+		ID:          dbShader.ID,
+		Title:       dbShader.Title,
+		Description: dbShader.Description.String,
+		UserID:      dbShader.UserID.String(),
+		CreatedAt:   dbShader.CreatedAt.Time,
+		UpdatedAt:   dbShader.UpdatedAt.Time,
+	}
+}
+
+func (r shaderRepository) GetUserShaderList(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]domain.Shader, error) {
+	dbShaders, err := r.queries.GetUserShaderList(ctx, db.GetUserShaderListParams{UserID: userID, Limit: int32(limit), Offset: int32(offset)})
+	if err != nil {
+		return nil, err
+	}
+	apiShaders := make([]domain.Shader, len(dbShaders))
+	for i, dbShader := range dbShaders {
+		apiShaders[i] = r.ShaderFromDB(dbShader)
 	}
 	return apiShaders, nil
 }

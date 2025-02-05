@@ -19,6 +19,7 @@ type RenderPass struct {
 
 type Shader struct {
 	ID          uuid.UUID
+	Title       string
 	Description pgtype.Text
 	UserID      uuid.UUID
 	CreatedAt   pgtype.Timestamptz

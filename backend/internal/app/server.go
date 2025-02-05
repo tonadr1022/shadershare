@@ -7,42 +7,32 @@ import (
 	"net/http"
 	"os"
 	"shadershare/internal/db"
+	"shadershare/internal/services/shaders"
 	"shadershare/internal/services/user"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
 )
 
-type ApiServer struct {
-	router *gin.Engine
-	db     *db.Queries
-}
+func Run() {
+	r := gin.Default()
+	dbdata, err := initDB()
+	if err != nil {
+		log.Fatalf("Error initializing database: %v", err)
+	}
+	setupRoutes(r, dbdata)
 
-func (s *ApiServer) Run() {
 	httpPort := os.Getenv("PORT")
 	if httpPort == "" {
 		httpPort = "8080"
 	}
-	if err := s.router.Run(fmt.Sprintf(":%s", httpPort)); err != nil {
+	if err := r.Run(fmt.Sprintf(":%s", httpPort)); err != nil {
 		log.Fatalf("Error starting server: %v", err)
 	}
 }
 
-func NewApiServer() *ApiServer {
-	r := gin.Default()
-	db, err := initDB()
-	if err != nil {
-		log.Fatalf("Error initializing database: %v", err)
-	}
-	setupRoutes(r, db)
-	server := &ApiServer{
-		router: r,
-		db:     db,
-	}
-	return server
-}
-
-func setupRoutes(r *gin.Engine, db *db.Queries) {
+func setupRoutes(r *gin.Engine, dbConn *pgx.Conn) {
+	queries := db.New(dbConn)
 	r.GET("/ping", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "pong"})
 	})
@@ -51,10 +41,13 @@ func setupRoutes(r *gin.Engine, db *db.Queries) {
 	api.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "up"})
 	})
-	user.RegisterHandlers(api, user.NewUserService(user.NewUserRepository(db)))
+	shaderService := shaders.NewShaderService(shaders.NewShaderRepository(dbConn, queries))
+	userService := user.NewUserService(user.NewUserRepository(queries))
+	shaders.RegisterHandlers(api, shaderService)
+	user.RegisterHandlers(api, shaderService, userService)
 }
 
-func initDB() (*db.Queries, error) {
+func initDB() (*pgx.Conn, error) {
 	conn, err := pgx.Connect(context.Background(), os.Getenv("DATABASE_URL"))
 	if err != nil {
 		return nil, fmt.Errorf("unable to connect to database: %v", err)
@@ -63,5 +56,5 @@ func initDB() (*db.Queries, error) {
 	if err := conn.Ping(context.Background()); err != nil {
 		return nil, fmt.Errorf("unable to ping database: %v", err)
 	}
-	return db.New(conn), nil
+	return conn, nil
 }

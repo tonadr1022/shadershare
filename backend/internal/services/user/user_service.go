@@ -5,9 +5,8 @@ import (
 	"os"
 	"shadershare/internal/domain"
 	"shadershare/internal/e"
-	"time"
+	"shadershare/internal/util"
 
-	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -43,7 +42,7 @@ func (s service) RegisterUser(ctx context.Context, payload domain.CreateUserPayl
 		return domain.LoginResponse{}, err
 	}
 
-	token, err := s.generateJWT(*user)
+	token, err := util.GenerateJWT(*user)
 	return domain.LoginResponse{Token: token}, err
 }
 
@@ -55,20 +54,8 @@ func (s service) LoginUser(ctx context.Context, payload domain.LoginPayload) (do
 	if !s.passwordMatch(user.Password, payload.Password) {
 		return domain.LoginResponse{}, e.ErrInvalidCredentials
 	}
-	token, err := s.generateJWT(*user)
+	token, err := util.GenerateJWT(*user)
 	return domain.LoginResponse{Token: token}, err
-}
-
-func (s service) generateJWT(user domain.User) (string, error) {
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"id":  user.ID,
-		"exp": time.Now().Add(time.Duration(s.jwtTokenExpirationMinutes * int(time.Minute))).Unix(),
-	})
-	tokenString, err := token.SignedString([]byte(s.jwtSecret))
-	if err != nil {
-		return "", err
-	}
-	return tokenString, nil
 }
 
 func (s service) passwordMatch(hashedPassword string, password string) bool {
