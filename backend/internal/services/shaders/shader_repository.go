@@ -96,6 +96,30 @@ func (r shaderRepository) ShaderFromDB(dbShader db.Shader) domain.Shader {
 	}
 }
 
+func (r shaderRepository) UpdateShader(ctx context.Context, userID uuid.UUID, shaderID uuid.UUID, updatePayload domain.UpdateShaderPayload) (*domain.Shader, error) {
+	params := db.UpdateShaderParams{
+		ID:     shaderID,
+		UserID: userID,
+	}
+	if updatePayload.Title != nil {
+		params.Title = *updatePayload.Title
+	}
+	if updatePayload.Description != nil {
+		params.Description = pgtype.Text{String: *updatePayload.Description, Valid: true}
+	}
+
+	dbshader, err := r.queries.UpdateShader(ctx, params)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, e.ErrNotFound
+		}
+		return nil, err
+	}
+
+	shader := r.ShaderFromDB(dbshader)
+	return &shader, nil
+}
+
 func (r shaderRepository) GetUserShaderList(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]domain.Shader, error) {
 	dbShaders, err := r.queries.GetUserShaderList(ctx, db.GetUserShaderListParams{UserID: userID, Limit: int32(limit), Offset: int32(offset)})
 	if err != nil {

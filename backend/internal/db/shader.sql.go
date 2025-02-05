@@ -136,3 +136,37 @@ func (q *Queries) ListShaders(ctx context.Context, arg ListShadersParams) ([]Sha
 	}
 	return items, nil
 }
+
+const updateShader = `-- name: UpdateShader :one
+UPDATE shaders 
+SET title = COALESCE($3, title),
+    description = COALESCE($4, description)
+WHERE id = $1 AND user_id = $2
+RETURNING id, title, description, user_id, created_at, updated_at
+`
+
+type UpdateShaderParams struct {
+	ID          uuid.UUID
+	UserID      uuid.UUID
+	Title       string
+	Description pgtype.Text
+}
+
+func (q *Queries) UpdateShader(ctx context.Context, arg UpdateShaderParams) (Shader, error) {
+	row := q.db.QueryRow(ctx, updateShader,
+		arg.ID,
+		arg.UserID,
+		arg.Title,
+		arg.Description,
+	)
+	var i Shader
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Description,
+		&i.UserID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}

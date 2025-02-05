@@ -1,6 +1,7 @@
 package shaders
 
 import (
+	"fmt"
 	"net/http"
 	"shadershare/internal/domain"
 	"shadershare/internal/e"
@@ -9,6 +10,8 @@ import (
 	"shadershare/internal/util"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
 )
 
 type ShaderHandler struct {
@@ -19,6 +22,50 @@ func RegisterHandlers(r *gin.RouterGroup, service domain.ShaderService) {
 	h := &ShaderHandler{service}
 	r.GET("/shader", h.getShaderList)
 	r.POST("/shader", middleware.JWT(), h.createShader)
+	r.PUT("/shader/:id", middleware.JWT(), h.updateShader)
+}
+
+func (h ShaderHandler) updateShader(c *gin.Context) {
+	userctx, ok := middleware.CurrentUser(c)
+	shaderID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		util.SetErrorResponse(c, http.StatusBadRequest, "Invalid shader ID")
+	}
+	if !ok {
+		util.SetInternalServiceErrorResponse(c)
+	}
+	var payload domain.UpdateShaderPayload
+	// if err := c.ShouldBindJSON(&payload); err != nil {
+	// 	c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payload"})
+	// 	return
+	// }
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		var validationErrors []string
+
+		// Check for validator errors
+		if errors, ok := err.(validator.ValidationErrors); ok {
+			for _, err := range errors {
+				// Format error messages based on tag (field and reason)
+				validationErrors = append(validationErrors, fmt.Sprintf("Field '%s' failed on '%s'", err.Field(), err.Tag()))
+			}
+		} else {
+			// Generic error fallback
+			validationErrors = append(validationErrors, err.Error())
+		}
+
+		c.JSON(http.StatusBadRequest, gin.H{"errors": validationErrors})
+		return
+	}
+	fmt.Println("update shader payload", payload)
+	shader, err := h.service.UpdateShader(c, userctx.ID, shaderID, payload)
+	if err != nil {
+		if err == e.ErrNotFound {
+			util.SetErrorResponse(c, http.StatusNotFound, "Shader not found")
+		} else {
+			util.SetInternalServiceErrorResponse(c)
+		}
+	}
+	c.JSON(http.StatusOK, shader)
 }
 
 func (h ShaderHandler) createShader(c *gin.Context) {
@@ -36,10 +83,10 @@ func (h ShaderHandler) createShader(c *gin.Context) {
 	shader, err := h.service.CreateShader(c, userctx.ID, payload)
 	if err != nil {
 		if err == e.ErrShaderWithTitleExists {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Shader with this title already exists"})
+			util.SetErrorResponse(c, http.StatusBadRequest, "Shader with this title already exists")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal Server Error"})
+		util.SetInternalServiceErrorResponse(c)
 		return
 	}
 
@@ -59,7 +106,7 @@ func (h ShaderHandler) getShaderList(c *gin.Context) {
 
 	shaders, err := h.service.GetShaderList(c, sort, limit, offset)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal Server Error"})
+		util.SetInternalServiceErrorResponse(c)
 		return
 	}
 

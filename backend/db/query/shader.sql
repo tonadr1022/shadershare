@@ -19,3 +19,10 @@ RETURNING *;
 SELECT * FROM shaders 
 WHERE user_id = $1
 LIMIT $2 OFFSET $3;
+
+-- name: UpdateShader :one
+UPDATE shaders 
+SET title = COALESCE($3, title),
+    description = COALESCE($4, description)
+WHERE id = $1 AND user_id = $2
+RETURNING *;

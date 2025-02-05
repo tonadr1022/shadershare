@@ -19,6 +19,10 @@ func (s shaderService) GetUserShaderList(ctx context.Context, userID uuid.UUID, 
 	return s.repo.GetUserShaderList(ctx, userID, limit, offset)
 }
 
+func (s shaderService) UpdateShader(ctx context.Context, userID uuid.UUID, shaderID uuid.UUID, updatePayload domain.UpdateShaderPayload) (*domain.Shader, error) {
+	return s.repo.UpdateShader(ctx, userID, shaderID, updatePayload)
+}
+
 func (s shaderService) GetShaderList(ctx context.Context, sort string, limit int, offset int) ([]domain.Shader, error) {
 	return s.repo.GetShaderList(ctx, sort, limit, offset)
 }

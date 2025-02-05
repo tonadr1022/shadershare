@@ -24,6 +24,11 @@ type (
 		PassIndex int       `json:"pass_index"`
 	}
 
+	UpdateShaderPayload struct {
+		Title       *string `json:"title,omitempty"`
+		Description *string `json:"description,omitempty"`
+	}
+
 	CreateRenderPassForShaderPayload struct {
 		ShaderID  string `json:"shader_id" binding:"required"`
 		Code      string `json:"code" binding:"required"`
@@ -50,6 +55,7 @@ type (
 		GetShaderList(ctx context.Context, sort string, limit int, offset int) ([]Shader, error)
 		CreateShader(ctx context.Context, userID uuid.UUID, shaderPayload CreateShaderPayload) (*ShaderWithRenderPasses, error)
 		GetUserShaderList(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]Shader, error)
+		UpdateShader(ctx context.Context, userID uuid.UUID, shaderID uuid.UUID, updatePayload UpdateShaderPayload) (*Shader, error)
 		// CreateRenderPass(ctx context.Context, payload CreateRenderPassPayload) error
 	}
 
@@ -57,5 +63,6 @@ type (
 		GetShaderList(ctx context.Context, sort string, limit int, offset int) ([]Shader, error)
 		CreateShader(ctx context.Context, userID uuid.UUID, shaderPayload CreateShaderPayload) (*ShaderWithRenderPasses, error)
 		GetUserShaderList(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]Shader, error)
+		UpdateShader(ctx context.Context, userID uuid.UUID, shaderID uuid.UUID, updatePayload UpdateShaderPayload) (*Shader, error)
 	}
 )
