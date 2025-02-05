@@ -102,8 +102,9 @@ func (r shaderRepository) UpdateShader(ctx context.Context, userID uuid.UUID, sh
 		UserID: userID,
 	}
 	if updatePayload.Title != nil {
-		params.Title = *updatePayload.Title
+		params.Column3 = *updatePayload.Title
 	}
+
 	if updatePayload.Description != nil {
 		params.Description = pgtype.Text{String: *updatePayload.Description, Valid: true}
 	}

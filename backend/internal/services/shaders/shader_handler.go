@@ -1,7 +1,6 @@
 package shaders
 
 import (
-	"fmt"
 	"net/http"
 	"shadershare/internal/domain"
 	"shadershare/internal/e"
@@ -10,7 +9,6 @@ import (
 	"shadershare/internal/util"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 )
 
@@ -30,39 +28,24 @@ func (h ShaderHandler) updateShader(c *gin.Context) {
 	shaderID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		util.SetErrorResponse(c, http.StatusBadRequest, "Invalid shader ID")
+		return
 	}
 	if !ok {
 		util.SetInternalServiceErrorResponse(c)
 	}
 	var payload domain.UpdateShaderPayload
-	// if err := c.ShouldBindJSON(&payload); err != nil {
-	// 	c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payload"})
-	// 	return
-	// }
-	if err := c.ShouldBindJSON(&payload); err != nil {
-		var validationErrors []string
-
-		// Check for validator errors
-		if errors, ok := err.(validator.ValidationErrors); ok {
-			for _, err := range errors {
-				// Format error messages based on tag (field and reason)
-				validationErrors = append(validationErrors, fmt.Sprintf("Field '%s' failed on '%s'", err.Field(), err.Tag()))
-			}
-		} else {
-			// Generic error fallback
-			validationErrors = append(validationErrors, err.Error())
-		}
-
-		c.JSON(http.StatusBadRequest, gin.H{"errors": validationErrors})
+	if ok := util.ValidateAndSetErrors(c, &payload); !ok {
 		return
 	}
-	fmt.Println("update shader payload", payload)
+
 	shader, err := h.service.UpdateShader(c, userctx.ID, shaderID, payload)
 	if err != nil {
 		if err == e.ErrNotFound {
 			util.SetErrorResponse(c, http.StatusNotFound, "Shader not found")
+			return
 		} else {
 			util.SetInternalServiceErrorResponse(c)
+			return
 		}
 	}
 	c.JSON(http.StatusOK, shader)
@@ -75,8 +58,7 @@ func (h ShaderHandler) createShader(c *gin.Context) {
 		return
 	}
 	var payload domain.CreateShaderPayload
-	if err := c.ShouldBindJSON(&payload); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payload"})
+	if ok := util.ValidateAndSetErrors(c, &payload); !ok {
 		return
 	}
 

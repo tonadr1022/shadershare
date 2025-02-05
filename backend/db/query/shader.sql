@@ -22,7 +22,7 @@ LIMIT $2 OFFSET $3;
 
 -- name: UpdateShader :one
 UPDATE shaders 
-SET title = COALESCE($3, title),
+SET title = COALESCE(NULLIF($3::TEXT,''), title),
     description = COALESCE($4, description)
 WHERE id = $1 AND user_id = $2
 RETURNING *;

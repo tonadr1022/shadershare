@@ -1,7 +1,6 @@
 package user
 
 import (
-	"fmt"
 	"net/http"
 	"shadershare/internal/domain"
 	"shadershare/internal/e"
@@ -26,10 +25,10 @@ func RegisterHandlers(r *gin.RouterGroup, shaderService domain.ShaderService, us
 
 func (h userHandler) login(c *gin.Context) {
 	var payload domain.LoginPayload
-	if err := c.ShouldBindJSON(&payload); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payload"})
+	if ok := util.ValidateAndSetErrors(c, &payload); !ok {
 		return
 	}
+
 	user, err := h.userService.LoginUser(c, payload)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
@@ -40,9 +39,7 @@ func (h userHandler) login(c *gin.Context) {
 
 func (h userHandler) register(c *gin.Context) {
 	var payload domain.CreateUserPayload
-	if err := c.ShouldBindJSON(&payload); err != nil {
-		fmt.Println(err)
-		util.SetErrorResponse(c, http.StatusBadRequest, "Invalid payload")
+	if ok := util.ValidateAndSetErrors(c, &payload); !ok {
 		return
 	}
 
