@@ -1,13 +1,28 @@
 services:
+  # frontend:
+  #   container_name: frontend
+  #   build:
+  #     context: ./frontend
+  #   depends_on:
+  #     - backend
+  #   ports:
+  #     - 3000:3000
+  #   volumes:
+  #     - ./frontend:/app
+  #     - /app/node_modules
+  #   environment:
+  #     - NODE_ENV=development
+  #   networks:
+  #     - client-side
   backend:
     depends_on:
       db:
         condition: service_healthy
     build:
-      context: .
-      dockerfile: cmd/server/Dockerfile.dev
+      context: ./backend
+      dockerfile: ./cmd/server/Dockerfile.dev
     volumes:
-      - .:/app
+      - ./backend:/app
     container_name: shadershare_backend
     hostname: shadershare_backend
     ports:
@@ -17,12 +32,31 @@ services:
         condition: on-failure
     environment:
       - DATABASE_URL=postgres://postgres:password@db:5432/postgres?sslmode=disable
-      - JWT_SECRET=739e03884297c1e8e976
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - GOOGLE_REDIRECT_URL=${GOOGLE_REDIRECT_URL}
+      - ENVIRON=${ENVIRON}
+      - AUTH_BASE_URL=${AUTH_BASE_URL}
+      - SESSION_SECRET=${SESSION_SECRET}
+      # - JWT_SECRET=739e03884297c1e8e976
+      # - REDIS_URL=redis:6379
+      # - REDIS_SECRET=9F63929B4DE348EE76F452EEE9526
     networks:
       - localnet
+  # redis:
+  #   image: bitnami/redis:latest
+  #   container_name: shadershader_redis
+  #   volumes:
+  #     - ./data:/bitnami/redis/data
+  #   networks:
+  #     - localnet
+  #   ports:
+  #     - 6379:6379
+  #   environment:
+  #     - ALLOW_EMPTY_PASSWORD=yes
   db:
     image: postgres
-    container_name: postgres_db
+    container_name: postgres
     restart: always
     environment:
       POSTGRES_USER: postgres
@@ -39,6 +73,8 @@ services:
 
   migrate: &basemigrate
     container_name: migrate
+    build:
+      context: ./backend
     profiles: ["tools"]
     depends_on:
       db:
@@ -52,7 +88,7 @@ services:
     links:
       - db
     volumes:
-      - ./db/migrations:/migrations
+      - ./backend/db/migrations:/migrations
     environment:
       - DATABASE_URL=postgres://postgres:password@db:5432/postgres?sslmode=disable
   migrate-create:
@@ -68,3 +104,4 @@ volumes:
 networks:
   localnet:
     driver: bridge
+  client-side:

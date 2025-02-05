@@ -2,12 +2,12 @@ package middleware
 
 import (
 	"net/http"
-	"shadershare/internal/config"
 	"shadershare/internal/domain"
 	"shadershare/internal/util"
-	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"github.com/markbates/goth/gothic"
 )
 
 type jwtHeader struct {
@@ -18,30 +18,31 @@ type contextKey int
 
 const userKey contextKey = iota
 
-func JWT() gin.HandlerFunc {
+func Auth() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		authHeader := ctx.GetHeader("Authorization")
-		if authHeader == "" {
-			ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization header missing"})
-			ctx.Abort()
-			return
-		}
-
-		tokenString := strings.TrimSpace(strings.TrimPrefix(authHeader, "Bearer "))
-		if tokenString == "" {
-			ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization token required"})
-			ctx.Abort()
-			return
-		}
-
-		claims, err := util.ParseJWT(tokenString, config.JWTSecret)
+		session, err := gothic.Store.Get(ctx.Request, gothic.SessionName)
 		if err != nil {
-			ctx.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+			util.SetErrorResponse(ctx, http.StatusUnauthorized, "Unauthorized: failed to retrieve session.")
 			ctx.Abort()
 			return
 		}
-
-		userctx := &domain.UserCtx{ID: claims.ID}
+		userID, ok := session.Values["user_id"]
+		if !ok {
+			util.SetErrorResponse(ctx, http.StatusUnauthorized, "Unauthorized: cookie not found.")
+		}
+		userIDStr, ok := userID.(string)
+		if !ok {
+			util.SetErrorResponse(ctx, http.StatusInternalServerError, "Internal server error: user ID is not a string.")
+			ctx.Abort()
+			return
+		}
+		userIDuuid, err := uuid.Parse(userIDStr)
+		if err != nil {
+			util.SetErrorResponse(ctx, http.StatusInternalServerError, "Internal server error: failed to parse user ID.")
+			ctx.Abort()
+			return
+		}
+		userctx := &domain.UserCtx{ID: userIDuuid}
 		ctx.Set("currentUser", userctx)
 		ctx.Next()
 	}

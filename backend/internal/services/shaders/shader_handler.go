@@ -19,8 +19,8 @@ type ShaderHandler struct {
 func RegisterHandlers(r *gin.RouterGroup, service domain.ShaderService) {
 	h := &ShaderHandler{service}
 	r.GET("/shader", h.getShaderList)
-	r.POST("/shader", middleware.JWT(), h.createShader)
-	r.PUT("/shader/:id", middleware.JWT(), h.updateShader)
+	r.POST("/shader", middleware.Auth(), h.createShader)
+	r.PUT("/shader/:id", middleware.Auth(), h.updateShader)
 }
 
 func (h ShaderHandler) updateShader(c *gin.Context) {

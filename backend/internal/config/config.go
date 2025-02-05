@@ -1,15 +1,15 @@
 package config
 
-import (
-	"log"
-	"os"
+var (
+	// JWTSecret   string
+	IsProd        bool
+	AuthBaseURL   string
+	SessionSecret string
 )
 
-var JWTSecret string
-
 func LoadConfig() {
-	JWTSecret = os.Getenv("JWT_SECRET")
-	if JWTSecret == "" {
-		log.Fatal("JWT_SECRET is not set")
-	}
+	// JWTSecret = os.Getenv("JWT_SECRET")
+	// if JWTSecret == "" {
+	// 	log.Fatal("JWT_SECRET is not set")
+	// }
 }

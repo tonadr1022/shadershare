@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"shadershare/internal/auth"
 	"shadershare/internal/db"
 	"shadershare/internal/services/shaders"
 	"shadershare/internal/services/user"
@@ -14,8 +15,62 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
+// // Ref: https://godoc.org/github.com/gin-gonic/contrib/sessions#Options
+// store.Options(sessions.Options{
+// 	MaxAge:   86400,
+// 	Path:     "/",
+// 	Secure:   true,
+// 	HttpOnly: true,
+// })
+
+// func setupRedis(r *gin.Engine) {
+// 	REDIS_URL := os.Getenv("REDIS_URL")
+// 	if REDIS_URL == "" {
+// 		log.Fatal("REDIS_URL is not set")
+// 	}
+// 	REDIS_SECRET := os.Getenv("REDIS_SECRET")
+// 	if REDIS_SECRET == "" {
+// 		log.Fatal("REDIS_SECRET is not set")
+// 	}
+// 	REDIS_PASSWORD := os.Getenv("REDIS_PASSWORD")
+// 	store, err := redis.NewStore(10, "tcp", REDIS_URL, REDIS_PASSWORD, []byte(REDIS_SECRET))
+// 	if err != nil {
+// 		log.Fatalf("Error connecting to Redis: %v", err)
+// 	}
+//
+// 	r.Use(sessions.Sessions("mysession", store))
+//
+// 	r.GET("/incr2", func(c *gin.Context) {
+// 		session := sessions.Default(c)
+// 		var count int
+// 		v := session.Get("count2")
+// 		if v == nil {
+// 			count = 0
+// 		} else {
+// 			count = v.(int)
+// 			count++
+// 		}
+// 		session.Set("count2", count)
+// 		session.Save()
+// 		c.JSON(200, gin.H{"count2": count})
+// 	})
+// }
+
 func Run() {
+	isProd := os.Getenv("ENVIRON") == "prod"
+	sessionSecret := os.Getenv("SESSION_SECRET")
+	authBaseURL := os.Getenv("AUTH_BASE_URL")
+	if authBaseURL == "" {
+		log.Fatal("AUTH_BASE_URL environment variable is not set")
+	}
+	if sessionSecret == "" {
+		log.Fatal("SESSION_SECRET environment variable is not set")
+	}
+
+	auth.NewAuth(isProd, authBaseURL, 8640000, sessionSecret)
+
 	r := gin.Default()
+
 	dbdata, err := initDB()
 	if err != nil {
 		log.Fatalf("Error initializing database: %v", err)
@@ -44,7 +99,7 @@ func setupRoutes(r *gin.Engine, dbConn *pgx.Conn) {
 	shaderService := shaders.NewShaderService(shaders.NewShaderRepository(dbConn, queries))
 	userService := user.NewUserService(user.NewUserRepository(queries))
 	shaders.RegisterHandlers(api, shaderService)
-	user.RegisterHandlers(api, shaderService, userService)
+	user.RegisterHandlers(r, api, shaderService, userService)
 }
 
 func initDB() (*pgx.Conn, error) {

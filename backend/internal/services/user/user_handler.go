@@ -1,6 +1,8 @@
 package user
 
 import (
+	"context"
+	"fmt"
 	"net/http"
 	"shadershare/internal/domain"
 	"shadershare/internal/e"
@@ -9,6 +11,7 @@ import (
 	"shadershare/internal/util"
 
 	"github.com/gin-gonic/gin"
+	"github.com/markbates/goth/gothic"
 )
 
 type userHandler struct {
@@ -16,25 +19,66 @@ type userHandler struct {
 	shaderService domain.ShaderService
 }
 
-func RegisterHandlers(r *gin.RouterGroup, shaderService domain.ShaderService, userService domain.UserService) {
-	h := userHandler{userService, shaderService}
-	r.POST("/register", h.register)
-	r.POST("/login", h.login)
-	r.GET("/profile", middleware.JWT(), h.profile)
+func authCallback(c *gin.Context) {
+	provider := c.Param("provider")
+	c.Request = c.Request.WithContext(context.WithValue(c.Request.Context(), "provider", provider))
+	oauthUser, err := gothic.CompleteUserAuth(c.Writer, c.Request)
+	if err != nil {
+		fmt.Println("Error completing user auth:", err)
+		util.SetErrorResponse(c, http.StatusInternalServerError, "Unexpected error")
+		return
+	}
+	fmt.Println("USER LOGGED IN", oauthUser)
+	c.JSON(http.StatusOK, gin.H{"user": oauthUser.Email})
 }
 
 func (h userHandler) login(c *gin.Context) {
-	var payload domain.LoginPayload
-	if ok := util.ValidateAndSetErrors(c, &payload); !ok {
-		return
+	provider := c.Param("provider")
+	c.Request = c.Request.WithContext(context.WithValue(c.Request.Context(), "provider", provider))
+	session, _ := gothic.Store.Get(c.Request, gothic.SessionName)
+	session.Values["provider"] = provider
+	session.Save(c.Request, c.Writer)
+	fmt.Println("Session Values:", session.Values)
+	if gothUser, err := gothic.CompleteUserAuth(c.Writer, c.Request); err == nil {
+		fmt.Println("User already logged in: ", gothUser)
+		c.JSON(http.StatusOK, gin.H{"user": gothUser.Email})
+	} else {
+		fmt.Println("User not logged in, starting auth: ", err)
+		gothic.BeginAuthHandler(c.Writer, c.Request)
 	}
+}
 
-	user, err := h.userService.LoginUser(c, payload)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
-		return
-	}
-	c.JSON(200, user)
+func RegisterHandlers(e *gin.Engine, r *gin.RouterGroup, shaderService domain.ShaderService, userService domain.UserService) {
+	h := userHandler{userService, shaderService}
+	e.GET("/auth/:provider", h.login)
+	e.GET("/auth/:provider/callback", authCallback)
+	r.POST("/register", h.register)
+	r.POST("/logout", h.logout)
+	r.GET("/profile", middleware.Auth(), h.profile)
+}
+
+// func (h userHandler) login(c *gin.Context) {
+// 	var payload domain.LoginPayload
+// 	if ok := util.ValidateAndSetErrors(c, &payload); !ok {
+// 		return
+// 	}
+//
+// 	userCtx, err := h.userService.LoginUser(c, payload)
+// 	if err != nil {
+// 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
+// 		return
+// 	}
+// 	if ok := h.setSession(c, userCtx); !ok {
+// 		return
+// 	}
+// 	c.JSON(200, userCtx)
+// }
+
+func (h userHandler) logout(c *gin.Context) {
+	gothic.Logout(c.Writer, c.Request)
+	// TODO: better redirect?
+	c.Redirect(http.StatusTemporaryRedirect, "/")
+	return
 }
 
 func (h userHandler) register(c *gin.Context) {
@@ -43,7 +87,7 @@ func (h userHandler) register(c *gin.Context) {
 		return
 	}
 
-	loginResp, err := h.userService.RegisterUser(c, payload)
+	userCtx, err := h.userService.RegisterUser(c, payload)
 	if err == e.ErrEmailAlreadyExists {
 		util.SetErrorResponse(c, http.StatusBadRequest, "Email already exists")
 		return
@@ -56,7 +100,7 @@ func (h userHandler) register(c *gin.Context) {
 		util.SetErrorResponse(c, http.StatusInternalServerError, "Failed to register user")
 		return
 	}
-	c.JSON(http.StatusOK, loginResp)
+	c.JSON(http.StatusOK, userCtx)
 }
 
 func (h userHandler) profile(c *gin.Context) {

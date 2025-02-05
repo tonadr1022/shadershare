@@ -2,60 +2,56 @@ package user
 
 import (
 	"context"
-	"os"
 	"shadershare/internal/domain"
 	"shadershare/internal/e"
-	"shadershare/internal/util"
 
 	"golang.org/x/crypto/bcrypt"
 )
 
 type service struct {
-	repo                      domain.UserRepository
-	jwtSecret                 string
-	jwtTokenExpirationMinutes int
+	repo domain.UserRepository
 }
 
 func NewUserService(repo domain.UserRepository) domain.UserService {
-	return &service{repo: repo, jwtSecret: os.Getenv("JWT_SECRET")}
+	return &service{repo: repo}
 }
 
-func (s service) RegisterUser(ctx context.Context, payload domain.CreateUserPayload) (domain.LoginResponse, error) {
+func (s service) RegisterUser(ctx context.Context, payload domain.CreateUserPayload) (*domain.UserCtx, error) {
 	// check if user exists
 	_, err := s.repo.GetUserByEmailOrUsername(ctx, payload.Username)
 	if err == nil {
-		return domain.LoginResponse{}, e.ErrUsernameAlreadyExists
+		return nil, e.ErrUsernameAlreadyExists
 	}
 	_, err = s.repo.GetUserByEmail(ctx, payload.Email)
 	if err == nil {
-		return domain.LoginResponse{}, e.ErrEmailAlreadyExists
+		return nil, e.ErrEmailAlreadyExists
 	}
 
 	var hashPassword []byte
 	hashPassword, err = s.hashPassword(payload.Password)
 	if err != nil {
-		return domain.LoginResponse{}, err
+		return nil, err
 	}
 	payload.Password = string(hashPassword)
 	user, err := s.repo.CreateUser(ctx, payload)
 	if err != nil {
-		return domain.LoginResponse{}, err
+		return nil, err
 	}
 
-	token, err := util.GenerateJWT(*user)
-	return domain.LoginResponse{Token: token}, err
+	userCtx := &domain.UserCtx{ID: user.ID}
+	return userCtx, err
 }
 
-func (s service) LoginUser(ctx context.Context, payload domain.LoginPayload) (domain.LoginResponse, error) {
+func (s service) LoginUser(ctx context.Context, payload domain.LoginPayload) (*domain.UserCtx, error) {
 	user, err := s.repo.GetUserByEmailOrUsername(ctx, payload.UsernameOrEmail)
 	if err != nil {
-		return domain.LoginResponse{}, e.ErrUserNotFound
+		return nil, e.ErrUserNotFound
 	}
 	if !s.passwordMatch(user.Password, payload.Password) {
-		return domain.LoginResponse{}, e.ErrInvalidCredentials
+		return nil, e.ErrInvalidCredentials
 	}
-	token, err := util.GenerateJWT(*user)
-	return domain.LoginResponse{Token: token}, err
+	userCtx := &domain.UserCtx{ID: user.ID}
+	return userCtx, err
 }
 
 func (s service) passwordMatch(hashedPassword string, password string) bool {

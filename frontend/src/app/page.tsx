@@ -1,9 +1,19 @@
+"use client";
 import ShaderEditor from "@/app/view/components/editor/ShaderEditor";
 
 export default function Home() {
   return (
     <>
-      <ShaderEditor shaderId="test" />
+      <button
+        onClick={() => {
+          fetch("http://localhost:8080/auth/google").then((res) => {
+            console.log(res);
+          });
+        }}
+      >
+        login
+      </button>
+      {/* <ShaderEditor shaderId="test" /> */}
     </>
   );
   // return (
