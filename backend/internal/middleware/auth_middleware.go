@@ -2,10 +2,9 @@ package middleware
 
 import (
 	"net/http"
-	"shadershare/internal/config"
+	"shadershare/internal/auth"
 	"shadershare/internal/domain"
-	"shadershare/internal/util"
-	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -18,32 +17,48 @@ type contextKey int
 
 const userKey contextKey = iota
 
-func JWT() gin.HandlerFunc {
+func Auth() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		authHeader := ctx.GetHeader("Authorization")
-		if authHeader == "" {
-			ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization header missing"})
-			ctx.Abort()
-			return
+		accessToken, err := ctx.Request.Cookie("accessToken")
+		if err == nil {
+			// parse the jwt
+			claims, err := auth.Instance().ParseJWTWithClaims(accessToken.Value)
+			if err != nil {
+				ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+				return
+			}
+			// check if the token is expired
+			if claims.ExpiresAt.Unix() > time.Now().Unix() {
+				// valid access token, authenticated
+				userctx := &domain.UserCtx{ID: claims.ID}
+				ctx.Set("currentUser", userctx)
+				ctx.Next()
+				return
+			}
 		}
 
-		tokenString := strings.TrimSpace(strings.TrimPrefix(authHeader, "Bearer "))
-		if tokenString == "" {
-			ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization token required"})
-			ctx.Abort()
-			return
+		// expired or missing access token, try refresh token
+		refreshToken, err := ctx.Request.Cookie("refreshToken")
+		if err == nil {
+			claims, err := auth.Instance().ParseJWTWithClaims(refreshToken.Value)
+			if err != nil {
+				ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+				return
+			}
+			if claims.ExpiresAt.Unix() > time.Now().Unix() {
+				// refresh access token
+				accessToken, err := auth.Instance().GenerateAccessToken(claims.ID, claims.Email)
+				if err != nil {
+					ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+				}
+				auth.Instance().SetAccessTokenCookie(ctx, accessToken)
+				userctx := &domain.UserCtx{ID: claims.ID, Email: claims.Email}
+				ctx.Set("currentUser", userctx)
+				ctx.Next()
+				return
+			}
 		}
-
-		claims, err := util.ParseJWT(tokenString, config.JWTSecret)
-		if err != nil {
-			ctx.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
-			ctx.Abort()
-			return
-		}
-
-		userctx := &domain.UserCtx{ID: claims.ID}
-		ctx.Set("currentUser", userctx)
-		ctx.Next()
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "no refresh token, unauthenticated"})
 	}
 }
 

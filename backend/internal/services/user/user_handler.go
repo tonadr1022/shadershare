@@ -2,6 +2,7 @@ package user
 
 import (
 	"net/http"
+	"shadershare/internal/auth"
 	"shadershare/internal/domain"
 	"shadershare/internal/e"
 	"shadershare/internal/middleware"
@@ -20,7 +21,7 @@ func RegisterHandlers(r *gin.RouterGroup, shaderService domain.ShaderService, us
 	h := userHandler{userService, shaderService}
 	r.POST("/register", h.register)
 	r.POST("/login", h.login)
-	r.GET("/profile", middleware.JWT(), h.profile)
+	r.GET("/profile", middleware.Auth(), h.profile)
 }
 
 func (h userHandler) login(c *gin.Context) {
@@ -29,12 +30,15 @@ func (h userHandler) login(c *gin.Context) {
 		return
 	}
 
-	user, err := h.userService.LoginUser(c, payload)
+	tokenPair, err := h.userService.LoginUser(c, payload)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 		return
 	}
-	c.JSON(200, user)
+
+	auth.Instance().SetAccessTokenCookie(c, tokenPair.AccessToken)
+	auth.Instance().SetRefreshTokenCookie(c, tokenPair.RefreshToken)
+	c.JSON(http.StatusOK, gin.H{"message": "User logged in successfully"})
 }
 
 func (h userHandler) register(c *gin.Context) {
@@ -43,7 +47,7 @@ func (h userHandler) register(c *gin.Context) {
 		return
 	}
 
-	loginResp, err := h.userService.RegisterUser(c, payload)
+	tokenPair, err := h.userService.RegisterUser(c, payload)
 	if err == e.ErrEmailAlreadyExists {
 		util.SetErrorResponse(c, http.StatusBadRequest, "Email already exists")
 		return
@@ -56,7 +60,10 @@ func (h userHandler) register(c *gin.Context) {
 		util.SetErrorResponse(c, http.StatusInternalServerError, "Failed to register user")
 		return
 	}
-	c.JSON(http.StatusOK, loginResp)
+
+	auth.Instance().SetAccessTokenCookie(c, tokenPair.AccessToken)
+	auth.Instance().SetRefreshTokenCookie(c, tokenPair.RefreshToken)
+	c.JSON(http.StatusOK, gin.H{"message": "User registered successfully"})
 }
 
 func (h userHandler) profile(c *gin.Context) {

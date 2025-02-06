@@ -18,6 +18,7 @@ services:
     environment:
       - DATABASE_URL=postgres://postgres:password@db:5432/postgres?sslmode=disable
       - JWT_SECRET=739e03884297c1e8e976
+      - ENVIRONMENT="dev"
     networks:
       - localnet
   db:

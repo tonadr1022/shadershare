@@ -6,15 +6,36 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"shadershare/internal/auth"
 	"shadershare/internal/db"
 	"shadershare/internal/services/shaders"
 	"shadershare/internal/services/user"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
 )
 
 func Run() {
+	environment := os.Getenv("ENVIRONMENT")
+	if environment == "" {
+		environment = "dev"
+	}
+
+	isProd := environment == "prod"
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		log.Fatal("JWT_SECRET is not set")
+	}
+
+	auth.InitAuth(&auth.AuthSettings{
+		JWTSecret:          jwtSecret,
+		AccessTokenMaxAge:  15 * time.Minute,
+		RefreshTokenMaxAge: 30 * 24 * time.Hour,
+		Secure:             isProd,
+		HttpOnly:           true,
+	})
+
 	r := gin.Default()
 	dbdata, err := initDB()
 	if err != nil {

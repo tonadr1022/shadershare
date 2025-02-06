@@ -2,19 +2,13 @@ package domain
 
 import (
 	"context"
+	"shadershare/internal/auth"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 )
 
 type (
-	UserClaims struct {
-		ID    uuid.UUID `json:"id"`
-		Email string    `json:"email"`
-		jwt.RegisteredClaims
-	}
-
 	User struct {
 		ID        uuid.UUID `json:"id"`
 		Username  string    `json:"username"`
@@ -25,7 +19,8 @@ type (
 	}
 
 	UserCtx struct {
-		ID uuid.UUID
+		ID    uuid.UUID
+		Email string
 	}
 
 	CreateUserPayload struct {
@@ -39,13 +34,9 @@ type (
 		Password        string `json:"password" binding:"required"`
 	}
 
-	LoginResponse struct {
-		Token string `json:"token"`
-	}
-
 	UserService interface {
-		RegisterUser(ctx context.Context, payload CreateUserPayload) (LoginResponse, error)
-		LoginUser(ctx context.Context, payload LoginPayload) (LoginResponse, error)
+		RegisterUser(ctx context.Context, payload CreateUserPayload) (auth.JWTPair, error)
+		LoginUser(ctx context.Context, payload LoginPayload) (auth.JWTPair, error)
 	}
 
 	UserRepository interface {
