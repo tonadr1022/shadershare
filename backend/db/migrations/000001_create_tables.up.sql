@@ -1,19 +1,5 @@
 -- CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
-CREATE TABLE IF NOT EXISTS users (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    username TEXT UNIQUE,
-    email TEXT NOT NULL UNIQUE,
-    password TEXT,
-    oauth_provider TEXT,
-    oauth_provider_id TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
-);
-
-CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_lower_username ON users (LOWER(username));
-CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_lower_email ON users (LOWER(email));
-
 -- triggers for updated_at
 CREATE OR REPLACE FUNCTION update_timestamp()
 RETURNS TRIGGER AS $$
@@ -22,6 +8,31 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+
+CREATE TABLE IF NOT EXISTS sessions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL,
+    session_token TEXT NOT NULL,
+    refresh_token TEXT NOT NULL,
+    expires TIMESTAMP WITH TIME ZONE NOT NULL,
+);
+
+CREATE TABLE IF NOT EXISTS users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    username TEXT UNIQUE,
+    email TEXT NOT NULL UNIQUE,
+    refresh_token TEXT,
+    profile_image TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_lower_username ON users (LOWER(username));
+CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_lower_email ON users (LOWER(email));
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_user_id ON accounts(user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_user_id_sessions ON sessions(user_id);   
+
 
 CREATE TRIGGER trigger_update_users_timestamp
 BEFORE UPDATE ON users

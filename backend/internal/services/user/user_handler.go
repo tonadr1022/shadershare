@@ -11,6 +11,7 @@ import (
 	"shadershare/internal/util"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gorilla/sessions"
 	"github.com/markbates/goth/gothic"
 )
 
@@ -22,23 +23,50 @@ type userHandler struct {
 func authCallback(c *gin.Context) {
 	provider := c.Param("provider")
 	c.Request = c.Request.WithContext(context.WithValue(c.Request.Context(), "provider", provider))
+	fmt.Println("auth callback called, completing with gothic")
 	oauthUser, err := gothic.CompleteUserAuth(c.Writer, c.Request)
 	if err != nil {
 		fmt.Println("Error completing user auth:", err)
 		util.SetErrorResponse(c, http.StatusInternalServerError, "Unexpected error")
 		return
 	}
-	fmt.Println("USER LOGGED IN", oauthUser)
-	c.JSON(http.StatusOK, gin.H{"user": oauthUser.Email})
+	// store in DB, access token, refresh token logic
+	accessToken := oauthUser.AccessToken
+	refreshToken := oauthUser.RefreshToken
+	session, err := gothic.Store.New(c.Request, "session_id")
+	if err != nil {
+		fmt.Println("Error creating session:", err)
+		util.SetErrorResponse(c, http.StatusInternalServerError, "Unexpected error")
+		return
+	}
+	session.Values["access_token"] = accessToken
+	session.Values["refresh_token"] = refreshToken
+	session.Options = &sessions.Options{
+		Path:     "/",
+		MaxAge:   86400 * 30,
+		HttpOnly: true,
+		Secure:   false, // TODO:
+	}
+	if err := session.Save(c.Request, c.Writer); err != nil {
+		fmt.Println("Error saving session:", err)
+		util.SetErrorResponse(c, http.StatusInternalServerError, "Unexpected error")
+		return
+	}
+
+	// if the user doesnt exist, create a user
+
+	// if the user exists, update the user
+
+	http.Redirect(c.Writer, c.Request, "http://localhost:3000", http.StatusFound)
 }
 
 func (h userHandler) login(c *gin.Context) {
 	provider := c.Param("provider")
 	c.Request = c.Request.WithContext(context.WithValue(c.Request.Context(), "provider", provider))
-	session, _ := gothic.Store.Get(c.Request, gothic.SessionName)
-	session.Values["provider"] = provider
-	session.Save(c.Request, c.Writer)
-	fmt.Println("Session Values:", session.Values)
+	// session, _ := gothic.Store.Get(c.Request, gothic.SessionName)
+	// session.Values["provider"] = provider
+	// session.Save(c.Request, c.Writer)
+	fmt.Println("starting login with gothic")
 	if gothUser, err := gothic.CompleteUserAuth(c.Writer, c.Request); err == nil {
 		fmt.Println("User already logged in: ", gothUser)
 		c.JSON(http.StatusOK, gin.H{"user": gothUser.Email})
@@ -52,8 +80,8 @@ func RegisterHandlers(e *gin.Engine, r *gin.RouterGroup, shaderService domain.Sh
 	h := userHandler{userService, shaderService}
 	e.GET("/auth/:provider", h.login)
 	e.GET("/auth/:provider/callback", authCallback)
+	e.GET("/auth/logout", h.logout)
 	r.POST("/register", h.register)
-	r.POST("/logout", h.logout)
 	r.GET("/profile", middleware.Auth(), h.profile)
 }
 
@@ -77,8 +105,7 @@ func RegisterHandlers(e *gin.Engine, r *gin.RouterGroup, shaderService domain.Sh
 func (h userHandler) logout(c *gin.Context) {
 	gothic.Logout(c.Writer, c.Request)
 	// TODO: better redirect?
-	c.Redirect(http.StatusTemporaryRedirect, "/")
-	return
+	c.Redirect(http.StatusTemporaryRedirect, "http://localhost:3000")
 }
 
 func (h userHandler) register(c *gin.Context) {

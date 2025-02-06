@@ -10,7 +10,9 @@ import (
 	"shadershare/internal/db"
 	"shadershare/internal/services/shaders"
 	"shadershare/internal/services/user"
+	"strings"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
 )
@@ -75,6 +77,25 @@ func Run() {
 	if err != nil {
 		log.Fatalf("Error initializing database: %v", err)
 	}
+
+	// TODO: cleanup
+	AllowedOrigins := os.Getenv("ALLOWED_ORIGINS")
+	var allowedOrigins []string
+	if AllowedOrigins == "" && !isProd {
+		allowedOrigins = []string{"*"}
+	} else if isProd {
+		log.Fatal("ALLOWED_ORIGINS environment variable is not set")
+	} else {
+		allowedOrigins = strings.Split(AllowedOrigins, ",")
+	}
+	allowedOrigins = append(allowedOrigins, "http://localhost:3000")
+	fmt.Println("allowedOrigins", allowedOrigins)
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:3000"},
+		AllowMethods:     []string{"GET", "PUT", "PATCH", "DELETE", "HEAD", "POST"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Content-Length", "Accept-Encoding", "X-CSRF-Token", "Authorization"},
+		AllowCredentials: true,
+	}))
 	setupRoutes(r, dbdata)
 
 	httpPort := os.Getenv("PORT")

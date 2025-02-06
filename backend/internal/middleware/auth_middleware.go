@@ -2,12 +2,10 @@ package middleware
 
 import (
 	"net/http"
+	"shadershare/internal/auth"
 	"shadershare/internal/domain"
-	"shadershare/internal/util"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
-	"github.com/markbates/goth/gothic"
 )
 
 type jwtHeader struct {
@@ -20,31 +18,43 @@ const userKey contextKey = iota
 
 func Auth() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		session, err := gothic.Store.Get(ctx.Request, gothic.SessionName)
+		session, err := auth.GetStore().Get(ctx.Request, "session_id")
 		if err != nil {
-			util.SetErrorResponse(ctx, http.StatusUnauthorized, "Unauthorized: failed to retrieve session.")
-			ctx.Abort()
+			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 			return
 		}
-		userID, ok := session.Values["user_id"]
+		// get acces token
+		accessToken, ok := session.Values["access_token"]
 		if !ok {
-			util.SetErrorResponse(ctx, http.StatusUnauthorized, "Unauthorized: cookie not found.")
-		}
-		userIDStr, ok := userID.(string)
-		if !ok {
-			util.SetErrorResponse(ctx, http.StatusInternalServerError, "Internal server error: user ID is not a string.")
-			ctx.Abort()
+			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 			return
 		}
-		userIDuuid, err := uuid.Parse(userIDStr)
-		if err != nil {
-			util.SetErrorResponse(ctx, http.StatusInternalServerError, "Internal server error: failed to parse user ID.")
-			ctx.Abort()
-			return
-		}
-		userctx := &domain.UserCtx{ID: userIDuuid}
-		ctx.Set("currentUser", userctx)
-		ctx.Next()
+		// session,err := store
+		// session, err := gothic.Store.Get(ctx.Request, gothic.SessionName)
+		// if err != nil {
+		// 	util.SetErrorResponse(ctx, http.StatusUnauthorized, "Unauthorized: failed to retrieve session.")
+		// 	ctx.Abort()
+		// 	return
+		// }
+		// userID, ok := session.Values["user_id"]
+		// if !ok {
+		// 	util.SetErrorResponse(ctx, http.StatusUnauthorized, "Unauthorized: cookie not found.")
+		// }
+		// userIDStr, ok := userID.(string)
+		// if !ok {
+		// 	util.SetErrorResponse(ctx, http.StatusInternalServerError, "Internal server error: user ID is not a string.")
+		// 	ctx.Abort()
+		// 	return
+		// }
+		// userIDuuid, err := uuid.Parse(userIDStr)
+		// if err != nil {
+		// 	util.SetErrorResponse(ctx, http.StatusInternalServerError, "Internal server error: failed to parse user ID.")
+		// 	ctx.Abort()
+		// 	return
+		// }
+		// userctx := &domain.UserCtx{ID: userIDuuid}
+		// ctx.Set("currentUser", userctx)
+		// ctx.Next()
 	}
 }
 

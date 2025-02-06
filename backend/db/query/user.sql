@@ -34,3 +34,32 @@ RETURNING *;
 -- name: DeleteUser :exec
 DELETE FROM users
 WHERE id = $1;
+
+
+-- name: CreateSession :one 
+INSERT INTO sessions (
+    user_id, refresh_token, expires
+) VALUES (
+    $1, $2, $3
+);
+
+-- name: GetSessionByToken :one
+SELECT * FROM sessions
+WHERE session_token = $1;
+
+
+-- name: DeleteSession :exec
+DELETE FROM sessions
+WHERE session_token = $1;
+
+-- name: DeleteSessionsByUserID :exec
+DELETE FROM sessions
+WHERE user_id = $1;
+
+
+-- name: CreateAccount :one
+INSERT INTO accounts (
+    user_id, provider, provider_id, provider_account_id
+) VALUES (
+    $1, $2, $3, $4
+);
