@@ -19,8 +19,7 @@ type (
 	}
 
 	UserCtx struct {
-		ID    uuid.UUID
-		Email string
+		ID uuid.UUID
 	}
 
 	CreateUserPayload struct {
@@ -37,6 +36,7 @@ type (
 	UserService interface {
 		RegisterUser(ctx context.Context, payload CreateUserPayload) (auth.JWTPair, error)
 		LoginUser(ctx context.Context, payload LoginPayload) (auth.JWTPair, error)
+		GetUserByID(ctx context.Context, id uuid.UUID) (*User, error)
 	}
 
 	UserRepository interface {

@@ -5,7 +5,6 @@ import { toast } from "sonner";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-// import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -30,10 +29,14 @@ const formSchema = z
       .min(3, "Username must be at least 3 characters long")
       .max(20, "Username must be at most 20 characters long"),
     email: z.string().email("Invalid email address"),
-    password: z.string().min(8, "Password must be at least 8 characters long"),
+    password: z
+      .string()
+      .min(6, "Password must be at least 6 characters long")
+      .regex(/[a-zA-Z0-9]/, { message: "Password must be alphanumeric" }),
     password_verify: z
       .string()
-      .min(8, "Password must be at least 8 characters long"),
+      .min(6, "Password must be at least 6 characters long")
+      .regex(/[a-zA-Z0-9]/, { message: "Password must be alphanumeric" }),
   })
   .refine(
     (data) => {
@@ -117,7 +120,7 @@ export default function RegisterForm() {
             <FormItem>
               <FormLabel>Password</FormLabel>
               <FormControl>
-                <PasswordInput placeholder="Placeholder" {...field} />
+                <PasswordInput placeholder="******" {...field} />
               </FormControl>
               <FormDescription>Enter your password.</FormDescription>
               <FormMessage />
@@ -132,7 +135,7 @@ export default function RegisterForm() {
             <FormItem>
               <FormLabel>Password Verify</FormLabel>
               <FormControl>
-                <PasswordInput placeholder="" {...field} />
+                <PasswordInput placeholder="******" {...field} />
               </FormControl>
               <FormDescription>Repeat your password.</FormDescription>
               <FormMessage />

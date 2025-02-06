@@ -52,12 +52,13 @@ func Auth() gin.HandlerFunc {
 					ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 				}
 				auth.Instance().SetAccessTokenCookie(ctx, accessToken)
-				userctx := &domain.UserCtx{ID: claims.ID, Email: claims.Email}
+				userctx := &domain.UserCtx{ID: claims.ID}
 				ctx.Set("currentUser", userctx)
 				ctx.Next()
 				return
 			}
 		}
+
 		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "no refresh token, unauthenticated"})
 	}
 }

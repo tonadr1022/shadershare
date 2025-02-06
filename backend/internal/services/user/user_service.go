@@ -33,6 +33,10 @@ func generateTokenPair(userID uuid.UUID, email string) (auth.JWTPair, error) {
 	return auth.JWTPair{AccessToken: access_token, RefreshToken: refresh_token}, err
 }
 
+func (s service) GetUserByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+	return s.repo.GetUserByID(ctx, id)
+}
+
 func (s service) RegisterUser(ctx context.Context, payload domain.CreateUserPayload) (auth.JWTPair, error) {
 	// check if user exists
 	_, err := s.repo.GetUserByEmailOrUsername(ctx, payload.Username)

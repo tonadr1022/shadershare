@@ -1,9 +1,8 @@
 import React from "react";
+import LoginForm from "./_components/LoginForm";
 
-type Props = {};
-
-const LoginPage = (props: Props) => {
-  return <div>LoginPage</div>;
+const LoginPage = () => {
+  return <LoginForm />;
 };
 
 export default LoginPage;

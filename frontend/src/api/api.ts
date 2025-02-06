@@ -12,6 +12,26 @@ const axiosInstance = axios.create({
     "Content-Type": "application/json",
   },
 });
+axiosInstance.interceptors.response.use(
+  (response) => {
+    return response;
+  },
+  (error) => {
+    if (error.response?.status === 401) {
+      const currentPath = encodeURIComponent(
+        window.location.pathname + window.location.search,
+      );
+      window.location.href = `/login?returnUrl=${currentPath}`;
+    }
+    return Promise.reject(error);
+  },
+);
+
+export const GetErrorMessage = (
+  error: AxiosError,
+): ErrorResponse | undefined => {
+  return error.response?.data as ErrorResponse | undefined;
+};
 
 // sends toasts for each error message
 export const SetToastErrors = (error: AxiosError, defaultMsg: string) => {
@@ -23,11 +43,6 @@ export const SetToastErrors = (error: AxiosError, defaultMsg: string) => {
   } else {
     toast.error(defaultMsg);
   }
-};
-export const GetErrorMessage = (
-  error: AxiosError,
-): ErrorResponse | undefined => {
-  return error.response?.data as ErrorResponse | undefined;
 };
 
 export default axiosInstance;

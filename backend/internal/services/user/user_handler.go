@@ -22,6 +22,7 @@ func RegisterHandlers(r *gin.RouterGroup, shaderService domain.ShaderService, us
 	r.POST("/register", h.register)
 	r.POST("/login", h.login)
 	r.GET("/profile", middleware.Auth(), h.profile)
+	r.GET("/me", middleware.Auth(), h.me)
 }
 
 func (h userHandler) login(c *gin.Context) {
@@ -36,7 +37,7 @@ func (h userHandler) login(c *gin.Context) {
 		return
 	}
 
-	c.SetSameSite(http.SameSiteNoneMode)
+	c.SetSameSite(http.SameSiteLaxMode)
 	auth.Instance().SetAccessTokenCookie(c, tokenPair.AccessToken)
 	auth.Instance().SetRefreshTokenCookie(c, tokenPair.RefreshToken)
 	c.JSON(http.StatusOK, gin.H{"message": "User logged in successfully"})
@@ -65,23 +66,13 @@ func (h userHandler) register(c *gin.Context) {
 	c.SetSameSite(http.SameSiteLaxMode)
 	auth.Instance().SetAccessTokenCookie(c, tokenPair.AccessToken)
 	auth.Instance().SetRefreshTokenCookie(c, tokenPair.RefreshToken)
-	c.SetSameSite(http.SameSiteLaxMode)
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "test",
-		Value:    "test",
-		Domain:   "localhost",
-		HttpOnly: true,
-		Secure:   false,
-		SameSite: http.SameSiteLaxMode,
-		MaxAge:   99999999,
-	})
 	c.JSON(http.StatusOK, gin.H{"message": "User registered successfully"})
 }
 
 func (h userHandler) profile(c *gin.Context) {
 	userctx, ok := middleware.CurrentUser(c)
 	if !ok {
-		util.SetErrorResponse(c, http.StatusInternalServerError, "Internal Server Error")
+		util.SetInternalServiceErrorResponse(c)
 		return
 	}
 
@@ -108,4 +99,17 @@ func (h userHandler) profile(c *gin.Context) {
 		return
 	}
 	util.SetErrorResponse(c, http.StatusBadRequest, "Invalid category")
+}
+
+func (h userHandler) me(c *gin.Context) {
+	userctx, ok := middleware.CurrentUser(c)
+	if !ok {
+		util.SetInternalServiceErrorResponse(c)
+		return
+	}
+	user, err := h.userService.GetUserByID(c, userctx.ID)
+	if err != nil {
+		util.SetErrorResponse(c, http.StatusInternalServerError, "Internal Server Error")
+	}
+	c.JSON(http.StatusOK, user)
 }

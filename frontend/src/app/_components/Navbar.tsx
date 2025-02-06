@@ -15,8 +15,8 @@ const Navbar = () => {
           <Link href="/about" className="text-foreground ">
             About
           </Link>
-          <Link href="/" className="text-foreground">
-            Contact
+          <Link href="/profile" className="text-foreground">
+            Profile
           </Link>
         </div>
       </div>
