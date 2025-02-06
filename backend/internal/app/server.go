@@ -12,6 +12,7 @@ import (
 	"shadershare/internal/services/user"
 	"time"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
 )
@@ -37,10 +38,19 @@ func Run() {
 	})
 
 	r := gin.Default()
+
 	dbdata, err := initDB()
 	if err != nil {
 		log.Fatalf("Error initializing database: %v", err)
 	}
+
+	config := cors.DefaultConfig()
+	config.AllowOrigins = []string{"http://localhost:3000"}
+	config.AllowCredentials = true
+	config.AllowMethods = []string{"GET", "POST", "PUT", "HEAD", "DELETE"}
+	config.AllowHeaders = []string{"Origin", "Content-Length", "Content-Type", "Authorization"}
+	r.Use(cors.New(config))
+
 	setupRoutes(r, dbdata)
 
 	httpPort := os.Getenv("PORT")
@@ -58,7 +68,7 @@ func setupRoutes(r *gin.Engine, dbConn *pgx.Conn) {
 		c.JSON(http.StatusOK, gin.H{"message": "pong"})
 	})
 
-	api := r.Group("/api")
+	api := r.Group("/api/v1")
 	api.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "up"})
 	})

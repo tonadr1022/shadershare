@@ -36,6 +36,7 @@ func (h userHandler) login(c *gin.Context) {
 		return
 	}
 
+	c.SetSameSite(http.SameSiteNoneMode)
 	auth.Instance().SetAccessTokenCookie(c, tokenPair.AccessToken)
 	auth.Instance().SetRefreshTokenCookie(c, tokenPair.RefreshToken)
 	c.JSON(http.StatusOK, gin.H{"message": "User logged in successfully"})
@@ -61,8 +62,19 @@ func (h userHandler) register(c *gin.Context) {
 		return
 	}
 
+	c.SetSameSite(http.SameSiteLaxMode)
 	auth.Instance().SetAccessTokenCookie(c, tokenPair.AccessToken)
 	auth.Instance().SetRefreshTokenCookie(c, tokenPair.RefreshToken)
+	c.SetSameSite(http.SameSiteLaxMode)
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "test",
+		Value:    "test",
+		Domain:   "localhost",
+		HttpOnly: true,
+		Secure:   false,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   99999999,
+	})
 	c.JSON(http.StatusOK, gin.H{"message": "User registered successfully"})
 }
 

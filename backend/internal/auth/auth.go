@@ -97,9 +97,9 @@ func (a *auth) generateJWT(userID uuid.UUID, email string, lifeTime time.Duratio
 }
 
 func (a *auth) SetAccessTokenCookie(ctx *gin.Context, token string) {
-	ctx.SetCookie("accessToken", token, int((a.settings.AccessTokenMaxAge).Seconds()), "/", "", a.settings.Secure, a.settings.HttpOnly)
+	ctx.SetCookie("accessToken", token, int((a.settings.AccessTokenMaxAge).Seconds()), "/", "localhost", a.settings.Secure, a.settings.HttpOnly)
 }
 
 func (a *auth) SetRefreshTokenCookie(ctx *gin.Context, token string) {
-	ctx.SetCookie("refreshToken", token, int((a.settings.RefreshTokenMaxAge).Seconds()), "/", "", a.settings.Secure, a.settings.HttpOnly)
+	ctx.SetCookie("refreshToken", token, int((a.settings.RefreshTokenMaxAge).Seconds()), "/", "localhost", a.settings.Secure, a.settings.HttpOnly)
 }

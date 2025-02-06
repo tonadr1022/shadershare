@@ -6,7 +6,7 @@ import {
   createRenderer,
   initialFragmentShaderText,
 } from "../renderer/Renderer";
-import { ModeToggle } from "@/app/components/ModeToggle";
+import { ModeToggle } from "@/app/_components/ModeToggle";
 
 type Props = {
   shaderId: string;
