@@ -18,7 +18,7 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { useMutation } from "@tanstack/react-query";
 import { loginUser } from "@/api/auth-api";
 import { AxiosError } from "axios";
-import { SetToastErrors } from "@/api/api";
+import { apiBaseURL, SetToastErrors } from "@/api/api";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Card,
@@ -127,9 +127,17 @@ export default function LoginForm() {
                 <Button type="submit" className="w-full">
                   Login
                 </Button>
-                {/* <Button variant="outline" className="w-full"> */}
-                {/*   Login with Google */}
-                {/* </Button> */}
+                <Button
+                  onClick={(e) => {
+                    e.preventDefault();
+
+                    window.location.href = `${apiBaseURL}/api/v1/auth/google`;
+                  }}
+                  variant="outline"
+                  className="w-full"
+                >
+                  Login with Google
+                </Button>
               </div>
             </form>
           </Form>

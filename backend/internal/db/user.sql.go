@@ -17,13 +17,13 @@ INSERT INTO users (
     username, email, password
 ) VALUES (
     $1, $2, $3
-) RETURNING id, username, email, password, created_at, updated_at
+) RETURNING id, username, email, password, profile_image, created_at, updated_at
 `
 
 type CreateUserParams struct {
 	Username string
 	Email    string
-	Password string
+	Password pgtype.Text
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
@@ -34,6 +34,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.Username,
 		&i.Email,
 		&i.Password,
+		&i.ProfileImage,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -51,7 +52,7 @@ func (q *Queries) DeleteUser(ctx context.Context, id uuid.UUID) error {
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, username, email, password, created_at, updated_at FROM users
+SELECT id, username, email, password, profile_image, created_at, updated_at FROM users
 WHERE email = $1
 `
 
@@ -63,6 +64,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.Username,
 		&i.Email,
 		&i.Password,
+		&i.ProfileImage,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -70,7 +72,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 }
 
 const getUserByEmailOrUsername = `-- name: GetUserByEmailOrUsername :one
-SELECT id, username, email, password, created_at, updated_at FROM users
+SELECT id, username, email, password, profile_image, created_at, updated_at FROM users
 WHERE email = $1 OR username = $1
 `
 
@@ -82,6 +84,7 @@ func (q *Queries) GetUserByEmailOrUsername(ctx context.Context, email string) (U
 		&i.Username,
 		&i.Email,
 		&i.Password,
+		&i.ProfileImage,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -89,7 +92,7 @@ func (q *Queries) GetUserByEmailOrUsername(ctx context.Context, email string) (U
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, username, email, password, created_at, updated_at FROM users
+SELECT id, username, email, password, profile_image, created_at, updated_at FROM users
 WHERE id = $1
 `
 
@@ -101,6 +104,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.Username,
 		&i.Email,
 		&i.Password,
+		&i.ProfileImage,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -108,7 +112,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, username, email, password, created_at, updated_at FROM users
+SELECT id, username, email, password, profile_image, created_at, updated_at FROM users
 ORDER BY id
 `
 
@@ -126,6 +130,7 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 			&i.Username,
 			&i.Email,
 			&i.Password,
+			&i.ProfileImage,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -146,7 +151,7 @@ username = coalesce($1,username),
 email = coalesce($2,email),
 password = coalesce($3,password)
 WHERE id = $4
-RETURNING id, username, email, password, created_at, updated_at
+RETURNING id, username, email, password, profile_image, created_at, updated_at
 `
 
 type UpdateUserParams struct {

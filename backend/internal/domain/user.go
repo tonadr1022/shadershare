@@ -23,9 +23,14 @@ type (
 	}
 
 	CreateUserPayload struct {
-		Username string `json:"username" binding:"required"`
-		Email    string `json:"email" binding:"required"`
-		Password string `json:"password" binding:"required"`
+		Username  string `json:"username" binding:"required"`
+		Email     string `json:"email" binding:"required"`
+		Password  string `json:"password" binding:"required"`
+		AvatarUrl string `json:"avatar_url"`
+	}
+	OAuthPayload struct {
+		Email     string
+		AvatarUrl string
 	}
 
 	LoginPayload struct {
@@ -35,6 +40,7 @@ type (
 
 	UserService interface {
 		RegisterUser(ctx context.Context, payload CreateUserPayload) (auth.JWTPair, error)
+		CompleteOAuthLogin(ctx context.Context, payload *OAuthPayload) (auth.JWTPair, error)
 		LoginUser(ctx context.Context, payload LoginPayload) (auth.JWTPair, error)
 		GetUserByID(ctx context.Context, id uuid.UUID) (*User, error)
 	}

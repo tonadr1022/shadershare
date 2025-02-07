@@ -5,7 +5,7 @@ import axios, { AxiosError } from "axios";
 import { toast } from "sonner";
 
 const axiosInstance = axios.create({
-  baseURL: apiBaseURL,
+  baseURL: `${apiBaseURL}/api/v1`,
   timeout: 10000,
   withCredentials: true,
   headers: {

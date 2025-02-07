@@ -11,6 +11,11 @@ export const loginUser = async (data: LoginFormData) => {
   return res.data;
 };
 
+export const loginUserWithProvider = async (provider: string) => {
+  const res = await axiosInstance.get(`/auth/${provider}`);
+  return res.data;
+};
+
 export const getMe = async (): Promise<User> => {
   const res = await axiosInstance.get("/me");
   return res.data;

@@ -15,10 +15,16 @@ services:
     deploy:
       restart_policy:
         condition: on-failure
+    env_file: ".env"
     environment:
       - DATABASE_URL=postgres://postgres:password@db:5432/postgres?sslmode=disable
       - JWT_SECRET=739e03884297c1e8e976
-      - ENVIRONMENT="dev"
+      - AUTH_BASE_URL=${AUTH_BASE_URL}
+      - OAUTH_SESSION_SECRET=random
+      - ENVIRONMENT=dev
+      - BASE_CLIENT_URL=${BASE_CLIENT_URL}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
     networks:
       - localnet
   db:

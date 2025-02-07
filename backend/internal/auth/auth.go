@@ -3,11 +3,17 @@ package auth
 import (
 	"errors"
 	"fmt"
+	"net/http"
+	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+	"github.com/gorilla/sessions"
+	"github.com/markbates/goth"
+	"github.com/markbates/goth/gothic"
+	"github.com/markbates/goth/providers/google"
 )
 
 type (
@@ -53,8 +59,28 @@ func Instance() Auth {
 	return instance
 }
 
-func InitAuth(authSettings *AuthSettings) {
+func InitAuth(authSettings *AuthSettings, isProd bool) {
 	instance = &auth{settings: authSettings}
+	instance.InitOauth(isProd)
+}
+
+func (a *auth) InitOauth(isProd bool) {
+	key := os.Getenv("OAUTH_SESSION_SECRET")
+	maxAge := 86400 * 30
+
+	store := sessions.NewCookieStore([]byte(key))
+	store.MaxAge(maxAge)
+	store.Options.Path = "/"
+	store.Options.HttpOnly = false
+	store.Options.Secure = isProd
+	store.Options.SameSite = http.SameSiteLaxMode
+	gothic.Store = store
+	baseURL := os.Getenv("AUTH_BASE_URL")
+	goth.UseProviders(
+		google.New(os.Getenv("GOOGLE_CLIENT_ID"),
+			os.Getenv("GOOGLE_CLIENT_SECRET"),
+			fmt.Sprintf("%s/auth/google/callback", baseURL),
+			"email", "profile"))
 }
 
 func (a *auth) ParseJWTWithClaims(tokenString string) (*UserClaims, error) {

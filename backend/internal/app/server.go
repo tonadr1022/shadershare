@@ -10,6 +10,7 @@ import (
 	"shadershare/internal/db"
 	"shadershare/internal/services/shaders"
 	"shadershare/internal/services/user"
+	"shadershare/internal/util"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -21,6 +22,10 @@ func Run() {
 	environment := os.Getenv("ENVIRONMENT")
 	if environment == "" {
 		environment = "dev"
+	}
+	baseClientUrl := os.Getenv("BASE_CLIENT_URL")
+	if baseClientUrl == "" {
+		log.Fatal("BASE_CLIENT_URL is not set")
 	}
 
 	isProd := environment == "prod"
@@ -35,23 +40,41 @@ func Run() {
 		RefreshTokenMaxAge: 30 * 24 * time.Hour,
 		Secure:             isProd,
 		HttpOnly:           true,
-	})
+	}, isProd)
 
 	r := gin.Default()
 
-	dbdata, err := initDB()
+	dbConn, err := initDB()
 	if err != nil {
 		log.Fatalf("Error initializing database: %v", err)
 	}
 
 	config := cors.DefaultConfig()
-	config.AllowOrigins = []string{"http://localhost:3000"}
+
+	allowedOrigins := []string{baseClientUrl}
+	if environment == "dev" {
+		allowedOrigins = append(allowedOrigins, "http://localhost:3000", "http://localhost:8080")
+	}
+	config.AllowOrigins = allowedOrigins
 	config.AllowCredentials = true
 	config.AllowMethods = []string{"GET", "POST", "PUT", "HEAD", "DELETE"}
 	config.AllowHeaders = []string{"Origin", "Content-Length", "Content-Type", "Authorization"}
 	r.Use(cors.New(config))
 
-	setupRoutes(r, dbdata)
+	queries := db.New(dbConn)
+	r.GET("/ping", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"message": "pong"})
+	})
+	api := r.Group("/api/v1")
+	api.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "up"})
+	})
+
+	shaderService := shaders.NewShaderService(shaders.NewShaderRepository(dbConn, queries))
+	util.InitUsernameGenerator()
+	userService := user.NewUserService(user.NewUserRepository(queries))
+	shaders.RegisterHandlers(api, shaderService)
+	user.RegisterHandlers(baseClientUrl, r, api, shaderService, userService)
 
 	httpPort := os.Getenv("PORT")
 	if httpPort == "" {
@@ -60,22 +83,6 @@ func Run() {
 	if err := r.Run(fmt.Sprintf(":%s", httpPort)); err != nil {
 		log.Fatalf("Error starting server: %v", err)
 	}
-}
-
-func setupRoutes(r *gin.Engine, dbConn *pgx.Conn) {
-	queries := db.New(dbConn)
-	r.GET("/ping", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"message": "pong"})
-	})
-
-	api := r.Group("/api/v1")
-	api.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "up"})
-	})
-	shaderService := shaders.NewShaderService(shaders.NewShaderRepository(dbConn, queries))
-	userService := user.NewUserService(user.NewUserRepository(queries))
-	shaders.RegisterHandlers(api, shaderService)
-	user.RegisterHandlers(api, shaderService, userService)
 }
 
 func initDB() (*pgx.Conn, error) {
