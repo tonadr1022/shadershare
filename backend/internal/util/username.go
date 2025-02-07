@@ -33,7 +33,7 @@ func RandUsername() string {
 	animal := animals[rand.Intn(len(animals))]
 	adjective := adjectives[rand.Intn(len(adjectives))]
 	suffix := rand.Intn(1000)
-	return adjective + "_" + animal + "_" + strconv.Itoa(suffix)
+	return adjective + "_" + animal + strconv.Itoa(suffix)
 }
 
 func readLines(file *os.File) []string {

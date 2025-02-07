@@ -1,0 +1,14 @@
+{
+  "sqltools.connections": [
+    {
+      "previewLimit": 50,
+      "server": "localhost",
+      "driver": "PostgreSQL",
+      "name": "Shader share",
+      "database": "psotgres",
+      "username": "postgres",
+      "password": "postgres",
+      "connectString": "postgres://postgres:password@localhost:5432/postgres?sslmode=disable"
+    }
+  ]
+}

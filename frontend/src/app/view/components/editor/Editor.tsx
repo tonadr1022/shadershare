@@ -115,7 +115,7 @@ const Editor = (props: Props) => {
     () => [
       cpp(),
       indentUnit.of("    "),
-      vim({ status: true }),
+      vim({ status: false }),
       drawSelection({ cursorBlinkRate: 0 }),
       errorField,
     ],

@@ -16,7 +16,7 @@ ORDER BY id;
 
 -- name: CreateUser :one
 INSERT INTO users (
-    username, email, password
+    username, email, avatar_url
 ) VALUES (
     $1, $2, $3
 ) RETURNING *;
@@ -26,7 +26,7 @@ UPDATE users
 SET 
 username = coalesce(sqlc.narg('username'),username),
 email = coalesce(sqlc.narg('email'),email),
-password = coalesce(sqlc.narg('password'),password)
+avatar_url = coalesce(sqlc.narg('avatar_url'),avatar_url)
 WHERE id = sqlc.narg('id')
 RETURNING *;
 

@@ -27,11 +27,10 @@ type Shader struct {
 }
 
 type User struct {
-	ID           uuid.UUID
-	Username     string
-	Email        string
-	Password     pgtype.Text
-	ProfileImage pgtype.Text
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
+	ID        uuid.UUID
+	Username  string
+	Email     string
+	AvatarUrl pgtype.Text
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
 }

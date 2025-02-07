@@ -26,11 +26,9 @@ func RegisterHandlers(baseUrl string, e *gin.Engine, r *gin.RouterGroup, shaderS
 	e.GET("/auth/:provider/callback", h.oauthCallback)
 	r.GET("/auth/:provider", h.loginWithProvider)
 
-	r.POST("/register", h.register)
-	r.POST("/login", h.login)
 	r.GET("/profile", middleware.Auth(), h.profile)
 	r.GET("/me", middleware.Auth(), h.me)
-	r.GET("/logout", h.logout)
+	r.POST("/logout", h.logout)
 }
 
 func (h userHandler) logout(c *gin.Context) {
@@ -50,6 +48,7 @@ func (h userHandler) oauthCallback(c *gin.Context) {
 		fmt.Println(c.Request, err)
 		return
 	}
+	fmt.Println(oauthUser.Email, oauthUser.AvatarURL)
 	tokens, err := h.userService.CompleteOAuthLogin(c, &domain.OAuthPayload{Email: oauthUser.Email, AvatarUrl: oauthUser.AvatarURL})
 	if err != nil {
 		fmt.Println(c.Request, err)
@@ -71,50 +70,6 @@ func (h userHandler) loginWithProvider(c *gin.Context) {
 	gothic.BeginAuthHandler(c.Writer, c.Request)
 }
 
-func (h userHandler) login(c *gin.Context) {
-	var payload domain.LoginPayload
-	if ok := util.ValidateAndSetErrors(c, &payload); !ok {
-		return
-	}
-
-	tokenPair, err := h.userService.LoginUser(c, payload)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
-		return
-	}
-
-	c.SetSameSite(http.SameSiteLaxMode)
-	auth.Instance().SetAccessTokenCookie(c, tokenPair.AccessToken)
-	auth.Instance().SetRefreshTokenCookie(c, tokenPair.RefreshToken)
-	c.JSON(http.StatusOK, gin.H{"message": "User logged in successfully"})
-}
-
-func (h userHandler) register(c *gin.Context) {
-	var payload domain.CreateUserPayload
-	if ok := util.ValidateAndSetErrors(c, &payload); !ok {
-		return
-	}
-
-	tokenPair, err := h.userService.RegisterUser(c, payload)
-	if err == e.ErrEmailAlreadyExists {
-		util.SetErrorResponse(c, http.StatusBadRequest, "Email already exists")
-		return
-	}
-	if err == e.ErrUsernameAlreadyExists {
-		util.SetErrorResponse(c, http.StatusBadRequest, "Username already exists")
-		return
-	}
-	if err != nil {
-		util.SetErrorResponse(c, http.StatusInternalServerError, "Failed to register user")
-		return
-	}
-
-	c.SetSameSite(http.SameSiteLaxMode)
-	auth.Instance().SetAccessTokenCookie(c, tokenPair.AccessToken)
-	auth.Instance().SetRefreshTokenCookie(c, tokenPair.RefreshToken)
-	c.JSON(http.StatusOK, gin.H{"message": "User registered successfully"})
-}
-
 func (h userHandler) profile(c *gin.Context) {
 	userctx, ok := middleware.CurrentUser(c)
 	if !ok {
@@ -131,15 +86,21 @@ func (h userHandler) profile(c *gin.Context) {
 	if category == "shaders" {
 		limit, err := com.DefaultQueryIntCheck(c, "limit", 20)
 		if err != nil {
+			util.SetErrorResponse(c, http.StatusBadRequest, "Invalid limit")
 			return
 		}
 		offset, err := com.DefaultQueryIntCheck(c, "offset", 0)
 		if err != nil {
+			util.SetErrorResponse(c, http.StatusBadRequest, "Invalid offset")
 			return
 		}
 
 		shaders, err := h.shaderService.GetUserShaderList(c, userctx.ID, limit, offset)
 		if err != nil {
+			if err != e.ErrNotFound {
+				util.SetErrorResponse(c, http.StatusInternalServerError, "Internal Server Error")
+				return
+			}
 		}
 		c.JSON(http.StatusOK, shaders)
 		return
@@ -149,13 +110,17 @@ func (h userHandler) profile(c *gin.Context) {
 
 func (h userHandler) me(c *gin.Context) {
 	userctx, ok := middleware.CurrentUser(c)
+	fmt.Printf("userctx: %v", userctx)
 	if !ok {
 		util.SetInternalServiceErrorResponse(c)
 		return
 	}
 	user, err := h.userService.GetUserByID(c, userctx.ID)
 	if err != nil {
+		fmt.Println("setting err response internal")
 		util.SetErrorResponse(c, http.StatusInternalServerError, "Internal Server Error")
+		return
 	}
+	fmt.Printf("user: %v", user)
 	c.JSON(http.StatusOK, user)
 }

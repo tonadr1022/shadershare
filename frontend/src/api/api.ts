@@ -1,29 +1,31 @@
 export const apiBaseURL = process.env.NEXT_PUBLIC_API_URL;
+export const apiPath = "/api/v1";
 
 import { ErrorResponse } from "@/types/base";
 import axios, { AxiosError } from "axios";
 import { toast } from "sonner";
 
 const axiosInstance = axios.create({
-  baseURL: `${apiBaseURL}/api/v1`,
+  baseURL: `${apiBaseURL}${apiPath}`,
   timeout: 10000,
   withCredentials: true,
   headers: {
     "Content-Type": "application/json",
   },
 });
+
 axiosInstance.interceptors.response.use(
   (response) => {
     return response;
   },
   (error) => {
-    if (error.response?.status === 401) {
-      const currentPath = encodeURIComponent(
-        window.location.pathname + window.location.search,
-      );
-      window.location.href = `/login?returnUrl=${currentPath}`;
-    }
-    return Promise.reject(error);
+    // if (error.response?.status === 401) {
+    //   const currentPath = encodeURIComponent(
+    //     window.location.pathname + window.location.search,
+    //   );
+    //   window.location.href = `/login?returnUrl=${currentPath}`;
+    // }
+    // return Promise.reject(error);
   },
 );
 

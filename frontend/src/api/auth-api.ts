@@ -20,3 +20,7 @@ export const getMe = async (): Promise<User> => {
   const res = await axiosInstance.get("/me");
   return res.data;
 };
+
+export const logoutUser = async () => {
+  await axiosInstance.post("/logout");
+};

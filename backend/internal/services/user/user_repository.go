@@ -6,7 +6,6 @@ import (
 	"shadershare/internal/domain"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type userRepository struct {
@@ -49,10 +48,7 @@ func (r userRepository) GetUserByEmailOrUsername(ctx context.Context, email_or_u
 }
 
 func (r userRepository) CreateUser(ctx context.Context, payload domain.CreateUserPayload) (*domain.User, error) {
-	params := db.CreateUserParams{Username: payload.Username, Email: payload.Email}
-	if payload.Password != "" {
-		params.Password = pgtype.Text{String: payload.Password, Valid: true}
-	}
+	params := db.CreateUserParams{Username: payload.Username, Email: payload.Email, AvatarUrl: db.ToPgTypeText(payload.AvatarUrl)}
 	dbuser, err := r.db.CreateUser(ctx, params)
 	if err != nil {
 		return nil, err
@@ -66,7 +62,7 @@ func (r userRepository) ToDomainUser(dbuser db.User) domain.User {
 		ID:        dbuser.ID,
 		Username:  dbuser.Username,
 		Email:     dbuser.Email,
-		Password:  dbuser.Password.String,
+		AvatarUrl: dbuser.AvatarUrl.String,
 		CreatedAt: dbuser.CreatedAt.Time,
 		UpdatedAt: dbuser.UpdatedAt.Time,
 	}

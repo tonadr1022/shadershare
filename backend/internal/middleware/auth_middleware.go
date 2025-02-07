@@ -46,11 +46,18 @@ func Auth() gin.HandlerFunc {
 				return
 			}
 			if claims.ExpiresAt.Unix() > time.Now().Unix() {
-				// refresh access token
+				// refresh access token and rotate refresh
 				accessToken, err := auth.Instance().GenerateAccessToken(claims.ID, claims.Email)
 				if err != nil {
 					ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+					return
 				}
+				newRefreshToken, err := auth.Instance().GenerateRefreshToken(claims.ID, claims.Email)
+				if err != nil {
+					ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+					return
+				}
+				auth.Instance().SetRefreshTokenCookie(ctx, newRefreshToken)
 				auth.Instance().SetAccessTokenCookie(ctx, accessToken)
 				userctx := &domain.UserCtx{ID: claims.ID}
 				ctx.Set("currentUser", userctx)
@@ -59,7 +66,7 @@ func Auth() gin.HandlerFunc {
 			}
 		}
 
-		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "no refresh token, unauthenticated"})
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthenticated"})
 	}
 }
 

@@ -18,6 +18,9 @@ const Navbar = () => {
           <Link href="/profile" className="text-foreground">
             Profile
           </Link>
+          <Link href="/login" className="text-foreground">
+            Login
+          </Link>
         </div>
       </div>
     </nav>

@@ -25,6 +25,8 @@ services:
       - BASE_CLIENT_URL=${BASE_CLIENT_URL}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
+      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
     networks:
       - localnet
   db:
@@ -39,6 +41,8 @@ services:
       interval: 1s
       timeout: 5s
       retries: 10
+    ports:
+      - 5432:5432
     volumes:
       - pgdata:/var/lib/postgresql/data
     networks:

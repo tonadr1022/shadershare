@@ -60,41 +60,41 @@ func (s service) GetUserByEmail(ctx context.Context, email string) (*domain.User
 	return s.repo.GetUserByEmail(ctx, email)
 }
 
-func (s service) RegisterUser(ctx context.Context, payload domain.CreateUserPayload) (auth.JWTPair, error) {
-	// check if user exists
-	_, err := s.repo.GetUserByEmailOrUsername(ctx, payload.Username)
-	if err == nil {
-		return auth.JWTPair{}, e.ErrUsernameAlreadyExists
-	}
-	_, err = s.repo.GetUserByEmail(ctx, payload.Email)
-	if err == nil {
-		return auth.JWTPair{}, e.ErrEmailAlreadyExists
-	}
+// func (s service) RegisterUser(ctx context.Context, payload domain.CreateUserPayload) (auth.JWTPair, error) {
+// 	// check if user exists
+// 	_, err := s.repo.GetUserByEmailOrUsername(ctx, payload.Username)
+// 	if err == nil {
+// 		return auth.JWTPair{}, e.ErrUsernameAlreadyExists
+// 	}
+// 	_, err = s.repo.GetUserByEmail(ctx, payload.Email)
+// 	if err == nil {
+// 		return auth.JWTPair{}, e.ErrEmailAlreadyExists
+// 	}
+//
+// 	var hashPassword []byte
+// 	hashPassword, err = s.hashPassword(payload.Password)
+// 	if err != nil {
+// 		return auth.JWTPair{}, err
+// 	}
+// 	payload.Password = string(hashPassword)
+// 	user, err := s.repo.CreateUser(ctx, payload)
+// 	if err != nil {
+// 		return auth.JWTPair{}, err
+// 	}
+//
+// 	return generateTokenPair(user.ID, user.Email)
+// }
 
-	var hashPassword []byte
-	hashPassword, err = s.hashPassword(payload.Password)
-	if err != nil {
-		return auth.JWTPair{}, err
-	}
-	payload.Password = string(hashPassword)
-	user, err := s.repo.CreateUser(ctx, payload)
-	if err != nil {
-		return auth.JWTPair{}, err
-	}
-
-	return generateTokenPair(user.ID, user.Email)
-}
-
-func (s service) LoginUser(ctx context.Context, payload domain.LoginPayload) (auth.JWTPair, error) {
-	user, err := s.repo.GetUserByEmailOrUsername(ctx, payload.UsernameOrEmail)
-	if err != nil {
-		return auth.JWTPair{}, e.ErrUserNotFound
-	}
-	if !s.passwordMatch(user.Password, payload.Password) {
-		return auth.JWTPair{}, e.ErrInvalidCredentials
-	}
-	return generateTokenPair(user.ID, user.Email)
-}
+// func (s service) LoginUser(ctx context.Context, payload domain.LoginPayload) (auth.JWTPair, error) {
+// 	user, err := s.repo.GetUserByEmailOrUsername(ctx, payload.UsernameOrEmail)
+// 	if err != nil {
+// 		return auth.JWTPair{}, e.ErrUserNotFound
+// 	}
+// 	if !s.passwordMatch(user.Password, payload.Password) {
+// 		return auth.JWTPair{}, e.ErrInvalidCredentials
+// 	}
+// 	return generateTokenPair(user.ID, user.Email)
+// }
 
 func (s service) passwordMatch(hashedPassword string, password string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))

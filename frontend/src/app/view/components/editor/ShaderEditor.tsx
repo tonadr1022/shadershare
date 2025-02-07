@@ -6,13 +6,8 @@ import {
   createRenderer,
   initialFragmentShaderText,
 } from "../renderer/Renderer";
-import { ModeToggle } from "@/app/_components/ModeToggle";
 
-type Props = {
-  shaderId: string;
-};
-
-const ShaderEditor = ({ shaderId }: Props) => {
+const ShaderEditor = () => {
   const shaderRendererRef = useRef<HTMLDivElement | null>(null);
   const [renderer, setRenderer] = useState<IRenderer | null>(null);
   const [rendererHeight, setRendererHeight] = useState<number>(0);
@@ -39,10 +34,9 @@ const ShaderEditor = ({ shaderId }: Props) => {
   }, []); // Empty dependency array ensures this effect runs once after the component is mounted
 
   return (
-    <div className="flex flex-col h-screen bg-background">
-      <h1 className="text-white text-center py-4">shader - {shaderId}</h1>
-      <ModeToggle />
-      <div className="flex flex-col lg:flex-row w-full h-full gap-8">
+    <div className="flex flex-col bg-background p-4">
+      <h1 className="text-white text-center py-4">shader - </h1>
+      <div className="flex flex-col lg:flex-row w-full h-full gap-4">
         <div
           ref={shaderRendererRef}
           style={{

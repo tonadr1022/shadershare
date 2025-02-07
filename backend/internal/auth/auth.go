@@ -13,6 +13,7 @@ import (
 	"github.com/gorilla/sessions"
 	"github.com/markbates/goth"
 	"github.com/markbates/goth/gothic"
+	"github.com/markbates/goth/providers/github"
 	"github.com/markbates/goth/providers/google"
 )
 
@@ -77,10 +78,10 @@ func (a *auth) InitOauth(isProd bool) {
 	gothic.Store = store
 	baseURL := os.Getenv("AUTH_BASE_URL")
 	goth.UseProviders(
-		google.New(os.Getenv("GOOGLE_CLIENT_ID"),
-			os.Getenv("GOOGLE_CLIENT_SECRET"),
-			fmt.Sprintf("%s/auth/google/callback", baseURL),
-			"email", "profile"))
+		google.New(os.Getenv("GOOGLE_CLIENT_ID"), os.Getenv("GOOGLE_CLIENT_SECRET"),
+			fmt.Sprintf("%s/auth/google/callback", baseURL), "email", "profile"),
+		github.New(os.Getenv("GITHUB_CLIENT_ID"), os.Getenv("GITHUB_CLIENT_SECRET"),
+			fmt.Sprintf("%s/auth/github/callback", baseURL), "email", "read:user"))
 }
 
 func (a *auth) ParseJWTWithClaims(tokenString string) (*UserClaims, error) {
