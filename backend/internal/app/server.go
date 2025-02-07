@@ -18,6 +18,23 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
+func setupS3() {
+	// bucketName := os.Getenv("S3_BUCKET_NAME")
+	// accountID := os.Getenv("S3_ACCOUNT_ID")
+	// accessKeyID := os.Getenv("AWS_ACCESS_KEY_ID")
+	// accessKeySecret := os.Getenv("AWS_SECRET_ACCESS_KEY")
+	//
+	// cfg, err := config.LoadDefaultConfig(context.TODO(),
+	// 	config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(accessKeyID, accessKeySecret, "")),
+	// 	config.WithRegion("auto"),
+	// )
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	//    client := s3.NewFromConfig(cfg, func(o *s3.Options) {
+	//        o.BaseEndpoint = aws.String(fmt.Sprintf(""))
+}
+
 func Run() {
 	environment := os.Getenv("ENVIRONMENT")
 	if environment == "" {

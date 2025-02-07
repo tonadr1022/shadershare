@@ -1,11 +1,18 @@
-import React, { useCallback, useEffect, useMemo, useRef } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from "react";
 import CodeMirror, {
   ReactCodeMirrorRef,
   StateEffect,
   StateField,
 } from "@uiw/react-codemirror";
 import { cpp } from "@codemirror/lang-cpp";
-import { Vim, vim } from "@replit/codemirror-vim";
+import { vim } from "@replit/codemirror-vim";
 import { indentUnit } from "@codemirror/language";
 import {
   Decoration,
@@ -14,17 +21,47 @@ import {
   EditorView,
 } from "@codemirror/view";
 import { ErrorWidget } from "./ErrorWidget";
+import { useMutation } from "@tanstack/react-query";
+import { initialFragmentShaderText } from "../renderer/Renderer";
+import { Button } from "@/components/ui/button";
 
 type Props = {
   initialValue: string;
   renderer: IRenderer;
 };
 
-type EditorOptions = {
-  fontSize: number;
-  keyBinding: "vim";
-  tabSize: 4;
-  relativeLineNumber: true;
+// type EditorOptions = {
+//   fontSize: number;
+//   keyBinding: "vim";
+//   tabSize: 4;
+//   relativeLineNumber: true;
+// };
+
+type RenderPass = {
+  code: string;
+  pass_idx: number;
+};
+
+type ShaderData = {
+  title: string;
+  description: string;
+  render_passes: RenderPass[];
+};
+
+const editorReducer = (state: ShaderData, action: any): ShaderData => {
+  switch (action.type) {
+    case "SET_RENDER_PASS_CODE":
+      return {
+        ...state,
+        render_passes: state.render_passes.map((renderPass, idx) =>
+          idx === action.payload.pass_idx
+            ? { ...renderPass, code: action.payload.code }
+            : renderPass,
+        ),
+      };
+    default:
+      return state;
+  }
 };
 
 const clearErrorsEffect = StateEffect.define<void>();
@@ -51,9 +88,25 @@ const errorField = StateField.define<DecorationSet>({
   provide: (f) => EditorView.decorations.from(f),
 });
 
-const Editor = (props: Props) => {
-  const { initialValue, renderer } = props;
+const initialShader: ShaderData = {
+  title: "",
+  description: "",
+  render_passes: [
+    { pass_idx: 0, code: initialFragmentShaderText },
+    { pass_idx: 1, code: "nothing here" },
+  ],
+};
 
+const Editor = (props: Props) => {
+  const [shaderData, dispatch] = useReducer(editorReducer, initialShader);
+  const [renderPassEditIdx, setRenderPassEditIdx] = useState<number>(0);
+
+  const saveShaderMutation = useMutation({
+    mutationFn: async (data: ShaderData) => {
+      console.log("save shader", data);
+    },
+  });
+  const { renderer } = props;
   const onCompileFunc = useCallback(
     (text: string): ErrMsg[] => {
       if (!renderer) return [];
@@ -63,11 +116,42 @@ const Editor = (props: Props) => {
     [renderer],
   );
   const editorRef = useRef<ReactCodeMirrorRef | null>(null);
-  const codeRef = useRef<string>(initialValue);
+  const codeRef = useRef<string>(shaderData.render_passes[0].code);
 
-  const onChange = useCallback((val: string) => {
-    codeRef.current = val;
-  }, []);
+  console.log("render");
+  function debounce(func: any, wait: number) {
+    let timeout: any;
+    return function executedFunction(...args: any) {
+      const later = () => {
+        clearTimeout(timeout);
+        func(...args);
+      };
+      clearTimeout(timeout);
+      timeout = setTimeout(later, wait);
+    };
+  }
+  const onChange = useCallback(
+    debounce((val: string) => {
+      const currentCode = shaderData.render_passes[renderPassEditIdx]?.code;
+      if (currentCode !== val) {
+        dispatch({
+          type: "SET_RENDER_PASS_CODE",
+          payload: { pass_idx: renderPassEditIdx, code: val },
+        });
+      }
+    }, 300), // Adjust debounce time as necessary
+    [renderPassEditIdx, shaderData],
+  );
+
+  // const onChange = useCallback(
+  //   (val: string) => {
+  //     dispatch({
+  //       type: "SET_RENDER_PASS_CODE",
+  //       payload: { pass_idx: renderPassEditIdx, code: val },
+  //     });
+  //   },
+  //   [renderPassEditIdx],
+  // );
 
   const onCompile = useCallback(async () => {
     // clear existing errors
@@ -106,7 +190,7 @@ const Editor = (props: Props) => {
   );
 
   useEffect(() => {
-    Vim.defineEx("write", "w", onCompile);
+    // Vim.defineEx("write", "w", onCompile);
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onCompile, handleKeyDown]);
@@ -123,9 +207,30 @@ const Editor = (props: Props) => {
   );
   return (
     <div className="flex flex-col">
+      {shaderData.render_passes.map((renderPass, idx) => (
+        <Button
+          key={renderPass.pass_idx}
+          className={renderPassEditIdx === idx ? "active" : ""}
+          onClick={() => {
+            console.log("idx", idx);
+            setRenderPassEditIdx(idx);
+            codeRef.current = renderPass.code;
+            console.log("curr", codeRef.current);
+          }}
+        >
+          {idx}
+        </Button>
+      ))}
+      <Button
+        onClick={() => {
+          saveShaderMutation.mutate(shaderData);
+        }}
+      >
+        save
+      </Button>
       <CodeMirror
         ref={editorRef}
-        value={initialValue}
+        value={shaderData.render_passes[renderPassEditIdx].code}
         theme={"dark"}
         onChange={onChange}
         autoFocus={false}

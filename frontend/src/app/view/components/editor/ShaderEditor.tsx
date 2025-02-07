@@ -6,12 +6,14 @@ import {
   createRenderer,
   initialFragmentShaderText,
 } from "../renderer/Renderer";
-
+import { Button } from "@/components/ui/button";
 const ShaderEditor = () => {
   const shaderRendererRef = useRef<HTMLDivElement | null>(null);
   const [renderer, setRenderer] = useState<IRenderer | null>(null);
   const [rendererHeight, setRendererHeight] = useState<number>(0);
-
+  const saveShader = () => {
+    console.log("save shader");
+  };
   useEffect(() => {
     setRenderer(createRenderer());
   }, []);
@@ -37,19 +39,22 @@ const ShaderEditor = () => {
     <div className="flex flex-col bg-background p-4">
       <h1 className="text-white text-center py-4">shader - </h1>
       <div className="flex flex-col lg:flex-row w-full h-full gap-4">
-        <div
-          ref={shaderRendererRef}
-          style={{
-            height: `${rendererHeight}px`, // Use dynamically calculated height
-          }}
-          className=" w-full lg:w-1/2 bg-background p-0"
-        >
-          <ShaderRenderer
-            renderer={renderer}
-            initialData={{
-              fragmentText: initialFragmentShaderText,
+        <div className="flex flex-col w-full h-full lg:w-1/2">
+          <div
+            ref={shaderRendererRef}
+            style={{
+              height: `${rendererHeight}px`, // Use dynamically calculated height
             }}
-          />
+            className=" w-full  bg-background p-0"
+          >
+            <ShaderRenderer
+              renderer={renderer}
+              initialData={{
+                fragmentText: initialFragmentShaderText,
+              }}
+            />
+          </div>
+          <Button onClick={saveShader}>Save</Button>
         </div>
         <div className="w-full lg:w-1/2 bg-background">
           {renderer && (
