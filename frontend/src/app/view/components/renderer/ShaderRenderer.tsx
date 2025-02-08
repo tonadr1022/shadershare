@@ -1,9 +1,9 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { initialFragmentShaderText } from "./Renderer";
+import { IRenderer, ShaderData } from "@/types/shader";
 
 type Props = {
-  initialData: RenderData;
+  initialData: ShaderData;
   renderer: IRenderer | null;
 };
 
@@ -54,14 +54,16 @@ const ShaderRenderer = (props: Props) => {
       requestAnimationFrame(render);
     };
 
-    renderer.initialize({
-      canvas: canvasRef.current,
-      renderData: { fragmentText: initialFragmentShaderText },
-    });
+    if (canvasRef.current) {
+      renderer.initialize({
+        canvas: canvasRef.current,
+        renderData: initialData.render_passes,
+      });
+    }
     render();
 
     return () => {};
-  }, [renderer]);
+  }, [renderer, initialData]);
 
   useEffect(() => {
     const canvas = canvasRef.current;

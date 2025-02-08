@@ -29,6 +29,7 @@ import { ShaderData } from "@/types/shader";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTheme } from "next-themes";
+import ShaderExamplesDropdown from "./ShaderExamplesDropdown";
 
 type Props = {
   initialValue: string;
@@ -176,8 +177,8 @@ export const MultiBufferEditor = React.memo((props: Props3) => {
   }, []);
 
   return (
-    <div className="w-full h-full">
-      <Tabs defaultValue="0" className="h-full">
+    <div className=" flex flex-col w-full h-full">
+      <Tabs defaultValue="0" className="m-0 p-0">
         <TabsList>
           {shaderData.render_passes.map((renderPass, idx) => (
             <TabsTrigger
@@ -189,14 +190,18 @@ export const MultiBufferEditor = React.memo((props: Props3) => {
             </TabsTrigger>
           ))}
         </TabsList>
-
         {shaderData.render_passes.map((renderPass, idx) => (
           <TabsContent
             forceMount={true}
             value={idx.toString()}
             key={renderPass.pass_idx}
+            className={cn(
+              renderPassEditIdx === idx ? "" : "hidden",
+              "bg-white  m-0",
+            )}
           >
             <Editor2
+              // visible={false}
               visible={renderPassEditIdx === idx}
               text={renderPass.code}
               onTextChange={(text) => debouncedUpdate(text, idx)}
@@ -204,32 +209,16 @@ export const MultiBufferEditor = React.memo((props: Props3) => {
           </TabsContent>
         ))}
       </Tabs>
+      <div className="flex flex-row">
+        <ShaderExamplesDropdown
+          onSelect={(shader: ShaderData) => {
+            // TODO: uplaod these and make a new tab for them
+            setShaderData(shader);
+          }}
+        />
+      </div>
     </div>
   );
-  // return (
-  //   <div className="flex flex-col w-full h-full">
-  //     <div className="flex flex-row w-full">
-  //       {shaderData.render_passes.map((renderPass, idx) => (
-  //         <Button
-  //           onClick={() => onBufferIdxChange(idx)}
-  //           key={renderPass.pass_idx}
-  //           variant={renderPassEditIdx == idx ? "active" : "outline"}
-  //           className=""
-  //         >
-  //           Pass {idx}
-  //         </Button>
-  //       ))}
-  //     </div>
-  //     {shaderData.render_passes.map((renderPass, idx) => (
-  //       <Editor2
-  //         visible={renderPassEditIdx === idx}
-  //         key={renderPass.pass_idx}
-  //         text={renderPass.code}
-  //         onTextChange={(text) => debouncedUpdate(text, idx)}
-  //       />
-  //     ))}
-  //   </div>
-  // );
 });
 MultiBufferEditor.displayName = "MultiBufferEditor";
 

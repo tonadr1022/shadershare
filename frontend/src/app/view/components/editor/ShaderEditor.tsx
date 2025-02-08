@@ -2,21 +2,21 @@
 import ShaderRenderer from "../renderer/ShaderRenderer";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { MultiBufferEditor } from "./Editor";
-import {
-  createRenderer,
-  initialFragmentShaderText,
-} from "../renderer/Renderer";
+import { createRenderer } from "../renderer/Renderer";
 import { Button } from "@/components/ui/button";
-import { ShaderData } from "@/types/shader";
+import { IRenderer, ShaderData } from "@/types/shader";
+import { MultipassExample } from "@/rendering/example-shaders";
 
-const initialShader: ShaderData = {
-  title: "",
-  description: "",
-  render_passes: [
-    { pass_idx: 0, code: initialFragmentShaderText },
-    { pass_idx: 1, code: "nothing here" },
-  ],
-};
+const initialShader: ShaderData = MultipassExample;
+
+// const initialShader: ShaderData = {
+//   title: "",
+//   description: "",
+//   render_passes: [
+//     { pass_idx: 0, code: initialFragmentShaderText },
+//     { pass_idx: 1, code: "nothing here" },
+//   ],
+// };
 const ShaderEditor = () => {
   const shaderRendererRef = useRef<HTMLDivElement | null>(null);
   const [renderer, setRenderer] = useState<IRenderer | null>(null);
@@ -55,16 +55,11 @@ const ShaderEditor = () => {
           }}
           className=" w-full  bg-background p-0"
         >
-          <ShaderRenderer
-            renderer={renderer}
-            initialData={{
-              fragmentText: initialFragmentShaderText,
-            }}
-          />
+          <ShaderRenderer renderer={renderer} initialData={initialShader} />
         </div>
         <Button onClick={saveShader}>Save</Button>
       </div>
-      <div className="w-full overflow-auto h-full bg-background">
+      <div className="w-full  h-full bg-background">
         {renderer && <MultiBufferEditor initialShaderData={initialShader} />}
       </div>
     </div>
