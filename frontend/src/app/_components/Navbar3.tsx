@@ -23,7 +23,7 @@ export default function Navbar3() {
   }
   return (
     <div
-      className="bg-gray-100  dark:bg-gray-900 text-gray-900 dark:text-white  sticky top-0 z-50 w-full 
+      className="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white  sticky top-0 z-50 w-full 
       border-b border-border/40   backdrop-blur  px-2"
     >
       <div className="container flex h-14 max-w-screen-2xl items-center justify-between">

@@ -19,6 +19,7 @@ axiosInstance.interceptors.response.use(
     return response;
   },
   (error) => {
+    console.error(error);
     // if (error.response?.status === 401) {
     //   const currentPath = encodeURIComponent(
     //     window.location.pathname + window.location.search,

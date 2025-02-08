@@ -6,7 +6,9 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { debounce } from "lodash";
 import CodeMirror, {
+  basicSetup,
   ReactCodeMirrorRef,
   StateEffect,
   StateField,
@@ -22,8 +24,9 @@ import {
 } from "@codemirror/view";
 import { ErrorWidget } from "./ErrorWidget";
 import { useMutation } from "@tanstack/react-query";
-import { initialFragmentShaderText } from "../renderer/Renderer";
 import { Button } from "@/components/ui/button";
+import { ShaderData } from "@/types/shader";
+import { cn } from "@/lib/utils";
 
 type Props = {
   initialValue: string;
@@ -36,17 +39,6 @@ type Props = {
 //   tabSize: 4;
 //   relativeLineNumber: true;
 // };
-
-type RenderPass = {
-  code: string;
-  pass_idx: number;
-};
-
-type ShaderData = {
-  title: string;
-  description: string;
-  render_passes: RenderPass[];
-};
 
 const editorReducer = (state: ShaderData, action: any): ShaderData => {
   switch (action.type) {
@@ -88,14 +80,109 @@ const errorField = StateField.define<DecorationSet>({
   provide: (f) => EditorView.decorations.from(f),
 });
 
-const initialShader: ShaderData = {
-  title: "",
-  description: "",
-  render_passes: [
-    { pass_idx: 0, code: initialFragmentShaderText },
-    { pass_idx: 1, code: "nothing here" },
-  ],
+type Props2 = {
+  text: string;
+  visible: boolean;
+  onTextChange: (text: string) => void;
 };
+export const Editor2 = React.memo((props: Props2) => {
+  console.log("render editor2", props.visible);
+  const { text, onTextChange } = props;
+  const editorRef = useRef<ReactCodeMirrorRef | null>(null);
+
+  const handleKeyDown = useCallback((event: KeyboardEvent) => {
+    if ((event.ctrlKey || event.metaKey) && event.key === "e") {
+      event.preventDefault();
+      editorRef.current?.view?.focus();
+    }
+
+    if (event.key === "Escape") {
+      (document.activeElement as HTMLElement)?.blur();
+    }
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleKeyDown]);
+
+  const extensions = useMemo(
+    () =>
+      basicSetup().concat([
+        cpp(),
+        indentUnit.of("    "),
+        vim({ status: false }),
+        // TODO: only active for vim mode
+        drawSelection({ cursorBlinkRate: 0 }),
+      ]),
+
+    [],
+  );
+  return (
+    <CodeMirror
+      ref={editorRef}
+      value={text}
+      theme={"dark"}
+      id="shader-editor"
+      className={cn(props.visible ? "" : "hidden", "overflow-scroll, h-full")}
+      onChange={onTextChange}
+      autoFocus={false}
+      extensions={extensions}
+    />
+  );
+});
+Editor2.displayName = "Editor2";
+
+type Props3 = {
+  initialShaderData: ShaderData;
+};
+
+export const MultiBufferEditor = React.memo((props: Props3) => {
+  const [shaderData, setShaderData] = useState(props.initialShaderData);
+  const [renderPassEditIdx, setRenderPassEditIdx] = useState(0);
+  const debouncedUpdate = useCallback(
+    debounce((newText: string, idx: number) => {
+      setShaderData((prevData) => ({
+        ...prevData,
+        render_passes: prevData.render_passes.map((renderPass, i) =>
+          i === idx ? { ...renderPass, code: newText } : renderPass,
+        ),
+      }));
+    }, 600),
+    [],
+  );
+
+  const onBufferIdxChange = useCallback((idx: number) => {
+    setRenderPassEditIdx(idx);
+  }, []);
+
+  return (
+    <div className="w-full h-full">
+      <div className="flex flex-row w-full">
+        {shaderData.render_passes.map((renderPass, idx) => (
+          <Button
+            onClick={() => onBufferIdxChange(idx)}
+            key={renderPass.pass_idx}
+            variant={"outline"}
+            className=""
+          >
+            Pass {idx}
+          </Button>
+        ))}
+      </div>
+      <div>rp idx {renderPassEditIdx}</div>
+      {shaderData.render_passes.map((renderPass, idx) => (
+        <Editor2
+          visible={renderPassEditIdx === idx}
+          key={renderPass.pass_idx}
+          text={renderPass.code}
+          onTextChange={(text) => debouncedUpdate(text, idx)}
+        />
+      ))}
+    </div>
+  );
+});
+MultiBufferEditor.displayName = "MultiBufferEditor";
 
 const Editor = (props: Props) => {
   const [shaderData, dispatch] = useReducer(editorReducer, initialShader);
@@ -108,28 +195,27 @@ const Editor = (props: Props) => {
   });
   const { renderer } = props;
   const onCompileFunc = useCallback(
-    (text: string): ErrMsg[] => {
+    (shaderData: ShaderData): ErrMsg[] => {
       if (!renderer) return [];
-      const res = renderer?.setShader(text);
+      const res = renderer?.setShader(shaderData.render_passes[0].code);
+      console.log("compile", res);
       return renderer.getErrorMessages(res.message || "");
     },
     [renderer],
   );
   const editorRef = useRef<ReactCodeMirrorRef | null>(null);
-  const codeRef = useRef<string>(shaderData.render_passes[0].code);
 
   console.log("render");
-  function debounce(func: any, wait: number) {
-    let timeout: any;
-    return function executedFunction(...args: any) {
-      const later = () => {
-        clearTimeout(timeout);
-        func(...args);
-      };
-      clearTimeout(timeout);
-      timeout = setTimeout(later, wait);
-    };
-  }
+  // function debounce(func: any, wait: number) {
+  //   return function executedFunction(...args: unknown[]) {
+  //     const later = () => {
+  //       clearTimeout(timeout);
+  //       func(...args);
+  //     };
+  //     clearTimeout(timeout);
+  //     timeout = setTimeout(later, wait);
+  //   };
+  // }
   const onChange = useCallback(
     debounce((val: string) => {
       const currentCode = shaderData.render_passes[renderPassEditIdx]?.code;
@@ -160,7 +246,7 @@ const Editor = (props: Props) => {
     view.dispatch({ effects: clearErrorsEffect.of() });
 
     // compile
-    const result = onCompileFunc(codeRef.current);
+    const result = onCompileFunc(shaderData);
     if (result.length === 0) return;
     view.dispatch({
       effects: result.map((err) =>
@@ -170,7 +256,7 @@ const Editor = (props: Props) => {
         }),
       ),
     });
-  }, [onCompileFunc]);
+  }, [onCompileFunc, shaderData]);
 
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
@@ -214,8 +300,6 @@ const Editor = (props: Props) => {
           onClick={() => {
             console.log("idx", idx);
             setRenderPassEditIdx(idx);
-            codeRef.current = renderPass.code;
-            console.log("curr", codeRef.current);
           }}
         >
           {idx}
