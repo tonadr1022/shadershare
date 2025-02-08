@@ -125,6 +125,12 @@ const webGL2Renderer = (): IRenderer => {
     fbo: WebGLFramebuffer;
     textures: WebGLTexture[];
     currentTextureIndex: number;
+    getPrevTex() {
+      return this.textures[1 - this.currentTextureIndex];
+    }
+    getCurrTex() {
+      return this.textures[this.currentTextureIndex];
+    }
     constructor(gl: WebGL2RenderingContext, width: number, height: number) {
       this.textures = [];
       this.currentTextureIndex = 0;
@@ -216,6 +222,11 @@ const webGL2Renderer = (): IRenderer => {
       gl.uniform1fv(uniforms.iChannelTime, [0, 0, 0, 0]);
     }
     if (uniforms.iChannelResolution) {
+      gl.uniform3fv(uniforms.iChannelResolution, [
+        canvas.width,
+        canvas.height,
+        devicePixelRatio,
+      ]);
       // TODO:
     }
     if (uniforms.iMouse) {
@@ -223,21 +234,25 @@ const webGL2Renderer = (): IRenderer => {
       gl.uniform4f(uniforms.iMouse, 0, 0, 0, 0);
     }
   };
-  const bindTextures = (cnt: number, uniforms: FragShaderUniforms) => {
-    for (let i = 0; i < cnt; i++) {
-      if (uniforms.iChannels[i]) {
-        bindTexture(
-          uniforms.iChannels[i]!,
-          renderPasses[i].renderTarget.textures[
-            renderPasses[i].renderTarget.currentTextureIndex
-          ],
-          i,
-        );
-      }
-    }
-  };
+  // const bindTextures = (cnt: number, uniforms: FragShaderUniforms) => {
+  //   for (let i = 0; i < cnt; i++) {
+  //     if (uniforms.iChannels[i]) {
+  //       bindTexture(
+  //         uniforms.iChannels[i]!,
+  //         renderPasses[i].renderTarget.textures[
+  //           renderPasses[i].renderTarget.currentTextureIndex
+  //         ],
+  //         i,
+  //       );
+  //     }
+  //   }
+  // };
 
+  // let i = 0;
   const render = () => {
+    // if (i++ > 256) {
+    //   return;
+    // }
     // TODO: refactor
     if (!initialized || !gl || !canvas) {
       return;
@@ -250,13 +265,18 @@ const webGL2Renderer = (): IRenderer => {
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-    for (let i = 0; i < renderPasses.length; i++) {
+    for (let i = 0; i < renderPasses.length - 1; i++) {
       const renderPass = renderPasses[i];
       gl.useProgram(renderPass.program);
       const uniforms = renderPass.uniformLocs;
       bindUniforms(uniforms);
       gl.bindFramebuffer(gl.FRAMEBUFFER, renderPass.renderTarget.fbo);
-      bindTextures(i, uniforms);
+      bindTexture(
+        uniforms.iChannels[0]!,
+        renderPasses[i].renderTarget.getPrevTex(),
+        0,
+      );
+      // bindTextures(i, uniforms);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
 
       renderPass.renderTarget.swapTextures(gl);
@@ -265,7 +285,11 @@ const webGL2Renderer = (): IRenderer => {
     gl.useProgram(imagePass.program);
     bindUniforms(imagePass.uniformLocs);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    bindTextures(renderPasses.length - 1, imagePass.uniformLocs);
+    bindTexture(
+      imagePass.uniformLocs.iChannels[0]!,
+      imagePass.renderTarget.getPrevTex(),
+      0,
+    );
     gl.drawArrays(gl.TRIANGLES, 0, 3);
 
     currFrame++;
@@ -310,7 +334,7 @@ const webGL2Renderer = (): IRenderer => {
     const { renderData } = params;
 
     // TODO: handle invalid shader for first initialization
-    for (let i = 0; i < renderData.length - 1; i++) {
+    for (let i = 0; i < renderData.length; i++) {
       const shader = compileShader(renderData[i].code);
       // TODO: cleanup broken unused!
       if (shader.error) {

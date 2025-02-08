@@ -2,13 +2,11 @@ import React, {
   useCallback,
   useEffect,
   useMemo,
-  useReducer,
   useRef,
   useState,
 } from "react";
 import { debounce } from "lodash";
 import CodeMirror, {
-  basicSetup,
   ReactCodeMirrorRef,
   StateEffect,
   StateField,
@@ -23,18 +21,11 @@ import {
   EditorView,
 } from "@codemirror/view";
 import { ErrorWidget } from "./ErrorWidget";
-import { useMutation } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
-import { ShaderData } from "@/types/shader";
+import { ErrMsg, IRenderer, ShaderData } from "@/types/shader";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTheme } from "next-themes";
 import ShaderExamplesDropdown from "./ShaderExamplesDropdown";
-
-type Props = {
-  initialValue: string;
-  renderer: IRenderer;
-};
 
 // type EditorOptions = {
 //   fontSize: number;
@@ -43,21 +34,21 @@ type Props = {
 //   relativeLineNumber: true;
 // };
 
-const editorReducer = (state: ShaderData, action: any): ShaderData => {
-  switch (action.type) {
-    case "SET_RENDER_PASS_CODE":
-      return {
-        ...state,
-        render_passes: state.render_passes.map((renderPass, idx) =>
-          idx === action.payload.pass_idx
-            ? { ...renderPass, code: action.payload.code }
-            : renderPass,
-        ),
-      };
-    default:
-      return state;
-  }
-};
+// const editorReducer = (state: ShaderData, action: any): ShaderData => {
+//   switch (action.type) {
+//     case "SET_RENDER_PASS_CODE":
+//       return {
+//         ...state,
+//         render_passes: state.render_passes.map((renderPass, idx) =>
+//           idx === action.payload.pass_idx
+//             ? { ...renderPass, code: action.payload.code }
+//             : renderPass,
+//         ),
+//       };
+//     default:
+//       return state;
+//   }
+// };
 
 const clearErrorsEffect = StateEffect.define<void>();
 const errorEffect = StateEffect.define<ErrMsg>();
@@ -86,7 +77,9 @@ const errorField = StateField.define<DecorationSet>({
 type Props2 = {
   text: string;
   visible: boolean;
-  onTextChange: (text: string) => void;
+  idx: number;
+  onCompile: (idx: number, editorRef: ReactCodeMirrorRef, text: string) => void;
+  onTextChange: (text: string, idx: number) => void;
 };
 const getThemeString = (nextTheme: string) => {
   switch (nextTheme) {
@@ -104,26 +97,38 @@ const getThemeString = (nextTheme: string) => {
 export const Editor2 = React.memo((props: Props2) => {
   const { theme } = useTheme();
 
-  console.log("render editor2", props.visible);
-  const { text, onTextChange } = props;
+  const { visible } = props;
+  const { text, onTextChange, onCompile } = props;
   const editorRef = useRef<ReactCodeMirrorRef | null>(null);
 
-  const handleKeyDown = useCallback((event: KeyboardEvent) => {
-    if ((event.ctrlKey || event.metaKey) && event.key === "e") {
-      event.preventDefault();
-      editorRef.current?.view?.focus();
-    }
+  const handleKeyDown = useCallback(
+    (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === "e") {
+        event.preventDefault();
+        editorRef.current?.view?.focus();
+      }
 
-    // TODO: setting for this
-    // if (event.key === "Escape") {
-    //   (document.activeElement as HTMLElement)?.blur();
-    // }
-  }, []);
+      if (event.key === "Enter" && event.altKey) {
+        const editor = editorRef.current;
+        if (onCompile && editor && editor.view) {
+          const text = editor.view.state.doc.toString();
+          onCompile(props.idx, editor, text);
+        }
+      }
+      // TODO: setting for this
+      // if (event.key === "Escape") {
+      //   (document.activeElement as HTMLElement)?.blur();
+      // }
+    },
+    [onCompile, props.idx],
+  );
 
   useEffect(() => {
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleKeyDown]);
+    if (visible) {
+      window.addEventListener("keydown", handleKeyDown);
+      return () => window.removeEventListener("keydown", handleKeyDown);
+    }
+  }, [visible, handleKeyDown]);
 
   const extensions = useMemo(
     () => [
@@ -132,10 +137,27 @@ export const Editor2 = React.memo((props: Props2) => {
       vim({ status: false }),
       // TODO: only active for vim mode
       drawSelection({ cursorBlinkRate: 0 }),
+      errorField,
     ],
 
     [],
   );
+
+  const debouncedSet = React.useMemo(
+    () =>
+      debounce((text: string, idx: number) => {
+        onTextChange(text, idx);
+      }, 750),
+    [onTextChange],
+  );
+
+  const codeMirrorOnTextChange = useCallback(
+    (text: string) => {
+      debouncedSet(text, props.idx);
+    },
+    [debouncedSet, props.idx],
+  );
+
   return (
     <CodeMirror
       ref={editorRef}
@@ -145,7 +167,7 @@ export const Editor2 = React.memo((props: Props2) => {
         props.visible ? "" : "hidden",
         " border-2 cm-editor2 overflow-auto h-[calc(max(300px,100vh-310px))]",
       )}
-      onChange={onTextChange}
+      onChange={codeMirrorOnTextChange}
       autoFocus={false}
       extensions={extensions}
     />
@@ -155,26 +177,57 @@ Editor2.displayName = "Editor2";
 
 type Props3 = {
   initialShaderData: ShaderData;
+  renderer: IRenderer;
 };
 
 export const MultiBufferEditor = React.memo((props: Props3) => {
+  const { renderer } = props;
   const [shaderData, setShaderData] = useState(props.initialShaderData);
   const [renderPassEditIdx, setRenderPassEditIdx] = useState(0);
-  const debouncedUpdate = useCallback(
-    debounce((newText: string, idx: number) => {
-      setShaderData((prevData) => ({
-        ...prevData,
-        render_passes: prevData.render_passes.map((renderPass, i) =>
-          i === idx ? { ...renderPass, code: newText } : renderPass,
-        ),
-      }));
-    }, 600),
-    [],
-  );
+
+  const onTextUpdate = useCallback((newText: string, idx: number) => {
+    setShaderData((prevData) => ({
+      ...prevData,
+      render_passes: prevData.render_passes.map((renderPass, i) =>
+        i === idx ? { ...renderPass, code: newText } : renderPass,
+      ),
+    }));
+  }, []);
 
   const onBufferIdxChange = useCallback((idx: number) => {
     setRenderPassEditIdx(idx);
   }, []);
+
+  const onCompileFunc = useCallback(
+    (idx: number, text: string): ErrMsg[] => {
+      if (!renderer) return [];
+      const res = renderer?.setShader(idx, text);
+      return renderer.getErrorMessages(res.message || "");
+    },
+    [renderer],
+  );
+
+  const onCompile = useCallback(
+    async (idx: number, editorRef: ReactCodeMirrorRef, text: string) => {
+      // clear existing errors
+      const view = editorRef.view;
+      if (!view) return;
+      view.dispatch({ effects: clearErrorsEffect.of() });
+
+      // compile
+      const result = onCompileFunc(idx, text);
+      if (result.length === 0) return;
+      view.dispatch({
+        effects: result.map((err) =>
+          errorEffect.of({
+            line: err.line,
+            message: err.message || "",
+          }),
+        ),
+      });
+    },
+    [onCompileFunc],
+  );
 
   return (
     <div className=" flex flex-col w-full h-full">
@@ -201,10 +254,11 @@ export const MultiBufferEditor = React.memo((props: Props3) => {
             )}
           >
             <Editor2
-              // visible={false}
+              onCompile={onCompile}
+              idx={idx}
               visible={renderPassEditIdx === idx}
               text={renderPass.code}
-              onTextChange={(text) => debouncedUpdate(text, idx)}
+              onTextChange={onTextUpdate}
             />
           </TabsContent>
         ))}

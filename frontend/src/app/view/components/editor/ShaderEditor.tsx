@@ -60,7 +60,12 @@ const ShaderEditor = () => {
         <Button onClick={saveShader}>Save</Button>
       </div>
       <div className="w-full  h-full bg-background">
-        {renderer && <MultiBufferEditor initialShaderData={initialShader} />}
+        {renderer && (
+          <MultiBufferEditor
+            renderer={renderer}
+            initialShaderData={initialShader}
+          />
+        )}
       </div>
     </div>
   );

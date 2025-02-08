@@ -1,3 +1,5 @@
+import { EmptyResult, Result } from "@/types/shader";
+
 function createErrorResult<T>(message?: string): Result<T> {
   return { error: true, message };
 }

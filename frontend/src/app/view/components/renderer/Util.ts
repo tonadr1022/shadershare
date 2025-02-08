@@ -1,3 +1,4 @@
+import { EmptyResult, Result } from "@/types/shader";
 import {
   createEmptyResult,
   createErrorResult,
