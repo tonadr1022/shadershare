@@ -117,4 +117,48 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
     },
   ],
 };
-export const Examples: ShaderData[] = [MultipassExample];
+
+export const MultiPassRed: ShaderData = {
+  title: "MultiPassRed",
+  description: "",
+  render_passes: [
+    {
+      name: "Buffer A",
+      pass_idx: 0,
+      code: ` vec4 readMemory(vec2 coords) {
+    return texture(iChannel0, (coords + 0.5)/iChannelResolution[0].xy);
+}
+void mainImage(out vec4 fragColor, in vec2 fragCoord) {
+    vec4 data1 = readMemory(fragCoord);
+    if (data1.x == 0. && data1.y == 0. &&
+        data1.z == 0. && data1.w == 0.) {
+        data1 = vec4(fragCoord/iChannelResolution[0].xy,0.,1.);
+        }
+    data1.x += 0.001;
+    if (data1.x > 1.0) {
+        data1.x = 0.;
+    }
+    fragColor = data1;
+}
+`,
+    },
+    {
+      name: "Image",
+      pass_idx: 1,
+      code: `vec4 readMemory(vec2 coords) {
+    return texture(iChannel0, (coords + 0.5)/iChannelResolution[0].xy);
+}
+
+void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
+    vec4 data1 = readMemory(fragCoord);
+	fragColor = data1;
+}`,
+    },
+  ],
+};
+
+export const Examples: ShaderData[] = [
+  MultipassExample,
+  MultiPassRed,
+  SimpleMultipass,
+];

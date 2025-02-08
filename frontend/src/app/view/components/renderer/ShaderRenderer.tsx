@@ -1,6 +1,15 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { IRenderer, ShaderData } from "@/types/shader";
+import { FaBackward, FaCamera } from "react-icons/fa";
+import { Button } from "@/components/ui/button";
+import { TooltipProvider } from "@radix-ui/react-tooltip";
+import { ArrowLeftToLineIcon, Fullscreen } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 type Props = {
   initialData: ShaderData;
@@ -106,6 +115,17 @@ const ShaderRenderer = (props: Props) => {
     };
   }, [initialData, renderer]);
 
+  const onScreenshot = useCallback(() => {
+    if (renderer) {
+      renderer.screenshot();
+    }
+  }, [renderer]);
+
+  const onRestart = useCallback(() => {
+    if (renderer) {
+      renderer.restart();
+    }
+  }, [renderer]);
   return (
     <div className="flex flex-col w-full h-full">
       <div
@@ -114,13 +134,47 @@ const ShaderRenderer = (props: Props) => {
       >
         <canvas ref={canvasRef}></canvas>
       </div>
-      <div className="w-full h-[40px] flex bg-blue-500">
-        <button
-          onClick={toggleFullscreen}
-          className="bg-blue-500 p-2 cursor-pointer border-none"
-        >
-          go full screen
-        </button>
+      <div className="w-full h-[40px] flex ">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                className="rounded-none m-0"
+                variant="outline"
+                onClick={onRestart}
+              >
+                <ArrowLeftToLineIcon />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Restart</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" onClick={onScreenshot}>
+                <FaCamera />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Screenshot</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" onClick={toggleFullscreen}>
+                <Fullscreen />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Fullscreen</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
         <div className="bg-blue-500 p-2 border-none">
           {(canvasRef.current && canvasRef.current.width) || 0}x
           {(canvasRef.current && canvasRef.current.height) || 0}

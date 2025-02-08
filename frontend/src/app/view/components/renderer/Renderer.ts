@@ -54,9 +54,14 @@ class FragShaderUniforms {
   iTime: WebGLUniformLocation | null = null;
   iTimeDelta: WebGLUniformLocation | null = null;
   iFrame: WebGLUniformLocation | null = null;
-  iChannelTime: WebGLUniformLocation | null = null;
+  iChannelTimes: WebGLUniformLocation | null = null;
   // TODO: array
-  iChannelResolution0: WebGLUniformLocation | null = null;
+  iChannelResolutions: (WebGLUniformLocation | null)[] = [
+    null,
+    null,
+    null,
+    null,
+  ];
   iMouse: WebGLUniformLocation | null = null;
   iChannels: (WebGLUniformLocation | null)[] = [null, null, null, null];
 
@@ -69,19 +74,22 @@ class FragShaderUniforms {
     this.iTime = gl.getUniformLocation(shaderProgram, "iTime");
     this.iTimeDelta = gl.getUniformLocation(shaderProgram, "iTimeDelta");
     this.iFrame = gl.getUniformLocation(shaderProgram, "iFrame");
-    this.iChannelTime = gl.getUniformLocation(shaderProgram, "iChannelTime");
-    this.iChannelResolution0 = gl.getUniformLocation(
-      shaderProgram,
-      "iChannelResolution[0]",
-    );
     this.iMouse = gl.getUniformLocation(shaderProgram, "iMouse");
+
+    this.iChannelTimes = gl.getUniformLocation(
+      shaderProgram,
+      `iChannelTime[0]`,
+    );
     for (let i = 0; i < 4; i++) {
+      this.iChannelResolutions[i] = gl.getUniformLocation(
+        shaderProgram,
+        `iChannelResolution[${i}]`,
+      );
       this.iChannels[i] = gl.getUniformLocation(
         shaderProgram,
         FragShaderUniforms.iChannelNames[i],
       );
     }
-    console.log("set locs");
   }
   static iChannelNames = ["iChannel0", "iChannel1", "iChannel2", "iChannel3"];
   constructor(shaderProgram: WebGLProgram, gl: WebGL2RenderingContext) {
@@ -133,8 +141,15 @@ const webGL2Renderer = (): IRenderer => {
     getCurrTex() {
       return this.textures[this.currentTextureIndex];
     }
+
+    cleanup(gl: WebGL2RenderingContext) {
+      gl.deleteFramebuffer(this.fbo);
+      for (const texture of this.textures) {
+        gl.deleteTexture(texture);
+      }
+    }
+
     constructor(gl: WebGL2RenderingContext, width: number, height: number) {
-      console.log("new render target");
       this.textures = [];
       this.currentTextureIndex = 0;
       for (let i = 0; i < 2; i++) {
@@ -144,6 +159,10 @@ const webGL2Renderer = (): IRenderer => {
         const border = 0;
         const format = gl.RGBA;
         const type = gl.FLOAT;
+        const data = new Float32Array(width * height * 4);
+        for (let i = 0; i < data.length; i++) {
+          data[i] = 0;
+        }
         gl.texImage2D(
           gl.TEXTURE_2D,
           0,
@@ -153,7 +172,7 @@ const webGL2Renderer = (): IRenderer => {
           border,
           format,
           type,
-          null,
+          data,
         );
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
@@ -219,13 +238,20 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
     );
     gl.uniform1f(uniforms.iTime, currTime);
     gl.uniform1f(uniforms.iTimeDelta, timeDelta);
-    gl.uniform1fv(uniforms.iChannelTime, [0, 0, 0, 0]);
     //  fragColor = vec4(fragCoord.xy/iChannelResolution[0].xy,0.,1.)
-    gl.uniform3fv(uniforms.iChannelResolution0, [
-      canvas.width,
-      canvas.height,
-      devicePixelRatio,
+    gl.uniform1fv(uniforms.iChannelTimes, [
+      currTime,
+      currTime,
+      currTime,
+      currTime,
     ]);
+    for (let i = 0; i < 4; i++) {
+      gl.uniform3fv(uniforms.iChannelResolutions[i], [
+        canvas.width,
+        canvas.height,
+        devicePixelRatio,
+      ]);
+    }
     gl.uniform1i(uniforms.iFrame, currFrame);
     gl.uniform4f(uniforms.iMouse, 0, 0, 0, 0);
   };
@@ -242,6 +268,22 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
   //     }
   //   }
   // };
+
+  const screenshot = () => {
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        console.error("Failed to capture canvas as blob");
+        return;
+      }
+
+      const a = document.createElement("a");
+      const url = window.URL.createObjectURL(blob!);
+      a.style.display = "none";
+      a.download = "shader.png";
+      a.href = url;
+      a.click();
+    }, "image/png");
+  };
 
   // let i = 0;
   const render = () => {
@@ -304,6 +346,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
   const enableExtensions = () => {
     // get EXT_color_buffer_float extension
     const ext = gl.getExtension("EXT_color_buffer_float");
+    gl.getExtension("OES_texture_float_linear");
     if (!ext) {
       alert('"EXT_color_buffer_float" not supported');
       return false;
@@ -321,13 +364,15 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
   };
 
   const initialize = (params: IRendererInitPararms) => {
-    console.log("init params", params);
     if (initialized) return;
     canvas = params.canvas;
     if (!canvas) {
       return;
     }
-    const glResult = canvas.getContext("webgl2");
+    const glResult = canvas.getContext("webgl2", {
+      preserveDrawingBuffer: true,
+      powerPreference: "high-performance",
+    });
     if (!glResult) {
       return;
     }
@@ -383,8 +428,21 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
   };
 
   return {
+    screenshot: screenshot,
     setData: (params: RenderData) => {
       console.error("unimplemented", params);
+    },
+    restart: () => {
+      timeDelta = 0;
+      currTime = 0;
+      lastTime = 0;
+      for (const renderPass of renderPasses) {
+        renderPass.renderTarget = new RenderTarget(
+          gl,
+          canvas.width,
+          canvas.height,
+        );
+      }
     },
     getErrorMessages: (text: string): ErrMsg[] => {
       const lines = text.split(/\r\n|\r|\n/);

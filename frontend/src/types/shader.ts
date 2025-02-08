@@ -44,5 +44,7 @@ export type IRenderer = {
   render: () => void;
   shutdown: () => void;
   onResize: (width: number, height: number) => void;
+  restart: () => void;
+  screenshot: () => void;
   getErrorMessages: (text: string) => ErrMsg[];
 };

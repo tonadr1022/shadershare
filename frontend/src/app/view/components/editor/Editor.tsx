@@ -122,6 +122,11 @@ export const Editor2 = React.memo((props: Props2) => {
     },
     [onCompile, props.idx],
   );
+  // useEffect(() => {
+  //   if (editorRef.current?.view) {
+  //     editorRef.current.
+  //   }
+  // },[]);
 
   useEffect(() => {
     if (visible) {
@@ -275,147 +280,3 @@ export const MultiBufferEditor = React.memo((props: Props3) => {
   );
 });
 MultiBufferEditor.displayName = "MultiBufferEditor";
-
-// const Editor = (props: Props) => {
-//   const [shaderData, dispatch] = useReducer(editorReducer, initialShader);
-//   const [renderPassEditIdx, setRenderPassEditIdx] = useState<number>(0);
-//
-//   const saveShaderMutation = useMutation({
-//     mutationFn: async (data: ShaderData) => {
-//       console.log("save shader", data);
-//     },
-//   });
-//   const { renderer } = props;
-//   const onCompileFunc = useCallback(
-//     (shaderData: ShaderData): ErrMsg[] => {
-//       if (!renderer) return [];
-//       const res = renderer?.setShader(shaderData.render_passes[0].code);
-//       console.log("compile", res);
-//       return renderer.getErrorMessages(res.message || "");
-//     },
-//     [renderer],
-//   );
-//   const editorRef = useRef<ReactCodeMirrorRef | null>(null);
-//
-//   console.log("render");
-//   // function debounce(func: any, wait: number) {
-//   //   return function executedFunction(...args: unknown[]) {
-//   //     const later = () => {
-//   //       clearTimeout(timeout);
-//   //       func(...args);
-//   //     };
-//   //     clearTimeout(timeout);
-//   //     timeout = setTimeout(later, wait);
-//   //   };
-//   // }
-//   const onChange = useCallback(
-//     debounce((val: string) => {
-//       const currentCode = shaderData.render_passes[renderPassEditIdx]?.code;
-//       if (currentCode !== val) {
-//         dispatch({
-//           type: "SET_RENDER_PASS_CODE",
-//           payload: { pass_idx: renderPassEditIdx, code: val },
-//         });
-//       }
-//     }, 300), // Adjust debounce time as necessary
-//     [renderPassEditIdx, shaderData],
-//   );
-//
-//   // const onChange = useCallback(
-//   //   (val: string) => {
-//   //     dispatch({
-//   //       type: "SET_RENDER_PASS_CODE",
-//   //       payload: { pass_idx: renderPassEditIdx, code: val },
-//   //     });
-//   //   },
-//   //   [renderPassEditIdx],
-//   // );
-//
-//   const onCompile = useCallback(async () => {
-//     // clear existing errors
-//     const view = editorRef.current?.view;
-//     if (!view) return;
-//     view.dispatch({ effects: clearErrorsEffect.of() });
-//
-//     // compile
-//     const result = onCompileFunc(shaderData);
-//     if (result.length === 0) return;
-//     view.dispatch({
-//       effects: result.map((err) =>
-//         errorEffect.of({
-//           line: err.line,
-//           message: err.message || "",
-//         }),
-//       ),
-//     });
-//   }, [onCompileFunc, shaderData]);
-//
-//   const handleKeyDown = useCallback(
-//     (event: KeyboardEvent) => {
-//       if ((event.ctrlKey || event.metaKey) && event.key === "e") {
-//         event.preventDefault();
-//         editorRef.current?.view?.focus();
-//       }
-//
-//       if (event.key === "Escape") {
-//         (document.activeElement as HTMLElement)?.blur();
-//       }
-//       if (event.key === "Enter" && event.altKey) {
-//         onCompile();
-//       }
-//     },
-//     [onCompile],
-//   );
-//
-//   useEffect(() => {
-//     // Vim.defineEx("write", "w", onCompile);
-//     window.addEventListener("keydown", handleKeyDown);
-//     return () => window.removeEventListener("keydown", handleKeyDown);
-//   }, [onCompile, handleKeyDown]);
-//
-//   const extensions = useMemo(
-//     () => [
-//       cpp(),
-//       indentUnit.of("    "),
-//       vim({ status: false }),
-//       drawSelection({ cursorBlinkRate: 0 }),
-//       errorField,
-//     ],
-//     [],
-//   );
-//   return (
-//     <div className="flex flex-col">
-//       <div className="flex flex-col">
-//         {shaderData.render_passes.map((renderPass, idx) => (
-//           <Button
-//             key={renderPass.pass_idx}
-//             className={renderPassEditIdx === idx ? "active" : ""}
-//             onClick={() => {
-//               console.log("idx", idx);
-//               setRenderPassEditIdx(idx);
-//             }}
-//           >
-//             {idx}
-//           </Button>
-//         ))}
-//       </div>
-//       <Button
-//         onClick={() => {
-//           saveShaderMutation.mutate(shaderData);
-//         }}
-//       >
-//         save
-//       </Button>
-//       <CodeMirror
-//         ref={editorRef}
-//         value={shaderData.render_passes[renderPassEditIdx].code}
-//         theme={"dark"}
-//         onChange={onChange}
-//         autoFocus={false}
-//         extensions={extensions}
-//       />
-//     </div>
-//   );
-// };
-
-// export default Editor;

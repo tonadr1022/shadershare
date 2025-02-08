@@ -11,9 +11,9 @@ import { MultiBufferEditor } from "./Editor";
 import { createRenderer } from "../renderer/Renderer";
 import { Button } from "@/components/ui/button";
 import { IRenderer, ShaderData } from "@/types/shader";
-import { SimpleMultipass } from "@/rendering/example-shaders";
+import { MultipassExample, MultiPassRed } from "@/rendering/example-shaders";
 
-const initialShader: ShaderData = SimpleMultipass;
+const initialShader: ShaderData = MultiPassRed;
 
 // const initialShader: ShaderData = {
 //   title: "",
@@ -66,7 +66,7 @@ const ShaderEditor = () => {
 
       window.removeEventListener("resize", updateHeight);
     };
-  }, []); // Empty dependency array ensures this effect runs once after the component is mounted
+  }, [onKeyDown]); // Empty dependency array ensures this effect runs once after the component is mounted
 
   return (
     <div className="grid grid-cols-2 w-full min-h-[calc(100vh-80px)] gap-4 p-4">
