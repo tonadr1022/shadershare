@@ -1,5 +1,29 @@
 import { ShaderData } from "@/types/shader";
 
+export const SimpleMultipass: ShaderData = {
+  title: "MultipassSimple",
+  description: "",
+  render_passes: [
+    {
+      name: "Buffer A",
+      pass_idx: 0,
+      code: `void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
+    vec2 uv = fragCoord/iResolution.xy;
+    vec3 col = 0.5 + 0.5*cos(iTime+uv.xyx+vec3(0,2,4));
+    fragColor = vec4(col,1.0); 
+}
+`,
+    },
+    {
+      name: "Image",
+      pass_idx: 1,
+      code: `void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
+    fragColor = vec4(texture(iChannel0,fragCoord).xyz,1.0); 
+}`,
+    },
+  ],
+};
+
 export const MultipassExample: ShaderData = {
   title: "Multipass",
   description:

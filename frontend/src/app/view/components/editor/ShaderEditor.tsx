@@ -1,13 +1,19 @@
 "use client";
 import ShaderRenderer from "../renderer/ShaderRenderer";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { MultiBufferEditor } from "./Editor";
 import { createRenderer } from "../renderer/Renderer";
 import { Button } from "@/components/ui/button";
 import { IRenderer, ShaderData } from "@/types/shader";
-import { MultipassExample } from "@/rendering/example-shaders";
+import { SimpleMultipass } from "@/rendering/example-shaders";
 
-const initialShader: ShaderData = MultipassExample;
+const initialShader: ShaderData = SimpleMultipass;
 
 // const initialShader: ShaderData = {
 //   title: "",
@@ -17,6 +23,7 @@ const initialShader: ShaderData = MultipassExample;
 //     { pass_idx: 1, code: "nothing here" },
 //   ],
 // };
+
 const ShaderEditor = () => {
   const shaderRendererRef = useRef<HTMLDivElement | null>(null);
   const [renderer, setRenderer] = useState<IRenderer | null>(null);
@@ -28,6 +35,17 @@ const ShaderEditor = () => {
     setRenderer(createRenderer());
   }, []);
 
+  const onKeyDown = useCallback(
+    (event: KeyboardEvent) => {
+      if (event.key == "F9") {
+        if (renderer) {
+          renderer.shutdown();
+        }
+        setRenderer(createRenderer());
+      }
+    },
+    [renderer],
+  );
   // This useLayoutEffect ensures that the height is updated after the DOM is rendered.
   useLayoutEffect(() => {
     const updateHeight = () => {
@@ -40,9 +58,14 @@ const ShaderEditor = () => {
     // Initial height calculation
     updateHeight();
 
+    window.addEventListener("keydown", onKeyDown);
     // Set up the resize event listener to update the height on window resize
     window.addEventListener("resize", updateHeight);
-    return () => window.removeEventListener("resize", updateHeight);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+
+      window.removeEventListener("resize", updateHeight);
+    };
   }, []); // Empty dependency array ensures this effect runs once after the component is mounted
 
   return (

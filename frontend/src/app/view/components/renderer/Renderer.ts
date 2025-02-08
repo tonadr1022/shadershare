@@ -134,6 +134,7 @@ const webGL2Renderer = (): IRenderer => {
       return this.textures[this.currentTextureIndex];
     }
     constructor(gl: WebGL2RenderingContext, width: number, height: number) {
+      console.log("new render target");
       this.textures = [];
       this.currentTextureIndex = 0;
       for (let i = 0; i < 2; i++) {
@@ -263,7 +264,14 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
       const uniforms = renderPass.uniformLocs;
       bindUniforms(uniforms);
       gl.bindFramebuffer(gl.FRAMEBUFFER, renderPass.renderTarget.fbo);
-      gl.clearColor(1.0, 0.0, 0.0, 1.0);
+      gl.framebufferTexture2D(
+        gl.FRAMEBUFFER,
+        gl.COLOR_ATTACHMENT0,
+        gl.TEXTURE_2D,
+        renderPass.renderTarget.getCurrTex(),
+        0,
+      );
+      gl.clearColor(0.0, 0.0, 0.0, 1.0);
       gl.clear(gl.COLOR_BUFFER_BIT);
       if (uniforms.iChannels[0]) {
         bindTexture(
@@ -272,23 +280,23 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
           0,
         );
       }
-      // bindTextures(i, uniforms);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
-
-      renderPass.renderTarget.swapTextures(gl);
     }
     const imagePass = renderPasses[renderPasses.length - 1];
     gl.useProgram(imagePass.program);
     bindUniforms(imagePass.uniformLocs);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    gl.clearColor(1.0, 0.0, 0.0, 1.0);
+    gl.clearColor(0.0, 0.0, 0.0, 1.0);
     gl.clear(gl.COLOR_BUFFER_BIT);
     bindTexture(
       imagePass.uniformLocs.iChannels[0]!,
-      imagePass.renderTarget.getCurrTex(),
+      renderPasses[0].renderTarget.getCurrTex(),
       0,
     );
     gl.drawArrays(gl.TRIANGLES, 0, 3);
+    for (let i = 0; i < renderPasses.length - 1; i++) {
+      renderPasses[i].renderTarget.swapTextures(gl);
+    }
 
     currFrame++;
   };
