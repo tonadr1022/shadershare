@@ -1,15 +1,15 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { IRenderer, ShaderData } from "@/types/shader";
-import { FaBackward, FaCamera } from "react-icons/fa";
+import { ShaderData } from "@/types/shader";
 import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
-import { ArrowLeftToLineIcon, Fullscreen } from "lucide-react";
+import { CameraIcon, ArrowLeftToLineIcon, Fullscreen } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { IRenderer } from "./Renderer";
 
 type Props = {
   initialData: ShaderData;
@@ -155,7 +155,7 @@ const ShaderRenderer = (props: Props) => {
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant="outline" onClick={onScreenshot}>
-                <FaCamera />
+                <CameraIcon />
               </Button>
             </TooltipTrigger>
             <TooltipContent>

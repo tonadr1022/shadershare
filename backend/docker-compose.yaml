@@ -1,16 +1,4 @@
 services:
-  frontend:
-    build:
-      context: ../frontend
-      dockerfile: Dockerfile.dev
-    ports:
-      - 3000:3000
-    volumes:
-      - ../frontend:/app
-      - /app/node_modules
-    environment:
-      - NODE_ENV=development
-    command: npm run dev
   backend:
     depends_on:
       db:

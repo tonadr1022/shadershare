@@ -21,11 +21,12 @@ import {
   EditorView,
 } from "@codemirror/view";
 import { ErrorWidget } from "./ErrorWidget";
-import { ErrMsg, IRenderer, ShaderData } from "@/types/shader";
+import { ErrMsg, ShaderData } from "@/types/shader";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTheme } from "next-themes";
 import ShaderExamplesDropdown from "./ShaderExamplesDropdown";
+import { IRenderer } from "../renderer/Renderer";
 
 // type EditorOptions = {
 //   fontSize: number;

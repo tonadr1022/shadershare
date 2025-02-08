@@ -8,10 +8,10 @@ import {
   useState,
 } from "react";
 import { MultiBufferEditor } from "./Editor";
-import { createRenderer } from "../renderer/Renderer";
+import { createRenderer, IRenderer } from "../renderer/Renderer";
 import { Button } from "@/components/ui/button";
-import { IRenderer, ShaderData } from "@/types/shader";
-import { MultipassExample, MultiPassRed } from "@/rendering/example-shaders";
+import { ShaderData } from "@/types/shader";
+import { MultiPassRed } from "@/rendering/example-shaders";
 
 const initialShader: ShaderData = MultiPassRed;
 
@@ -69,14 +69,14 @@ const ShaderEditor = () => {
   }, [onKeyDown]); // Empty dependency array ensures this effect runs once after the component is mounted
 
   return (
-    <div className="grid grid-cols-2 w-full min-h-[calc(100vh-80px)] gap-4 p-4">
+    <div className="grid md:grid-cols-2 grid-cols-1 w-full min-h-[calc(100vh-80px)] gap-4 p-4">
       <div className="flex flex-col w-full h-full">
         <div
           ref={shaderRendererRef}
           style={{
             height: `${rendererHeight}px`, // Use dynamically calculated height
           }}
-          className=" w-full  bg-background p-0"
+          className=" w-full bg-background p-0"
         >
           <ShaderRenderer renderer={renderer} initialData={initialShader} />
         </div>

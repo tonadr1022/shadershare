@@ -2,7 +2,6 @@
 
 import {
   ErrMsg,
-  IRenderer,
   IRendererInitPararms,
   RenderData,
   Result,
@@ -110,7 +109,101 @@ export const initialFragmentShaderText = `void imageMain(vec2 fragCoord, vec3 iR
 }
 `;
 
-const webGL2Renderer = (): IRenderer => {
+class RenderTarget {
+  fbo: WebGLFramebuffer;
+  textures: WebGLTexture[];
+  currentTextureIndex: number;
+  getPrevTex() {
+    return this.textures[1 - this.currentTextureIndex];
+  }
+  getCurrTex() {
+    return this.textures[this.currentTextureIndex];
+  }
+
+  cleanup(gl: WebGL2RenderingContext) {
+    gl.deleteFramebuffer(this.fbo);
+    for (const texture of this.textures) {
+      gl.deleteTexture(texture);
+    }
+  }
+
+  constructor(gl: WebGL2RenderingContext, width: number, height: number) {
+    this.textures = [];
+    this.currentTextureIndex = 0;
+    for (let i = 0; i < 2; i++) {
+      const texture = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+      const internalFormat = gl.RGBA32F;
+      const border = 0;
+      const format = gl.RGBA;
+      const type = gl.FLOAT;
+      const data = new Float32Array(width * height * 4);
+      for (let i = 0; i < data.length; i++) {
+        data[i] = 0;
+      }
+      gl.texImage2D(
+        gl.TEXTURE_2D,
+        0,
+        internalFormat,
+        width,
+        height,
+        border,
+        format,
+        type,
+        data,
+      );
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+      this.textures.push(texture);
+    }
+
+    this.fbo = gl.createFramebuffer();
+    this.#bindAndSetTex(gl);
+  }
+
+  #bindAndSetTex(gl: WebGL2RenderingContext) {
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.fbo);
+    gl.framebufferTexture2D(
+      gl.FRAMEBUFFER,
+      gl.COLOR_ATTACHMENT0,
+      gl.TEXTURE_2D,
+      this.textures[this.currentTextureIndex],
+      0,
+    );
+  }
+
+  swapTextures(gl: WebGL2RenderingContext) {
+    this.currentTextureIndex = 1 - this.currentTextureIndex;
+    this.#bindAndSetTex(gl);
+  }
+}
+
+type RenderPassType = "image" | "buffer";
+class RenderPass {
+  program: WebGLProgram;
+  uniformLocs: FragShaderUniforms;
+  renderTarget: RenderTarget;
+  type: RenderPassType;
+  constructor(
+    gl: WebGL2RenderingContext,
+    program: WebGLProgram,
+    width: number,
+    height: number,
+    type: RenderPassType,
+  ) {
+    if (program == 0) {
+      throw new Error("Invalid program");
+    }
+    this.type = type;
+    this.program = program;
+    this.uniformLocs = new FragShaderUniforms(program, gl);
+    this.renderTarget = new RenderTarget(gl, width, height);
+  }
+}
+const webGL2Renderer = () => {
   const fragmentHeaderLineCnt = fragmentHeader.split(/\r\n|\r|\n/).length;
   let canvas: HTMLCanvasElement;
   let gl: WebGL2RenderingContext;
@@ -130,92 +223,6 @@ const webGL2Renderer = (): IRenderer => {
     gl.bindTexture(gl.TEXTURE_2D, texture);
     gl.uniform1i(location, index);
   };
-
-  class RenderTarget {
-    fbo: WebGLFramebuffer;
-    textures: WebGLTexture[];
-    currentTextureIndex: number;
-    getPrevTex() {
-      return this.textures[1 - this.currentTextureIndex];
-    }
-    getCurrTex() {
-      return this.textures[this.currentTextureIndex];
-    }
-
-    cleanup(gl: WebGL2RenderingContext) {
-      gl.deleteFramebuffer(this.fbo);
-      for (const texture of this.textures) {
-        gl.deleteTexture(texture);
-      }
-    }
-
-    constructor(gl: WebGL2RenderingContext, width: number, height: number) {
-      this.textures = [];
-      this.currentTextureIndex = 0;
-      for (let i = 0; i < 2; i++) {
-        const texture = gl.createTexture();
-        gl.bindTexture(gl.TEXTURE_2D, texture);
-        const internalFormat = gl.RGBA32F;
-        const border = 0;
-        const format = gl.RGBA;
-        const type = gl.FLOAT;
-        const data = new Float32Array(width * height * 4);
-        for (let i = 0; i < data.length; i++) {
-          data[i] = 0;
-        }
-        gl.texImage2D(
-          gl.TEXTURE_2D,
-          0,
-          internalFormat,
-          width,
-          height,
-          border,
-          format,
-          type,
-          data,
-        );
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-
-        this.textures.push(texture);
-      }
-
-      this.fbo = gl.createFramebuffer();
-      this.#bindAndSetTex(gl);
-    }
-
-    #bindAndSetTex(gl: WebGL2RenderingContext) {
-      gl.bindFramebuffer(gl.FRAMEBUFFER, this.fbo);
-      gl.framebufferTexture2D(
-        gl.FRAMEBUFFER,
-        gl.COLOR_ATTACHMENT0,
-        gl.TEXTURE_2D,
-        this.textures[this.currentTextureIndex],
-        0,
-      );
-    }
-
-    swapTextures(gl: WebGL2RenderingContext) {
-      this.currentTextureIndex = 1 - this.currentTextureIndex;
-      this.#bindAndSetTex(gl);
-    }
-  }
-
-  class RenderPass {
-    program: WebGLProgram;
-    uniformLocs: FragShaderUniforms;
-    renderTarget: RenderTarget;
-    constructor(program: WebGLProgram) {
-      if (program == 0) {
-        throw new Error("Invalid program");
-      }
-      this.program = program;
-      this.uniformLocs = new FragShaderUniforms(program, gl);
-      this.renderTarget = new RenderTarget(gl, canvas.width, canvas.height);
-    }
-  }
 
   const renderPasses: RenderPass[] = [];
 
@@ -269,79 +276,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
   //   }
   // };
 
-  const screenshot = () => {
-    canvas.toBlob((blob) => {
-      if (!blob) {
-        console.error("Failed to capture canvas as blob");
-        return;
-      }
-
-      const a = document.createElement("a");
-      const url = window.URL.createObjectURL(blob!);
-      a.style.display = "none";
-      a.download = "shader.png";
-      a.href = url;
-      a.click();
-    }, "image/png");
-  };
-
   // let i = 0;
-  const render = () => {
-    // if (i++ > 256) {
-    //   return;
-    // }
-    // TODO: refactor
-    if (!initialized || !gl || !canvas) {
-      return;
-    }
-    currTime = performance.now() / 1000;
-    timeDelta = currTime - lastTime;
-    // const dt = newTime - time;
-    lastTime = currTime;
-    gl.viewport(0, 0, canvas.width, canvas.height);
-
-    for (let i = 0; i < renderPasses.length - 1; i++) {
-      const renderPass = renderPasses[i];
-      gl.useProgram(renderPass.program);
-      const uniforms = renderPass.uniformLocs;
-      bindUniforms(uniforms);
-      gl.bindFramebuffer(gl.FRAMEBUFFER, renderPass.renderTarget.fbo);
-      gl.framebufferTexture2D(
-        gl.FRAMEBUFFER,
-        gl.COLOR_ATTACHMENT0,
-        gl.TEXTURE_2D,
-        renderPass.renderTarget.getCurrTex(),
-        0,
-      );
-      gl.clearColor(0.0, 0.0, 0.0, 1.0);
-      gl.clear(gl.COLOR_BUFFER_BIT);
-      if (uniforms.iChannels[0]) {
-        bindTexture(
-          uniforms.iChannels[0]!,
-          renderPasses[i].renderTarget.getPrevTex(),
-          0,
-        );
-      }
-      gl.drawArrays(gl.TRIANGLES, 0, 3);
-    }
-    const imagePass = renderPasses[renderPasses.length - 1];
-    gl.useProgram(imagePass.program);
-    bindUniforms(imagePass.uniformLocs);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    gl.clearColor(0.0, 0.0, 0.0, 1.0);
-    gl.clear(gl.COLOR_BUFFER_BIT);
-    bindTexture(
-      imagePass.uniformLocs.iChannels[0]!,
-      renderPasses[0].renderTarget.getCurrTex(),
-      0,
-    );
-    gl.drawArrays(gl.TRIANGLES, 0, 3);
-    for (let i = 0; i < renderPasses.length - 1; i++) {
-      renderPasses[i].renderTarget.swapTextures(gl);
-    }
-
-    currFrame++;
-  };
 
   const enableExtensions = () => {
     // get EXT_color_buffer_float extension
@@ -363,75 +298,27 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
     return compileRes;
   };
 
-  const initialize = (params: IRendererInitPararms) => {
-    if (initialized) return;
-    canvas = params.canvas;
-    if (!canvas) {
-      return;
-    }
-    const glResult = canvas.getContext("webgl2", {
-      preserveDrawingBuffer: true,
-      powerPreference: "high-performance",
-    });
-    if (!glResult) {
-      return;
-    }
-    gl = glResult;
-    util = webgl2Utils(gl);
-    if (!enableExtensions()) {
-      return;
-    }
-
-    const { renderData } = params;
-
-    // TODO: handle invalid shader for first initialization
-    for (let i = 0; i < renderData.length; i++) {
-      const shader = compileShader(renderData[i].code);
-      // TODO: cleanup broken unused!
-      if (shader.error) {
-        console.error("error compiling shader", shader.message);
-        return;
-      }
-      renderPasses.push(new RenderPass(shader.data!));
-    }
-
-    lastTime = performance.now();
-    initialized = true;
-  };
-
-  const setShader = (passIdx: number, fragmentText: string) => {
-    if (passIdx >= renderPasses.length) {
-      throw new Error("Invalid pass index");
-    }
-    const fragmentCode = `${fragmentHeader}${fragmentText}`;
-    const compileRes = util.createShaderProgram(vertexCode, fragmentCode);
-    if (compileRes.error) {
-      return createEmptyResult(compileRes.message!);
-    }
-    const pass = renderPasses[passIdx];
-    if (pass.program) {
-      gl.deleteProgram(pass.program);
-    }
-    pass.uniformLocs = new FragShaderUniforms(compileRes.data!, gl);
-    pass.program = compileRes.data!;
-    return createEmptyResult();
-  };
-
-  const onResize = (width: number, height: number) => {
-    if (!initialized || !canvas) {
-      console.log("not initialized", width, height);
-      return;
-    }
-    const scale = window.devicePixelRatio;
-    canvas.width = Math.floor(width * scale);
-    canvas.height = Math.floor(height * scale);
-  };
-
   return {
-    screenshot: screenshot,
+    screenshot: () => {
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          console.error("Failed to capture canvas as blob");
+          return;
+        }
+
+        const a = document.createElement("a");
+        const url = window.URL.createObjectURL(blob!);
+        a.style.display = "none";
+        a.download = "shader.png";
+        a.href = url;
+        a.click();
+      }, "image/png");
+    },
+
     setData: (params: RenderData) => {
       console.error("unimplemented", params);
     },
+
     restart: () => {
       timeDelta = 0;
       currTime = 0;
@@ -465,15 +352,151 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
       console.log("shutting down webGL2Renderer");
       gl.getExtension("WEBGL_lose_context")?.loseContext();
     },
-    setShader: setShader,
-    initialize: initialize,
-    render: render,
-    onResize: onResize,
+
+    setShader: (passIdx: number, fragmentText: string) => {
+      if (passIdx >= renderPasses.length) {
+        throw new Error("Invalid pass index");
+      }
+      const fragmentCode = `${fragmentHeader}${fragmentText}`;
+      const compileRes = util.createShaderProgram(vertexCode, fragmentCode);
+      if (compileRes.error) {
+        return createEmptyResult(compileRes.message!);
+      }
+      const pass = renderPasses[passIdx];
+      if (pass.program) {
+        gl.deleteProgram(pass.program);
+      }
+      pass.uniformLocs = new FragShaderUniforms(compileRes.data!, gl);
+      pass.program = compileRes.data!;
+      return createEmptyResult();
+    },
+
+    initialize: (params: IRendererInitPararms) => {
+      if (initialized) return;
+      canvas = params.canvas;
+      if (!canvas) {
+        return;
+      }
+      const glResult = canvas.getContext("webgl2", {
+        preserveDrawingBuffer: true,
+        powerPreference: "high-performance",
+      });
+      if (!glResult) {
+        return;
+      }
+      gl = glResult;
+      util = webgl2Utils(gl);
+      if (!enableExtensions()) {
+        return;
+      }
+
+      const { renderData } = params;
+
+      // TODO: handle invalid shader for first initialization
+      for (let i = 0; i < renderData.length; i++) {
+        const type: RenderPassType =
+          i < renderData.length - 1 ? "buffer" : "image";
+        const shader = compileShader(renderData[i].code);
+        // TODO: cleanup broken unused!
+        if (shader.error) {
+          console.error("error compiling shader", shader.message);
+          return;
+        }
+        renderPasses.push(
+          new RenderPass(gl, shader.data!, canvas.width, canvas.height, type),
+        );
+      }
+
+      lastTime = performance.now();
+      initialized = true;
+    },
+
+    render: () => {
+      // if (i++ > 256) {
+      //   return;
+      // }
+      // TODO: refactor
+      if (!initialized || !gl || !canvas) {
+        return;
+      }
+      currTime = performance.now() / 1000;
+      timeDelta = currTime - lastTime;
+      // const dt = newTime - time;
+      lastTime = currTime;
+      gl.viewport(0, 0, canvas.width, canvas.height);
+
+      for (let i = 0; i < renderPasses.length - 1; i++) {
+        const renderPass = renderPasses[i];
+        gl.useProgram(renderPass.program);
+        const uniforms = renderPass.uniformLocs;
+        bindUniforms(uniforms);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, renderPass.renderTarget.fbo);
+        gl.framebufferTexture2D(
+          gl.FRAMEBUFFER,
+          gl.COLOR_ATTACHMENT0,
+          gl.TEXTURE_2D,
+          renderPass.renderTarget.getCurrTex(),
+          0,
+        );
+        gl.clearColor(0.0, 0.0, 0.0, 1.0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        if (uniforms.iChannels[0]) {
+          bindTexture(
+            uniforms.iChannels[0]!,
+            renderPasses[i].renderTarget.getPrevTex(),
+            0,
+          );
+        }
+        gl.drawArrays(gl.TRIANGLES, 0, 3);
+      }
+      const imagePass = renderPasses[renderPasses.length - 1];
+      gl.useProgram(imagePass.program);
+      bindUniforms(imagePass.uniformLocs);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.clearColor(0.0, 0.0, 0.0, 1.0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      bindTexture(
+        imagePass.uniformLocs.iChannels[0]!,
+        renderPasses[0].renderTarget.getCurrTex(),
+        0,
+      );
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+      for (let i = 0; i < renderPasses.length - 1; i++) {
+        renderPasses[i].renderTarget.swapTextures(gl);
+      }
+
+      currFrame++;
+    },
+
+    onResize: (width: number, height: number) => {
+      if (!initialized || !canvas) {
+        console.log("not initialized", width, height);
+        return;
+      }
+      const scale = window.devicePixelRatio;
+      canvas.width = Math.floor(width * scale);
+      canvas.height = Math.floor(height * scale);
+      // for each buffer, need to make new textures, copy the old data over
+      for (const renderPass of renderPasses) {
+        if (renderPass.type == "image") continue;
+
+        // make new render targets
+        // draw unit quad to them with minsize of new and old size
+        // destroy old
+        renderPass.renderTarget.cleanup(gl);
+        renderPass.renderTarget = new RenderTarget(
+          gl,
+          canvas.width,
+          canvas.height,
+        );
+      }
+    },
   };
 };
 
-const createRenderer = (): IRenderer => {
+const createRenderer = () => {
   return webGL2Renderer();
 };
+export type IRenderer = ReturnType<typeof createRenderer>;
 
 export { createRenderer };

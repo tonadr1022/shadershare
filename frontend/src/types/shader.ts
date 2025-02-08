@@ -37,14 +37,3 @@ export type IRendererInitPararms = {
   canvas: HTMLCanvasElement;
   renderData: RenderPass[];
 };
-export type IRenderer = {
-  initialize: (params: IRendererInitPararms) => void;
-  setShader: (passIdx: number, fragmentText: string) => EmptyResult;
-  setData: (params: RenderData) => void;
-  render: () => void;
-  shutdown: () => void;
-  onResize: (width: number, height: number) => void;
-  restart: () => void;
-  screenshot: () => void;
-  getErrorMessages: (text: string) => ErrMsg[];
-};
