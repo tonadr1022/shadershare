@@ -32,13 +32,13 @@ uniform sampler2D iChannel1;
 uniform sampler2D iChannel2;
 uniform sampler2D iChannel3;
 
-vec3 iResolution;
-float iTime; // seconds
-float iTimeDelta;
-int iFrame;
-float iChannelTime[4];
-vec3 iChannelResolution[4];
-vec4 iMouse; // xy = curr pixel coords, zw = click pixel coords
+uniform vec3 iResolution;
+uniform float iTime; // seconds
+uniform float iTimeDelta;
+uniform int iFrame;
+uniform float iChannelTime[4];
+uniform vec3 iChannelResolution[4];
+uniform vec4 iMouse; // xy = curr pixel coords, zw = click pixel coords
 
 out vec4 fragColor;
 
@@ -55,7 +55,8 @@ class FragShaderUniforms {
   iTimeDelta: WebGLUniformLocation | null = null;
   iFrame: WebGLUniformLocation | null = null;
   iChannelTime: WebGLUniformLocation | null = null;
-  iChannelResolution: WebGLUniformLocation | null = null;
+  // TODO: array
+  iChannelResolution0: WebGLUniformLocation | null = null;
   iMouse: WebGLUniformLocation | null = null;
   iChannels: (WebGLUniformLocation | null)[] = [null, null, null, null];
 
@@ -69,9 +70,9 @@ class FragShaderUniforms {
     this.iTimeDelta = gl.getUniformLocation(shaderProgram, "iTimeDelta");
     this.iFrame = gl.getUniformLocation(shaderProgram, "iFrame");
     this.iChannelTime = gl.getUniformLocation(shaderProgram, "iChannelTime");
-    this.iChannelResolution = gl.getUniformLocation(
+    this.iChannelResolution0 = gl.getUniformLocation(
       shaderProgram,
-      "iChannelResolution",
+      "iChannelResolution[0]",
     );
     this.iMouse = gl.getUniformLocation(shaderProgram, "iMouse");
     for (let i = 0; i < 4; i++) {
@@ -80,6 +81,7 @@ class FragShaderUniforms {
         FragShaderUniforms.iChannelNames[i],
       );
     }
+    console.log("set locs");
   }
   static iChannelNames = ["iChannel0", "iChannel1", "iChannel2", "iChannel3"];
   constructor(shaderProgram: WebGLProgram, gl: WebGL2RenderingContext) {
@@ -199,40 +201,32 @@ const webGL2Renderer = (): IRenderer => {
 
   let util: WebGL2Utils;
 
+  /*
+   *
+void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
+    vec2 uv = fragCoord/iResolution.xy;
+    vec3 col = 0.5 + 0.5*cos(iTime+uv.xyx+vec3(0,2,4));
+    fragColor = vec4(col,1.0); 
+}
+   */
   const bindUniforms = (uniforms: FragShaderUniforms) => {
-    if (uniforms.iResolution) {
-      gl.uniform3f(
-        uniforms.iResolution,
-        canvas.width,
-        canvas.height,
-        devicePixelRatio,
-      );
-    }
-    if (uniforms.iTime) {
-      gl.uniform1f(uniforms.iTime, currTime);
-    }
-    if (uniforms.iTimeDelta) {
-      gl.uniform1f(uniforms.iTimeDelta, timeDelta);
-    }
-    if (uniforms.iFrame) {
-      gl.uniform1i(uniforms.iFrame, currFrame);
-    }
-    // TODO:
-    if (uniforms.iChannelTime) {
-      gl.uniform1fv(uniforms.iChannelTime, [0, 0, 0, 0]);
-    }
-    if (uniforms.iChannelResolution) {
-      gl.uniform3fv(uniforms.iChannelResolution, [
-        canvas.width,
-        canvas.height,
-        devicePixelRatio,
-      ]);
-      // TODO:
-    }
-    if (uniforms.iMouse) {
-      // TODO:
-      gl.uniform4f(uniforms.iMouse, 0, 0, 0, 0);
-    }
+    gl.uniform3f(
+      uniforms.iResolution,
+      canvas.width,
+      canvas.height,
+      devicePixelRatio,
+    );
+    gl.uniform1f(uniforms.iTime, currTime);
+    gl.uniform1f(uniforms.iTimeDelta, timeDelta);
+    gl.uniform1fv(uniforms.iChannelTime, [0, 0, 0, 0]);
+    //  fragColor = vec4(fragCoord.xy/iChannelResolution[0].xy,0.,1.)
+    gl.uniform3fv(uniforms.iChannelResolution0, [
+      canvas.width,
+      canvas.height,
+      devicePixelRatio,
+    ]);
+    gl.uniform1i(uniforms.iFrame, currFrame);
+    gl.uniform4f(uniforms.iMouse, 0, 0, 0, 0);
   };
   // const bindTextures = (cnt: number, uniforms: FragShaderUniforms) => {
   //   for (let i = 0; i < cnt; i++) {
@@ -262,8 +256,6 @@ const webGL2Renderer = (): IRenderer => {
     // const dt = newTime - time;
     lastTime = currTime;
     gl.viewport(0, 0, canvas.width, canvas.height);
-    gl.clearColor(0.0, 0.0, 0.0, 1.0);
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     for (let i = 0; i < renderPasses.length - 1; i++) {
       const renderPass = renderPasses[i];
@@ -271,11 +263,15 @@ const webGL2Renderer = (): IRenderer => {
       const uniforms = renderPass.uniformLocs;
       bindUniforms(uniforms);
       gl.bindFramebuffer(gl.FRAMEBUFFER, renderPass.renderTarget.fbo);
-      bindTexture(
-        uniforms.iChannels[0]!,
-        renderPasses[i].renderTarget.getPrevTex(),
-        0,
-      );
+      gl.clearColor(1.0, 0.0, 0.0, 1.0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      if (uniforms.iChannels[0]) {
+        bindTexture(
+          uniforms.iChannels[0]!,
+          renderPasses[i].renderTarget.getPrevTex(),
+          0,
+        );
+      }
       // bindTextures(i, uniforms);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
 
@@ -285,9 +281,11 @@ const webGL2Renderer = (): IRenderer => {
     gl.useProgram(imagePass.program);
     bindUniforms(imagePass.uniformLocs);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.clearColor(1.0, 0.0, 0.0, 1.0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
     bindTexture(
       imagePass.uniformLocs.iChannels[0]!,
-      imagePass.renderTarget.getPrevTex(),
+      imagePass.renderTarget.getCurrTex(),
       0,
     );
     gl.drawArrays(gl.TRIANGLES, 0, 3);
@@ -361,6 +359,7 @@ const webGL2Renderer = (): IRenderer => {
     if (pass.program) {
       gl.deleteProgram(pass.program);
     }
+    pass.uniformLocs = new FragShaderUniforms(compileRes.data!, gl);
     pass.program = compileRes.data!;
     return createEmptyResult();
   };
