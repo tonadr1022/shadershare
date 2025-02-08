@@ -1,7 +1,7 @@
 "use client";
 import ShaderRenderer from "../renderer/ShaderRenderer";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import Editor, { MultiBufferEditor } from "./Editor";
+import { MultiBufferEditor } from "./Editor";
 import {
   createRenderer,
   initialFragmentShaderText,
@@ -46,29 +46,26 @@ const ShaderEditor = () => {
   }, []); // Empty dependency array ensures this effect runs once after the component is mounted
 
   return (
-    <div className="h-full flex flex-col bg-background p-4">
-      <h1 className="">shader - </h1>
-      <div className="flex flex-col lg:flex-row w-full h-full gap-4">
-        <div className="flex flex-col w-full h-full lg:w-1/2">
-          <div
-            ref={shaderRendererRef}
-            style={{
-              height: `${rendererHeight}px`, // Use dynamically calculated height
+    <div className="grid grid-cols-2 w-full min-h-[calc(100vh-80px)] gap-4 p-4">
+      <div className="flex flex-col w-full h-full">
+        <div
+          ref={shaderRendererRef}
+          style={{
+            height: `${rendererHeight}px`, // Use dynamically calculated height
+          }}
+          className=" w-full  bg-background p-0"
+        >
+          <ShaderRenderer
+            renderer={renderer}
+            initialData={{
+              fragmentText: initialFragmentShaderText,
             }}
-            className=" w-full  bg-background p-0"
-          >
-            <ShaderRenderer
-              renderer={renderer}
-              initialData={{
-                fragmentText: initialFragmentShaderText,
-              }}
-            />
-          </div>
-          <Button onClick={saveShader}>Save</Button>
+          />
         </div>
-        <div className="w-full h-full lg:w-1/2 bg-background">
-          {renderer && <MultiBufferEditor initialShaderData={initialShader} />}
-        </div>
+        <Button onClick={saveShader}>Save</Button>
+      </div>
+      <div className="w-full overflow-auto h-full bg-background">
+        {renderer && <MultiBufferEditor initialShaderData={initialShader} />}
       </div>
     </div>
   );

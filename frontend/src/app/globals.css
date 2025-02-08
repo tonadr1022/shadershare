@@ -10,6 +10,10 @@ body {
   height: 100%;
 }
 
+.cm-editor2 {
+  height: calc(max(300px, 100% -310px));
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;

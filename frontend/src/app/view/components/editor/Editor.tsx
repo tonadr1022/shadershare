@@ -27,6 +27,8 @@ import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { ShaderData } from "@/types/shader";
 import { cn } from "@/lib/utils";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useTheme } from "next-themes";
 
 type Props = {
   initialValue: string;
@@ -85,7 +87,22 @@ type Props2 = {
   visible: boolean;
   onTextChange: (text: string) => void;
 };
+const getThemeString = (nextTheme: string) => {
+  switch (nextTheme) {
+    case "light":
+      return "light";
+    case "dark":
+      return "dark";
+    default:
+      return window.matchMedia("(prefers-color-scheme: dark)").matches
+        ? "dark"
+        : "light";
+  }
+};
+
 export const Editor2 = React.memo((props: Props2) => {
+  const { theme } = useTheme();
+
   console.log("render editor2", props.visible);
   const { text, onTextChange } = props;
   const editorRef = useRef<ReactCodeMirrorRef | null>(null);
@@ -96,9 +113,10 @@ export const Editor2 = React.memo((props: Props2) => {
       editorRef.current?.view?.focus();
     }
 
-    if (event.key === "Escape") {
-      (document.activeElement as HTMLElement)?.blur();
-    }
+    // TODO: setting for this
+    // if (event.key === "Escape") {
+    //   (document.activeElement as HTMLElement)?.blur();
+    // }
   }, []);
 
   useEffect(() => {
@@ -107,14 +125,13 @@ export const Editor2 = React.memo((props: Props2) => {
   }, [handleKeyDown]);
 
   const extensions = useMemo(
-    () =>
-      basicSetup().concat([
-        cpp(),
-        indentUnit.of("    "),
-        vim({ status: false }),
-        // TODO: only active for vim mode
-        drawSelection({ cursorBlinkRate: 0 }),
-      ]),
+    () => [
+      cpp(),
+      indentUnit.of("    "),
+      vim({ status: false }),
+      // TODO: only active for vim mode
+      drawSelection({ cursorBlinkRate: 0 }),
+    ],
 
     [],
   );
@@ -122,9 +139,11 @@ export const Editor2 = React.memo((props: Props2) => {
     <CodeMirror
       ref={editorRef}
       value={text}
-      theme={"dark"}
-      id="shader-editor"
-      className={cn(props.visible ? "" : "hidden", "overflow-scroll, h-full")}
+      theme={getThemeString(theme || "")}
+      className={cn(
+        props.visible ? "" : "hidden",
+        " border-2 cm-editor2 overflow-auto h-[calc(max(300px,100vh-310px))]",
+      )}
       onChange={onTextChange}
       autoFocus={false}
       extensions={extensions}
@@ -158,170 +177,202 @@ export const MultiBufferEditor = React.memo((props: Props3) => {
 
   return (
     <div className="w-full h-full">
-      <div className="flex flex-row w-full">
+      <Tabs defaultValue="0" className="h-full">
+        <TabsList>
+          {shaderData.render_passes.map((renderPass, idx) => (
+            <TabsTrigger
+              value={idx.toString()}
+              onClick={() => onBufferIdxChange(idx)}
+              key={renderPass.pass_idx}
+            >
+              Pass {idx}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+
         {shaderData.render_passes.map((renderPass, idx) => (
-          <Button
-            onClick={() => onBufferIdxChange(idx)}
+          <TabsContent
+            forceMount={true}
+            value={idx.toString()}
             key={renderPass.pass_idx}
-            variant={"outline"}
-            className=""
           >
-            Pass {idx}
-          </Button>
+            <Editor2
+              visible={renderPassEditIdx === idx}
+              text={renderPass.code}
+              onTextChange={(text) => debouncedUpdate(text, idx)}
+            />
+          </TabsContent>
         ))}
-      </div>
-      <div>rp idx {renderPassEditIdx}</div>
-      {shaderData.render_passes.map((renderPass, idx) => (
-        <Editor2
-          visible={renderPassEditIdx === idx}
-          key={renderPass.pass_idx}
-          text={renderPass.code}
-          onTextChange={(text) => debouncedUpdate(text, idx)}
-        />
-      ))}
+      </Tabs>
     </div>
   );
+  // return (
+  //   <div className="flex flex-col w-full h-full">
+  //     <div className="flex flex-row w-full">
+  //       {shaderData.render_passes.map((renderPass, idx) => (
+  //         <Button
+  //           onClick={() => onBufferIdxChange(idx)}
+  //           key={renderPass.pass_idx}
+  //           variant={renderPassEditIdx == idx ? "active" : "outline"}
+  //           className=""
+  //         >
+  //           Pass {idx}
+  //         </Button>
+  //       ))}
+  //     </div>
+  //     {shaderData.render_passes.map((renderPass, idx) => (
+  //       <Editor2
+  //         visible={renderPassEditIdx === idx}
+  //         key={renderPass.pass_idx}
+  //         text={renderPass.code}
+  //         onTextChange={(text) => debouncedUpdate(text, idx)}
+  //       />
+  //     ))}
+  //   </div>
+  // );
 });
 MultiBufferEditor.displayName = "MultiBufferEditor";
 
-const Editor = (props: Props) => {
-  const [shaderData, dispatch] = useReducer(editorReducer, initialShader);
-  const [renderPassEditIdx, setRenderPassEditIdx] = useState<number>(0);
+// const Editor = (props: Props) => {
+//   const [shaderData, dispatch] = useReducer(editorReducer, initialShader);
+//   const [renderPassEditIdx, setRenderPassEditIdx] = useState<number>(0);
+//
+//   const saveShaderMutation = useMutation({
+//     mutationFn: async (data: ShaderData) => {
+//       console.log("save shader", data);
+//     },
+//   });
+//   const { renderer } = props;
+//   const onCompileFunc = useCallback(
+//     (shaderData: ShaderData): ErrMsg[] => {
+//       if (!renderer) return [];
+//       const res = renderer?.setShader(shaderData.render_passes[0].code);
+//       console.log("compile", res);
+//       return renderer.getErrorMessages(res.message || "");
+//     },
+//     [renderer],
+//   );
+//   const editorRef = useRef<ReactCodeMirrorRef | null>(null);
+//
+//   console.log("render");
+//   // function debounce(func: any, wait: number) {
+//   //   return function executedFunction(...args: unknown[]) {
+//   //     const later = () => {
+//   //       clearTimeout(timeout);
+//   //       func(...args);
+//   //     };
+//   //     clearTimeout(timeout);
+//   //     timeout = setTimeout(later, wait);
+//   //   };
+//   // }
+//   const onChange = useCallback(
+//     debounce((val: string) => {
+//       const currentCode = shaderData.render_passes[renderPassEditIdx]?.code;
+//       if (currentCode !== val) {
+//         dispatch({
+//           type: "SET_RENDER_PASS_CODE",
+//           payload: { pass_idx: renderPassEditIdx, code: val },
+//         });
+//       }
+//     }, 300), // Adjust debounce time as necessary
+//     [renderPassEditIdx, shaderData],
+//   );
+//
+//   // const onChange = useCallback(
+//   //   (val: string) => {
+//   //     dispatch({
+//   //       type: "SET_RENDER_PASS_CODE",
+//   //       payload: { pass_idx: renderPassEditIdx, code: val },
+//   //     });
+//   //   },
+//   //   [renderPassEditIdx],
+//   // );
+//
+//   const onCompile = useCallback(async () => {
+//     // clear existing errors
+//     const view = editorRef.current?.view;
+//     if (!view) return;
+//     view.dispatch({ effects: clearErrorsEffect.of() });
+//
+//     // compile
+//     const result = onCompileFunc(shaderData);
+//     if (result.length === 0) return;
+//     view.dispatch({
+//       effects: result.map((err) =>
+//         errorEffect.of({
+//           line: err.line,
+//           message: err.message || "",
+//         }),
+//       ),
+//     });
+//   }, [onCompileFunc, shaderData]);
+//
+//   const handleKeyDown = useCallback(
+//     (event: KeyboardEvent) => {
+//       if ((event.ctrlKey || event.metaKey) && event.key === "e") {
+//         event.preventDefault();
+//         editorRef.current?.view?.focus();
+//       }
+//
+//       if (event.key === "Escape") {
+//         (document.activeElement as HTMLElement)?.blur();
+//       }
+//       if (event.key === "Enter" && event.altKey) {
+//         onCompile();
+//       }
+//     },
+//     [onCompile],
+//   );
+//
+//   useEffect(() => {
+//     // Vim.defineEx("write", "w", onCompile);
+//     window.addEventListener("keydown", handleKeyDown);
+//     return () => window.removeEventListener("keydown", handleKeyDown);
+//   }, [onCompile, handleKeyDown]);
+//
+//   const extensions = useMemo(
+//     () => [
+//       cpp(),
+//       indentUnit.of("    "),
+//       vim({ status: false }),
+//       drawSelection({ cursorBlinkRate: 0 }),
+//       errorField,
+//     ],
+//     [],
+//   );
+//   return (
+//     <div className="flex flex-col">
+//       <div className="flex flex-col">
+//         {shaderData.render_passes.map((renderPass, idx) => (
+//           <Button
+//             key={renderPass.pass_idx}
+//             className={renderPassEditIdx === idx ? "active" : ""}
+//             onClick={() => {
+//               console.log("idx", idx);
+//               setRenderPassEditIdx(idx);
+//             }}
+//           >
+//             {idx}
+//           </Button>
+//         ))}
+//       </div>
+//       <Button
+//         onClick={() => {
+//           saveShaderMutation.mutate(shaderData);
+//         }}
+//       >
+//         save
+//       </Button>
+//       <CodeMirror
+//         ref={editorRef}
+//         value={shaderData.render_passes[renderPassEditIdx].code}
+//         theme={"dark"}
+//         onChange={onChange}
+//         autoFocus={false}
+//         extensions={extensions}
+//       />
+//     </div>
+//   );
+// };
 
-  const saveShaderMutation = useMutation({
-    mutationFn: async (data: ShaderData) => {
-      console.log("save shader", data);
-    },
-  });
-  const { renderer } = props;
-  const onCompileFunc = useCallback(
-    (shaderData: ShaderData): ErrMsg[] => {
-      if (!renderer) return [];
-      const res = renderer?.setShader(shaderData.render_passes[0].code);
-      console.log("compile", res);
-      return renderer.getErrorMessages(res.message || "");
-    },
-    [renderer],
-  );
-  const editorRef = useRef<ReactCodeMirrorRef | null>(null);
-
-  console.log("render");
-  // function debounce(func: any, wait: number) {
-  //   return function executedFunction(...args: unknown[]) {
-  //     const later = () => {
-  //       clearTimeout(timeout);
-  //       func(...args);
-  //     };
-  //     clearTimeout(timeout);
-  //     timeout = setTimeout(later, wait);
-  //   };
-  // }
-  const onChange = useCallback(
-    debounce((val: string) => {
-      const currentCode = shaderData.render_passes[renderPassEditIdx]?.code;
-      if (currentCode !== val) {
-        dispatch({
-          type: "SET_RENDER_PASS_CODE",
-          payload: { pass_idx: renderPassEditIdx, code: val },
-        });
-      }
-    }, 300), // Adjust debounce time as necessary
-    [renderPassEditIdx, shaderData],
-  );
-
-  // const onChange = useCallback(
-  //   (val: string) => {
-  //     dispatch({
-  //       type: "SET_RENDER_PASS_CODE",
-  //       payload: { pass_idx: renderPassEditIdx, code: val },
-  //     });
-  //   },
-  //   [renderPassEditIdx],
-  // );
-
-  const onCompile = useCallback(async () => {
-    // clear existing errors
-    const view = editorRef.current?.view;
-    if (!view) return;
-    view.dispatch({ effects: clearErrorsEffect.of() });
-
-    // compile
-    const result = onCompileFunc(shaderData);
-    if (result.length === 0) return;
-    view.dispatch({
-      effects: result.map((err) =>
-        errorEffect.of({
-          line: err.line,
-          message: err.message || "",
-        }),
-      ),
-    });
-  }, [onCompileFunc, shaderData]);
-
-  const handleKeyDown = useCallback(
-    (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key === "e") {
-        event.preventDefault();
-        editorRef.current?.view?.focus();
-      }
-
-      if (event.key === "Escape") {
-        (document.activeElement as HTMLElement)?.blur();
-      }
-      if (event.key === "Enter" && event.altKey) {
-        onCompile();
-      }
-    },
-    [onCompile],
-  );
-
-  useEffect(() => {
-    // Vim.defineEx("write", "w", onCompile);
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onCompile, handleKeyDown]);
-
-  const extensions = useMemo(
-    () => [
-      cpp(),
-      indentUnit.of("    "),
-      vim({ status: false }),
-      drawSelection({ cursorBlinkRate: 0 }),
-      errorField,
-    ],
-    [],
-  );
-  return (
-    <div className="flex flex-col">
-      {shaderData.render_passes.map((renderPass, idx) => (
-        <Button
-          key={renderPass.pass_idx}
-          className={renderPassEditIdx === idx ? "active" : ""}
-          onClick={() => {
-            console.log("idx", idx);
-            setRenderPassEditIdx(idx);
-          }}
-        >
-          {idx}
-        </Button>
-      ))}
-      <Button
-        onClick={() => {
-          saveShaderMutation.mutate(shaderData);
-        }}
-      >
-        save
-      </Button>
-      <CodeMirror
-        ref={editorRef}
-        value={shaderData.render_passes[renderPassEditIdx].code}
-        theme={"dark"}
-        onChange={onChange}
-        autoFocus={false}
-        extensions={extensions}
-      />
-    </div>
-  );
-};
-
-export default Editor;
+// export default Editor;
