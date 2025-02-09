@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ShaderData } from "@/types/shader";
 import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
@@ -62,6 +62,7 @@ const ShaderRenderer = (props: Props) => {
 
     return () => {};
   }, [renderer, initialData]);
+  const [canvasDims, setCanvasDims] = useState({ width: 0, height: 0 });
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -70,6 +71,7 @@ const ShaderRenderer = (props: Props) => {
       const devicePixelRatio = window.devicePixelRatio || 1;
       const xres = Math.round(canvas.offsetWidth * devicePixelRatio) | 0;
       const yres = Math.round(canvas.offsetHeight * devicePixelRatio) | 0;
+      setCanvasDims({ width: xres, height: yres });
       renderer.onResize(xres, yres);
     };
 
@@ -86,6 +88,8 @@ const ShaderRenderer = (props: Props) => {
         window.addEventListener("resize", bestAttemptFallback);
       } else {
         const box = entry.devicePixelContentBoxSize[0];
+
+        setCanvasDims({ width: box.inlineSize, height: box.blockSize });
         renderer.onResize(box.inlineSize, box.blockSize);
       }
     });
@@ -152,9 +156,8 @@ const ShaderRenderer = (props: Props) => {
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
-        <div className="bg-blue-500 p-2 border-none">
-          {(canvasRef.current && canvasRef.current.width) || 0}x
-          {(canvasRef.current && canvasRef.current.height) || 0}
+        <div className="font-semibold p-2 border-none">
+          {canvasDims.width}x{canvasDims.height}
         </div>
       </div>
     </div>

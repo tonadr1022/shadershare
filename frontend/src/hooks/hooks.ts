@@ -1,5 +1,7 @@
-import { getMe } from "@/api/auth-api";
+import { getMe, logoutUser } from "@/api/auth-api";
 import { useQuery } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+import { useCallback } from "react";
 
 export const useGetMe = () => {
   return useQuery({
@@ -8,4 +10,14 @@ export const useGetMe = () => {
     queryFn: getMe,
     staleTime: 1000 * 60,
   });
+};
+
+export const useLogout = () => {
+  const router = useRouter();
+  const logout = useCallback(async () => {
+    await logoutUser();
+    router.refresh(); // Optionally use router.push('/') or redirect to login
+  }, [router]);
+
+  return logout;
 };

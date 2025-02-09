@@ -1,8 +1,6 @@
-"use client";
 import { url } from "@/utils/links";
 import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
-
 import {
   Drawer,
   DrawerContent,
@@ -13,14 +11,13 @@ import {
 } from "@/components/ui/drawer";
 import { FaHome } from "react-icons/fa";
 import Link from "next/link";
-import { useGetMe } from "@/hooks/hooks";
 import ProfileDropdown from "./ProfileDropdown";
+import { fetchMe } from "@/api/server-api";
 
-export default function Navbar3() {
-  const { data: user, error } = useGetMe();
-  if (error) {
-    console.log(error);
-  }
+export default async function Navbar3() {
+  const user = await fetchMe();
+
+  // TODO: bar when small screen
   return (
     <div
       className="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white  sticky top-0 z-50 w-full 
@@ -70,9 +67,6 @@ export default function Navbar3() {
               >
                 Browse
               </Link>
-              <span className="group hover:cursor-not-allowed flex gap-2 w-full items-center rounded-md border border-transparent px-2 py-1 text-muted-foreground ">
-                <p>Upload Area</p>
-              </span>
             </DrawerContent>
           </Drawer>
         </div>

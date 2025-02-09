@@ -45,13 +45,12 @@ func (h userHandler) oauthCallback(c *gin.Context) {
 	c.Request = c.Request.WithContext(ctx)
 	oauthUser, err := gothic.CompleteUserAuth(c.Writer, c.Request)
 	if err != nil {
-		fmt.Println(c.Request, err)
+		fmt.Println(err)
 		return
 	}
-	fmt.Println(oauthUser.Email, oauthUser.AvatarURL)
 	tokens, err := h.userService.CompleteOAuthLogin(c, &domain.OAuthPayload{Email: oauthUser.Email, AvatarUrl: oauthUser.AvatarURL})
 	if err != nil {
-		fmt.Println(c.Request, err)
+		fmt.Println(err)
 		return
 	}
 
@@ -63,7 +62,6 @@ func (h userHandler) oauthCallback(c *gin.Context) {
 
 func (h userHandler) loginWithProvider(c *gin.Context) {
 	provider := c.Param("provider")
-	fmt.Println(provider)
 	ctx := context.WithValue(c.Request.Context(), "provider", provider)
 
 	c.Request = c.Request.WithContext(ctx)
@@ -110,17 +108,14 @@ func (h userHandler) profile(c *gin.Context) {
 
 func (h userHandler) me(c *gin.Context) {
 	userctx, ok := middleware.CurrentUser(c)
-	fmt.Printf("userctx: %v", userctx)
 	if !ok {
 		util.SetInternalServiceErrorResponse(c)
 		return
 	}
 	user, err := h.userService.GetUserByID(c, userctx.ID)
 	if err != nil {
-		fmt.Println("setting err response internal")
 		util.SetErrorResponse(c, http.StatusInternalServerError, "Internal Server Error")
 		return
 	}
-	fmt.Printf("user: %v", user)
 	c.JSON(http.StatusOK, user)
 }

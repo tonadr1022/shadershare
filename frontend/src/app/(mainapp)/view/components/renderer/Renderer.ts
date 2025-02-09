@@ -370,6 +370,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
     shutdown: () => {
       if (!initialized) return;
       console.log("shutting down webGL2Renderer");
+      initialized = false;
       gl.getExtension("WEBGL_lose_context")?.loseContext();
     },
 

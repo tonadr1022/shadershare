@@ -1,5 +1,6 @@
 export const apiBaseURL = process.env.NEXT_PUBLIC_API_URL;
 export const apiPath = "/api/v1";
+export const fullAPIPath = `${apiBaseURL}${apiPath}`;
 
 import { ErrorResponse } from "@/types/base";
 import axios, { AxiosError } from "axios";
@@ -20,13 +21,6 @@ axiosInstance.interceptors.response.use(
   },
   (error) => {
     console.error(error);
-    // if (error.response?.status === 401) {
-    //   const currentPath = encodeURIComponent(
-    //     window.location.pathname + window.location.search,
-    //   );
-    //   window.location.href = `/login?returnUrl=${currentPath}`;
-    // }
-    // return Promise.reject(error);
   },
 );
 

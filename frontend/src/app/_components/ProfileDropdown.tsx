@@ -1,5 +1,3 @@
-"use client";
-import { getMe, logoutUser } from "@/api/auth-api";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -8,19 +6,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { url } from "@/utils/links";
-import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import React from "react";
 import { ThemeDropdown } from "./ModeToggle";
+import LogoutDropdownItem from "./LogoutProfileItem";
+import { fetchMe } from "@/api/server-api";
 
-const ProfileDropdown = () => {
-  const router = useRouter();
-  const { data: user } = useQuery({
-    queryKey: ["me"],
-    queryFn: getMe,
-    staleTime: 1000 * 60,
-  });
+const ProfileDropdown = async () => {
+  const user = await fetchMe();
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className="transition-none" asChild>
@@ -35,18 +28,7 @@ const ProfileDropdown = () => {
         <ThemeDropdown />
 
         {user ? (
-          <DropdownMenuItem
-            onClick={async () => {
-              try {
-                await logoutUser();
-              } catch (e) {
-                console.error(e);
-              }
-              router.push(url.login);
-            }}
-          >
-            Logout
-          </DropdownMenuItem>
+          <LogoutDropdownItem />
         ) : (
           <DropdownMenuItem>
             <Link href={url.login}>Login</Link>

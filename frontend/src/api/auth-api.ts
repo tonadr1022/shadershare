@@ -1,3 +1,4 @@
+"use client";
 import { LoginFormData, RegisterFormData, User } from "@/types/auth";
 import axiosInstance from "./api";
 

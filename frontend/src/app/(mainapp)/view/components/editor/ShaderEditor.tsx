@@ -1,33 +1,17 @@
 "use client";
 import ShaderRenderer from "../renderer/ShaderRenderer";
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react";
+import { useEffect, useState } from "react";
 import { MultiBufferEditor } from "./Editor";
 import { createRenderer, IRenderer } from "../renderer/Renderer";
 import { Button } from "@/components/ui/button";
 import { ShaderData } from "@/types/shader";
 import { MultiPassRed } from "@/rendering/example-shaders";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const initialShader: ShaderData = MultiPassRed;
 
-// const initialShader: ShaderData = {
-//   title: "",
-//   description: "",
-//   render_passes: [
-//     { pass_idx: 0, code: initialFragmentShaderText },
-//     { pass_idx: 1, code: "nothing here" },
-//   ],
-// };
-
 const ShaderEditor = () => {
-  const shaderRendererRef = useRef<HTMLDivElement | null>(null);
   const [renderer, setRenderer] = useState<IRenderer | null>(null);
-  const [rendererHeight, setRendererHeight] = useState<number>(0);
   const saveShader = () => {
     console.log("save shader");
   };
@@ -35,51 +19,23 @@ const ShaderEditor = () => {
     setRenderer(createRenderer());
   }, []);
 
-  const onKeyDown = useCallback(
-    (event: KeyboardEvent) => {
-      if (event.key == "F9") {
-        if (renderer) {
-          renderer.shutdown();
-        }
-        setRenderer(createRenderer());
-      }
-    },
-    [renderer],
-  );
-  // This useLayoutEffect ensures that the height is updated after the DOM is rendered.
-  useLayoutEffect(() => {
-    const updateHeight = () => {
-      if (shaderRendererRef.current) {
-        const width = shaderRendererRef.current.offsetWidth;
-        setRendererHeight(width / 1.7777777 + 40); // Set height dynamically based on the width
-      }
-    };
-
-    // Initial height calculation
-    updateHeight();
-
-    window.addEventListener("keydown", onKeyDown);
-    // Set up the resize event listener to update the height on window resize
-    window.addEventListener("resize", updateHeight);
-    return () => {
-      window.removeEventListener("keydown", onKeyDown);
-
-      window.removeEventListener("resize", updateHeight);
-    };
-  }, [onKeyDown]); // Empty dependency array ensures this effect runs once after the component is mounted
-
+  // TODO: resizeable shadcn component
   return (
     <div className="grid md:grid-cols-2 grid-cols-1 w-full min-h-[calc(100vh-80px)] gap-4 p-4">
       <div className="flex flex-col w-full h-full">
         <ShaderRenderer renderer={renderer} initialData={initialShader} />
-        <Button onClick={saveShader}>Save</Button>
+        <Button variant="outline" onClick={saveShader}>
+          Save
+        </Button>
       </div>
-      <div className="w-full  h-full bg-background">
-        {renderer && (
+      <div className="">
+        {renderer ? (
           <MultiBufferEditor
             renderer={renderer}
             initialShaderData={initialShader}
           />
+        ) : (
+          <Skeleton className="w-full h-full"></Skeleton>
         )}
       </div>
     </div>
