@@ -1,5 +1,3 @@
-"use client";
-
 import {
   ErrMsg,
   IRendererInitPararms,
@@ -212,7 +210,7 @@ const webGL2Renderer = () => {
   let currTime = 0;
   let currFrame = 0;
   let initialized = false;
-  const devicePixelRatio = window.devicePixelRatio;
+  // const devicePixelRatio = window.devicePixelRatio;
 
   const bindTexture = (
     location: WebGLUniformLocation,
@@ -241,7 +239,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
       uniforms.iResolution,
       canvas.width,
       canvas.height,
-      devicePixelRatio,
+      window.devicePixelRatio,
     );
     gl.uniform1f(uniforms.iTime, currTime);
     gl.uniform1f(uniforms.iTimeDelta, timeDelta);
@@ -256,7 +254,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
       gl.uniform3fv(uniforms.iChannelResolutions[i], [
         canvas.width,
         canvas.height,
-        devicePixelRatio,
+        window.devicePixelRatio,
       ]);
     }
     gl.uniform1i(uniforms.iFrame, currFrame);
