@@ -71,15 +71,7 @@ const ShaderEditor = () => {
   return (
     <div className="grid md:grid-cols-2 grid-cols-1 w-full min-h-[calc(100vh-80px)] gap-4 p-4">
       <div className="flex flex-col w-full h-full">
-        <div
-          ref={shaderRendererRef}
-          style={{
-            height: `${rendererHeight}px`, // Use dynamically calculated height
-          }}
-          className=" w-full bg-background p-0"
-        >
-          <ShaderRenderer renderer={renderer} initialData={initialShader} />
-        </div>
+        <ShaderRenderer renderer={renderer} initialData={initialShader} />
         <Button onClick={saveShader}>Save</Button>
       </div>
       <div className="w-full  h-full bg-background">

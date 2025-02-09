@@ -295,6 +295,28 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
     }
     return compileRes;
   };
+  const onResize = (width: number, height: number) => {
+    if (!initialized || !canvas) {
+      return;
+    }
+    const scale = window.devicePixelRatio;
+    canvas.width = Math.floor(width * scale);
+    canvas.height = Math.floor(height * scale);
+    // for each buffer, need to make new textures, copy the old data over
+    for (const renderPass of renderPasses) {
+      if (renderPass.type == "image") continue;
+
+      // make new render targets
+      // draw unit quad to them with minsize of new and old size
+      // destroy old
+      renderPass.renderTarget.cleanup(gl);
+      renderPass.renderTarget = new RenderTarget(
+        gl,
+        canvas.width,
+        canvas.height,
+      );
+    }
+  };
 
   return {
     screenshot: () => {
@@ -409,7 +431,16 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
       initialized = true;
     },
 
+    onResize: onResize,
     render: () => {
+      console.log(canvas.clientWidth, canvas.clientHeight, "cwh");
+      const displayWidth = canvas.clientWidth;
+      const displayHeight = canvas.clientHeight;
+      const needResize =
+        canvas.width != displayWidth || canvas.height != displayHeight;
+      if (needResize) {
+        onResize(displayWidth, displayHeight);
+      }
       // if (i++ > 256) {
       //   return;
       // }
@@ -464,30 +495,6 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
       }
 
       currFrame++;
-    },
-
-    onResize: (width: number, height: number) => {
-      if (!initialized || !canvas) {
-        console.log("not initialized", width, height);
-        return;
-      }
-      const scale = window.devicePixelRatio;
-      canvas.width = Math.floor(width * scale);
-      canvas.height = Math.floor(height * scale);
-      // for each buffer, need to make new textures, copy the old data over
-      for (const renderPass of renderPasses) {
-        if (renderPass.type == "image") continue;
-
-        // make new render targets
-        // draw unit quad to them with minsize of new and old size
-        // destroy old
-        renderPass.renderTarget.cleanup(gl);
-        renderPass.renderTarget = new RenderTarget(
-          gl,
-          canvas.width,
-          canvas.height,
-        );
-      }
     },
   };
 };

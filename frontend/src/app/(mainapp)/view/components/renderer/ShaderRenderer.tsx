@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { ShaderData } from "@/types/shader";
 import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
@@ -10,6 +10,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { IRenderer } from "./Renderer";
+import { AspectRatio } from "@/components/ui/aspect-ratio";
 
 type Props = {
   initialData: ShaderData;
@@ -19,40 +20,28 @@ type Props = {
 const ShaderRenderer = (props: Props) => {
   const { renderer, initialData } = props;
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  // const [_, setIsFullscreen] = useState<boolean>(false);
-  const [oldCS, setOldCS] = useState<{
-    width: number;
-    height: number;
-  }>({
-    width: 0,
-    height: 0,
-  });
+
+  const onScreenshot = useCallback(() => {
+    renderer?.screenshot();
+  }, [renderer]);
+
+  const onRestart = useCallback(() => {
+    renderer?.restart();
+  }, [renderer]);
 
   const toggleFullscreen = useCallback(() => {
-    if (!canvasRef.current) return;
     if (!document.fullscreenElement) {
-      setOldCS({
-        width: canvasRef.current.width,
-        height: canvasRef.current.height,
-      });
-      canvasRef.current.requestFullscreen();
-      const scale = window.devicePixelRatio;
-      canvasRef.current.width = Math.floor(window.innerWidth * scale);
-      canvasRef.current.height = Math.floor(window.innerHeight * scale);
+      canvasRef.current?.requestFullscreen();
     } else {
       if (document.exitFullscreen) {
         document.exitFullscreen();
       }
-      canvasRef.current.width = oldCS.width;
-      canvasRef.current.height = oldCS.height;
     }
-  }, [oldCS]);
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    const container = containerRef.current;
-    if (!canvas || !container) return;
+    if (!canvas) return;
 
     if (!renderer) {
       return;
@@ -76,64 +65,52 @@ const ShaderRenderer = (props: Props) => {
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    const container = containerRef.current;
-    if (!canvas || !container) return;
+    if (!canvas || !renderer) return;
+    const bestAttemptFallback = function () {
+      const devicePixelRatio = window.devicePixelRatio || 1;
+      const xres = Math.round(canvas.offsetWidth * devicePixelRatio) | 0;
+      const yres = Math.round(canvas.offsetHeight * devicePixelRatio) | 0;
+      renderer.onResize(xres, yres);
+    };
 
-    if (!renderer) {
-      return;
+    // src: Shader toy JS source in network tab :D
+    const resizeObserver = new ResizeObserver((entries, observer) => {
+      const entry = entries.find((entry) => entry.target === canvas);
+      if (!entry) return;
+      if (!entry["devicePixelContentBoxSize"]) {
+        observer.unobserve(entry.target);
+        console.log(
+          "WARNING: This browser doesn\'t support ResizeObserver + device-pixel-content-box",
+        );
+        bestAttemptFallback();
+        window.addEventListener("resize", bestAttemptFallback);
+      } else {
+        const box = entry.devicePixelContentBoxSize[0];
+        renderer.onResize(box.inlineSize, box.blockSize);
+      }
+    });
+    try {
+      resizeObserver.observe(canvas, { box: "device-pixel-content-box" });
+    } catch (e) {
+      console.log(
+        "WARNING: This browser doesn't support ResizeObserver + device-pixel-content-box",
+        e,
+      );
+      bestAttemptFallback();
+      window.addEventListener("resize", bestAttemptFallback);
     }
 
-    let resizeTimeout: ReturnType<typeof setTimeout>;
-    const resizeCanvas = (entries: ResizeObserverEntry[]) => {
-      if (!Array.isArray(entries) || !entries.length) {
-        return;
-      }
-      // delay the resize slightly to prevent flickering
-      clearTimeout(resizeTimeout);
-      resizeTimeout = setTimeout(() => {
-        if (document.fullscreenElement === null) {
-          renderer.onResize(container.offsetWidth, container.offsetHeight);
-        } else {
-          renderer.onResize(window.innerWidth, window.innerHeight);
-        }
-      }, 1);
-    };
-
-    const resizeObserver = new ResizeObserver(resizeCanvas);
-    resizeObserver.observe(container);
-
-    const handleEscapeKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && document.fullscreenElement) {
-        document.exitFullscreen?.();
-      }
-    };
-    document.addEventListener("keydown", handleEscapeKey);
-
     return () => {
-      document.removeEventListener("keydown", handleEscapeKey);
       resizeObserver.disconnect();
+      window.removeEventListener("resize", bestAttemptFallback);
     };
   }, [initialData, renderer]);
 
-  const onScreenshot = useCallback(() => {
-    if (renderer) {
-      renderer.screenshot();
-    }
-  }, [renderer]);
-
-  const onRestart = useCallback(() => {
-    if (renderer) {
-      renderer.restart();
-    }
-  }, [renderer]);
   return (
-    <div className="flex flex-col w-full h-full">
-      <div
-        ref={containerRef}
-        className="w-full h-full p-0 m-0 bg-white aspect-w-16 aspect-h-9"
-      >
-        <canvas ref={canvasRef}></canvas>
-      </div>
+    <div className="flex flex-col w-full">
+      <AspectRatio ratio={16 / 9} className="w-full p-0 m-0 bg-white">
+        <canvas ref={canvasRef} className="w-full h-full" />
+      </AspectRatio>
       <div className="w-full h-[40px] flex ">
         <TooltipProvider>
           <Tooltip>
