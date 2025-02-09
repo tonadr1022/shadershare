@@ -114,6 +114,7 @@ func (h userHandler) me(c *gin.Context) {
 	}
 	user, err := h.userService.GetUserByID(c, userctx.ID)
 	if err != nil {
+		fmt.Println("err getting user", err)
 		util.SetErrorResponse(c, http.StatusInternalServerError, "Internal Server Error")
 		return
 	}

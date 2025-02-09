@@ -1,6 +1,7 @@
+"use client";
 import { url } from "@/utils/links";
 import { Button } from "@/components/ui/button";
-import { Menu } from "lucide-react";
+import { Boxes, Menu } from "lucide-react";
 import {
   Drawer,
   DrawerContent,
@@ -9,43 +10,45 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/drawer";
-import { FaHome } from "react-icons/fa";
 import Link from "next/link";
 import ProfileDropdown from "./ProfileDropdown";
-import { fetchMe } from "@/api/server-api";
+import { useGetMe } from "@/hooks/hooks";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
-export default async function Navbar3() {
-  const user = await fetchMe();
+const navbarItems = [
+  { href: url.browse, label: "Browse" },
+  { href: "/account/shaders", label: "Shaders" },
+  { href: url.new, label: "New" },
+];
+
+export default function Navbar3() {
+  const { data: user, isPending } = useGetMe();
 
   // TODO: bar when small screen
   return (
     <div
-      className="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white  sticky top-0 z-50 w-full 
+      className="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white sticky top-0 z-50 w-full
       border-b border-border/40   backdrop-blur  px-2"
     >
-      <div className="container flex h-14 max-w-screen-2xl items-center justify-between">
+      <div className="flex h-14 items-center justify-between">
         <div className="items-center gap-8 hidden sm:flex">
           <Link href={"/"} className="px-2 flex items-center gap-2">
-            <FaHome />
+            <Boxes />
             {/* TODO: LOGO */}
             <p className="hidden font-bold sm:inline-block">Shader Share</p>
           </Link>
-          <nav>
-            <ul className="flex items-center">
-              <li>
-                <Link href={url.browse}>Browse</Link>
-              </li>
-            </ul>
-          </nav>
-          <nav>
-            <ul className="flex items-center">
-              <li>
-                <Link href={url.new}>New</Link>
-              </li>
-            </ul>
-          </nav>
+          {navbarItems.map((item) => (
+            <nav key={item.href}>
+              <Link
+                href={item.href}
+                prefetch={false}
+                className="rounded-md  transition-colors hover:bg-accent"
+              >
+                {item.label}
+              </Link>{" "}
+            </nav>
+          ))}
         </div>
-
         <div className="sm:hidden">
           <Drawer>
             <DrawerTrigger asChild>
@@ -58,21 +61,30 @@ export default async function Navbar3() {
                 <DrawerTitle className="hidden">title</DrawerTitle>
                 <DrawerDescription>desc</DrawerDescription>Shader Share
               </DrawerHeader>
-              <h4 className="mb-1 rounded-md px-2 py-1 text-sm font-semibold">
-                Components
-              </h4>
-              <Link
-                href={url.browse}
-                className="group flex w-full items-center rounded-md border border-transparent px-2 py-1 hover:underline text-muted-foreground"
-              >
-                Browse
-              </Link>
+              {navbarItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  prefetch={false}
+                  className="group flex w-full items-center rounded-md border border-transparent px-2 py-1 hover:underline"
+                >
+                  {item.label}
+                </Link>
+              ))}
             </DrawerContent>
           </Drawer>
         </div>
         <div className="flex items-center gap-2">
           <div>
-            {user ? <ProfileDropdown /> : <Link href={url.login}>Login</Link>}
+            {user ? (
+              <ProfileDropdown />
+            ) : isPending ? (
+              <Avatar className="text-background select-none w-8 h-8 transition-none">
+                <AvatarFallback></AvatarFallback>
+              </Avatar>
+            ) : (
+              <Link href={url.login}>Login</Link>
+            )}
           </div>
         </div>
       </div>

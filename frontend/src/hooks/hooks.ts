@@ -16,7 +16,7 @@ export const useLogout = () => {
   const router = useRouter();
   const logout = useCallback(async () => {
     await logoutUser();
-    router.refresh(); // Optionally use router.push('/') or redirect to login
+    router.refresh();
   }, [router]);
 
   return logout;

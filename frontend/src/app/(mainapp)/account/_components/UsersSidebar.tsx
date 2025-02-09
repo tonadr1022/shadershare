@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSelectedLayoutSegment } from "next/navigation";
-import { Settings, User } from "lucide-react";
+import { Settings, User, GalleryHorizontal } from "lucide-react";
 
 import {
   Sidebar,
@@ -18,6 +18,7 @@ import { url } from "@/utils/links";
 const menuItems = [
   { href: url.account, label: "Profile", icon: User },
   { href: url.settings, label: "Settings", icon: Settings },
+  { href: "/account/shaders", label: "Shaders", icon: GalleryHorizontal },
 ];
 
 export function UsersSidebar() {

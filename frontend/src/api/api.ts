@@ -15,14 +15,9 @@ const axiosInstance = axios.create({
   },
 });
 
-axiosInstance.interceptors.response.use(
-  (response) => {
-    return response;
-  },
-  (error) => {
-    console.error(error);
-  },
-);
+// axiosInstance.interceptors.response.use((response) => {
+//   return response;
+// });
 
 export const GetErrorMessage = (
   error: AxiosError,

@@ -1,3 +1,4 @@
+"use client";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -10,10 +11,10 @@ import Link from "next/link";
 import React from "react";
 import { ThemeDropdown } from "./ModeToggle";
 import LogoutDropdownItem from "./LogoutProfileItem";
-import { fetchMe } from "@/api/server-api";
+import { useGetMe } from "@/hooks/hooks";
 
-const ProfileDropdown = async () => {
-  const user = await fetchMe();
+const ProfileDropdown = () => {
+  const { data: user, isPending } = useGetMe();
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className="transition-none" asChild>
