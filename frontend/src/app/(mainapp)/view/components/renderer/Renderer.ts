@@ -7,6 +7,54 @@ import {
 import { createEmptyResult } from "../util";
 import { webgl2Utils, WebGL2Utils } from "./Util";
 
+export const promptSaveScreenshot = (canvas: HTMLCanvasElement) => {
+  canvas.toBlob((blob) => {
+    if (!blob) {
+      console.error("Failed to capture canvas as blob");
+      return;
+    }
+
+    const a = document.createElement("a");
+    const url = window.URL.createObjectURL(blob!);
+    a.style.display = "none";
+    a.download = "shader.png";
+    a.href = url;
+    a.click();
+  }, "image/png");
+};
+
+const checkGLError = (gl: WebGL2RenderingContext) => {
+  const error = gl.getError();
+  if (error !== gl.NO_ERROR) {
+    console.error("WebGL Error:", error);
+    switch (error) {
+      case gl.INVALID_ENUM:
+        console.error("INVALID_ENUM: An enum argument is out of range.");
+        break;
+      case gl.INVALID_VALUE:
+        console.error("INVALID_VALUE: A numeric argument is out of range.");
+        break;
+      case gl.INVALID_OPERATION:
+        console.error(
+          "INVALID_OPERATION: The operation is not allowed in the current state.",
+        );
+        break;
+      case gl.OUT_OF_MEMORY:
+        console.error(
+          "OUT_OF_MEMORY: There is not enough memory to execute the command.",
+        );
+        break;
+      case gl.INVALID_FRAMEBUFFER_OPERATION:
+        console.error(
+          "INVALID_FRAMEBUFFER_OPERATION: The framebuffer is not complete.",
+        );
+        break;
+      default:
+        console.error("Unknown WebGL error.");
+        break;
+    }
+  }
+};
 const vertexCode = `#version 300 es
 #ifdef GL_ES
 precision highp float;
@@ -181,6 +229,7 @@ class RenderTarget {
 
 type RenderPassType = "image" | "buffer";
 class RenderPass {
+  dirty: boolean = true;
   program: WebGLProgram;
   uniformLocs: FragShaderUniforms;
   renderTarget: RenderTarget;
@@ -286,6 +335,74 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
     }
     return true;
   };
+  const renderInternal = (outFBO: WebGLFramebuffer | null) => {
+    for (let i = 0; i < renderPasses.length - 1; i++) {
+      const renderPass = renderPasses[i];
+      gl.useProgram(renderPass.program);
+      const uniforms = renderPass.uniformLocs;
+      bindUniforms(uniforms);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, renderPass.renderTarget.fbo);
+      gl.framebufferTexture2D(
+        gl.FRAMEBUFFER,
+        gl.COLOR_ATTACHMENT0,
+        gl.TEXTURE_2D,
+        renderPass.renderTarget.getCurrTex(),
+        0,
+      );
+      gl.clearColor(0.0, 0.0, 0.0, 1.0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      if (uniforms.iChannels[0]) {
+        bindTexture(
+          uniforms.iChannels[0]!,
+          renderPasses[i].renderTarget.getPrevTex(),
+          0,
+        );
+      }
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+    }
+    const imagePass = renderPasses[renderPasses.length - 1];
+    gl.useProgram(imagePass.program);
+    bindUniforms(imagePass.uniformLocs);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, outFBO);
+    gl.clearColor(0.0, 0.0, 0.0, 1.0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    bindTexture(
+      imagePass.uniformLocs.iChannels[0]!,
+      renderPasses[0].renderTarget.getCurrTex(),
+      0,
+    );
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    for (let i = 0; i < renderPasses.length - 1; i++) {
+      renderPasses[i].renderTarget.swapTextures(gl);
+    }
+  };
+
+  const render = (options?: { checkResize?: boolean }) => {
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.bindTexture(gl.TEXTURE_2D, null);
+    checkGLError(gl);
+    if (options?.checkResize) {
+      const displayWidth = canvas.clientWidth;
+      const displayHeight = canvas.clientHeight;
+      if (canvas.width != displayWidth || canvas.height != displayHeight) {
+        onResize(displayWidth, displayHeight);
+      }
+    }
+
+    // TODO: refactor
+    if (!initialized || !gl || !canvas) {
+      return;
+    }
+    currTime = performance.now() / 1000;
+    timeDelta = currTime - lastTime;
+    // const dt = newTime - time;
+    lastTime = currTime;
+    gl.viewport(0, 0, canvas.width, canvas.height);
+
+    renderInternal(null);
+
+    currFrame++;
+  };
 
   const compileShader = (fragmentText: string): Result<WebGLProgram> => {
     const fragmentCode = `${fragmentHeader}${fragmentText}`;
@@ -295,13 +412,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
     }
     return compileRes;
   };
-  const onResize = (width: number, height: number) => {
-    if (!initialized || !canvas) {
-      return;
-    }
-    const scale = window.devicePixelRatio;
-    canvas.width = Math.floor(width * scale);
-    canvas.height = Math.floor(height * scale);
+  const resizeBuffers = () => {
     // for each buffer, need to make new textures, copy the old data over
     for (const renderPass of renderPasses) {
       if (renderPass.type == "image") continue;
@@ -316,6 +427,15 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
         canvas.height,
       );
     }
+  };
+  const onResize = (width: number, height: number) => {
+    if (!initialized || !canvas) {
+      return;
+    }
+    const scale = window.devicePixelRatio;
+    canvas.width = Math.floor(width * scale);
+    canvas.height = Math.floor(height * scale);
+    resizeBuffers();
   };
 
   return {
@@ -369,9 +489,13 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
     },
     shutdown: () => {
       if (!initialized) return;
-      console.log("shutting down webGL2Renderer");
       initialized = false;
-      gl.getExtension("WEBGL_lose_context")?.loseContext();
+      const ext = gl.getExtension("WEBGL_lose_context");
+      if (ext) {
+        ext.loseContext();
+      } else {
+        console.error("Failed to get WEBGL_lose_context extension");
+      }
     },
 
     setShader: (passIdx: number, fragmentText: string) => {
@@ -392,6 +516,12 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
       return createEmptyResult();
     },
 
+    setShaderDirty(idx: number) {
+      if (idx < 0 || idx >= renderPasses.length) {
+        throw new Error("Invalid pass index");
+      }
+      renderPasses[idx].dirty = true;
+    },
     initialize: (params: IRendererInitPararms) => {
       if (initialized) return;
       canvas = params.canvas;
@@ -427,76 +557,14 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
           new RenderPass(gl, shader.data!, canvas.width, canvas.height, type),
         );
       }
+      console.log("inisializing renderer");
 
       lastTime = performance.now();
       initialized = true;
     },
 
     onResize: onResize,
-    render: () => {
-      console.log(canvas.clientWidth, canvas.clientHeight, "cwh");
-      const displayWidth = canvas.clientWidth;
-      const displayHeight = canvas.clientHeight;
-      const needResize =
-        canvas.width != displayWidth || canvas.height != displayHeight;
-      if (needResize) {
-        onResize(displayWidth, displayHeight);
-      }
-      // if (i++ > 256) {
-      //   return;
-      // }
-      // TODO: refactor
-      if (!initialized || !gl || !canvas) {
-        return;
-      }
-      currTime = performance.now() / 1000;
-      timeDelta = currTime - lastTime;
-      // const dt = newTime - time;
-      lastTime = currTime;
-      gl.viewport(0, 0, canvas.width, canvas.height);
-
-      for (let i = 0; i < renderPasses.length - 1; i++) {
-        const renderPass = renderPasses[i];
-        gl.useProgram(renderPass.program);
-        const uniforms = renderPass.uniformLocs;
-        bindUniforms(uniforms);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, renderPass.renderTarget.fbo);
-        gl.framebufferTexture2D(
-          gl.FRAMEBUFFER,
-          gl.COLOR_ATTACHMENT0,
-          gl.TEXTURE_2D,
-          renderPass.renderTarget.getCurrTex(),
-          0,
-        );
-        gl.clearColor(0.0, 0.0, 0.0, 1.0);
-        gl.clear(gl.COLOR_BUFFER_BIT);
-        if (uniforms.iChannels[0]) {
-          bindTexture(
-            uniforms.iChannels[0]!,
-            renderPasses[i].renderTarget.getPrevTex(),
-            0,
-          );
-        }
-        gl.drawArrays(gl.TRIANGLES, 0, 3);
-      }
-      const imagePass = renderPasses[renderPasses.length - 1];
-      gl.useProgram(imagePass.program);
-      bindUniforms(imagePass.uniformLocs);
-      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-      gl.clearColor(0.0, 0.0, 0.0, 1.0);
-      gl.clear(gl.COLOR_BUFFER_BIT);
-      bindTexture(
-        imagePass.uniformLocs.iChannels[0]!,
-        renderPasses[0].renderTarget.getCurrTex(),
-        0,
-      );
-      gl.drawArrays(gl.TRIANGLES, 0, 3);
-      for (let i = 0; i < renderPasses.length - 1; i++) {
-        renderPasses[i].renderTarget.swapTextures(gl);
-      }
-
-      currFrame++;
-    },
+    render: render,
   };
 };
 

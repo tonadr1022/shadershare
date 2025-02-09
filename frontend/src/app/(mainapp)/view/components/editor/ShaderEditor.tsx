@@ -1,8 +1,12 @@
 "use client";
 import ShaderRenderer from "../renderer/ShaderRenderer";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { MultiBufferEditor } from "./Editor";
-import { createRenderer, IRenderer } from "../renderer/Renderer";
+import {
+  createRenderer,
+  IRenderer,
+  promptSaveScreenshot,
+} from "../renderer/Renderer";
 import { Button } from "@/components/ui/button";
 import { ShaderData } from "@/types/shader";
 import { MultiPassRed } from "@/rendering/example-shaders";
@@ -12,53 +16,77 @@ import {
   ResizablePanel,
   ResizableHandle,
 } from "@/components/ui/resizable";
+import DownloadPreviewImageDialog from "./DownloadPreviewImgDialog";
 
 const initialShader: ShaderData = MultiPassRed;
 
+const promptSavePreviewImage = (
+  width: number,
+  height: number,
+  shaderData: ShaderData,
+) => {
+  const renderer = createRenderer();
+  const canvas = document.createElement("canvas");
+  renderer.initialize({
+    canvas: canvas,
+    renderData: initialShader.render_passes,
+  });
+  renderer.onResize(width, height);
+  renderer.render({ checkResize: false });
+  renderer.shutdown();
+  promptSaveScreenshot(canvas);
+};
+
 const ShaderEditor = () => {
   const [renderer, setRenderer] = useState<IRenderer | null>(null);
-  const saveShader = () => {
-    console.log("save shader");
-  };
-  useEffect(() => {
-    setRenderer(createRenderer());
+  const saveShader = useCallback(() => {
+    const renderer = createRenderer();
+    const canvas = document.createElement("canvas");
+    renderer.initialize({
+      canvas: canvas,
+      renderData: initialShader.render_passes,
+    });
+    renderer.onResize(320, 180);
+    renderer.render({ checkResize: false });
+    renderer.shutdown();
+    promptSaveScreenshot(canvas);
   }, []);
 
+  const onGetPreviewImg = useCallback(() => {
+    promptSavePreviewImage(320, 180, initialShader);
+  }, []);
+
+  useEffect(() => {
+    if (!renderer) {
+      setRenderer(createRenderer());
+    }
+    return () => {
+      renderer?.shutdown();
+    };
+  }, [renderer]);
   return (
-    <ResizablePanelGroup direction="horizontal">
-      <ResizablePanel>
-        <div className="flex flex-col w-full h-full">
-          <ShaderRenderer renderer={renderer} initialData={initialShader} />
-          <Button variant="outline" onClick={saveShader}>
-            Save
-          </Button>
-        </div>
-      </ResizablePanel>
-      <ResizableHandle withHandle />
-      <ResizablePanel>
-        <div className="">
-          {renderer ? (
-            <MultiBufferEditor
-              renderer={renderer}
-              initialShaderData={initialShader}
-            />
-          ) : (
-            <Skeleton className="w-full h-full"></Skeleton>
-          )}
-        </div>
-      </ResizablePanel>
-    </ResizablePanelGroup>
-  );
-  // TODO: resizeable shadcn component
-  return (
-    <div className="grid md:grid-cols-2 grid-cols-1 w-full min-h-[calc(100vh-80px)] gap-4 p-4">
-      <div className="flex flex-col w-full h-full">
+    <ResizablePanelGroup direction="horizontal" className="gap-2">
+      <ResizablePanel
+        className="flex flex-col w-full h-full"
+        defaultSize={50}
+        minSize={20}
+        collapsible
+        collapsedSize={20}
+      >
         <ShaderRenderer renderer={renderer} initialData={initialShader} />
         <Button variant="outline" onClick={saveShader}>
           Save
         </Button>
-      </div>
-      <div className="">
+        <DownloadPreviewImageDialog />
+      </ResizablePanel>
+      <ResizableHandle withHandle />
+      <ResizablePanel
+        defaultSize={50}
+        collapsedSize={10}
+        minSize={10}
+        collapsible
+        className=""
+      >
         {renderer ? (
           <MultiBufferEditor
             renderer={renderer}
@@ -67,8 +95,8 @@ const ShaderEditor = () => {
         ) : (
           <Skeleton className="w-full h-full"></Skeleton>
         )}
-      </div>
-    </div>
+      </ResizablePanel>
+    </ResizablePanelGroup>
   );
 };
 

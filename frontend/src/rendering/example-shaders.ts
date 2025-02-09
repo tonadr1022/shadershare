@@ -131,9 +131,10 @@ export const MultiPassRed: ShaderData = {
 void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     vec4 data1 = readMemory(fragCoord);
     if (data1.x == 0. && data1.y == 0. &&
-        data1.z == 0. && data1.w == 0.) {
+        data1.z == 0.) {
         data1 = vec4(fragCoord/iChannelResolution[0].xy,0.,1.);
         }
+    data1.zyw = vec3(fragCoord.y/iChannelResolution[0].y,0.,1.);
     data1.x += 0.001;
     if (data1.x > 1.0) {
         data1.x = 0.;

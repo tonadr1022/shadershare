@@ -9,7 +9,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { IRenderer } from "./Renderer";
+import { IRenderer, promptSaveScreenshot } from "./Renderer";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 
 type Props = {
@@ -22,8 +22,10 @@ const ShaderRenderer = (props: Props) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const onScreenshot = useCallback(() => {
-    renderer?.screenshot();
-  }, [renderer]);
+    if (canvasRef.current) {
+      promptSaveScreenshot(canvasRef.current);
+    }
+  }, []);
 
   const onRestart = useCallback(() => {
     renderer?.restart();
@@ -47,9 +49,11 @@ const ShaderRenderer = (props: Props) => {
       return;
     }
 
+    let animationFrameId: number;
+
     const render = () => {
       renderer.render();
-      requestAnimationFrame(render);
+      animationFrameId = requestAnimationFrame(render);
     };
 
     if (canvasRef.current) {
@@ -60,7 +64,9 @@ const ShaderRenderer = (props: Props) => {
     }
     render();
 
-    return () => {};
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+    };
   }, [renderer, initialData]);
   const [canvasDims, setCanvasDims] = useState({ width: 0, height: 0 });
 

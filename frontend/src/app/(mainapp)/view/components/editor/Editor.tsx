@@ -192,6 +192,7 @@ export const MultiBufferEditor = React.memo((props: Props3) => {
   const [renderPassEditIdx, setRenderPassEditIdx] = useState(0);
 
   const onTextUpdate = useCallback((newText: string, idx: number) => {
+    renderer.setShaderDirty(idx);
     setShaderData((prevData) => ({
       ...prevData,
       render_passes: prevData.render_passes.map((renderPass, i) =>
