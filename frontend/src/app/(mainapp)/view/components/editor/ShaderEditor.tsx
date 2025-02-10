@@ -1,12 +1,8 @@
 "use client";
 import ShaderRenderer from "../renderer/ShaderRenderer";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect } from "react";
 import { MultiBufferEditor } from "./Editor";
-import {
-  createRenderer,
-  IRenderer,
-  promptSaveScreenshot,
-} from "../renderer/Renderer";
+import { createRenderer, promptSaveScreenshot } from "../renderer/Renderer";
 import { Button } from "@/components/ui/button";
 import { ShaderData } from "@/types/shader";
 import { MultiPassRed } from "@/rendering/example-shaders";
@@ -17,6 +13,7 @@ import {
   ResizableHandle,
 } from "@/components/ui/resizable";
 import DownloadPreviewImageDialog from "./DownloadPreviewImgDialog";
+import { useRendererCtx } from "@/context/RendererContext";
 
 const initialShader: ShaderData = MultiPassRed;
 
@@ -29,7 +26,7 @@ const promptSavePreviewImage = (
   const canvas = document.createElement("canvas");
   renderer.initialize({
     canvas: canvas,
-    renderData: initialShader.render_passes,
+    renderData: shaderData.render_passes,
   });
   renderer.onResize(width, height);
   renderer.render({ checkResize: false });
@@ -38,7 +35,7 @@ const promptSavePreviewImage = (
 };
 
 const ShaderEditor = () => {
-  const [renderer, setRenderer] = useState<IRenderer | null>(null);
+  const { renderer } = useRendererCtx();
   const saveShader = useCallback(() => {
     const renderer = createRenderer();
     const canvas = document.createElement("canvas");
@@ -57,13 +54,11 @@ const ShaderEditor = () => {
   }, []);
 
   useEffect(() => {
-    if (!renderer) {
-      setRenderer(createRenderer());
-    }
     return () => {
       renderer?.shutdown();
     };
   }, [renderer]);
+
   return (
     <ResizablePanelGroup direction="horizontal" className="gap-2">
       <ResizablePanel

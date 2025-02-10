@@ -250,6 +250,24 @@ class RenderPass {
     this.renderTarget = new RenderTarget(gl, width, height);
   }
 }
+
+export class AvgFpsCounter {
+  private times: number[] = [];
+  private size: number;
+  constructor(size: number = 60) {
+    this.size = size;
+  }
+  addTime(dt: number) {
+    this.times.push(dt);
+    if (this.times.length > this.size) {
+      this.times.shift();
+    }
+  }
+  getAvg() {
+    return this.times.reduce((a, b) => a + b, 0) / this.times.length;
+  }
+}
+
 const webGL2Renderer = () => {
   const fragmentHeaderLineCnt = fragmentHeader.split(/\r\n|\r|\n/).length;
   let canvas: HTMLCanvasElement;
@@ -259,6 +277,7 @@ const webGL2Renderer = () => {
   let currTime = 0;
   let currFrame = 0;
   let initialized = false;
+  const fpsCounter = new AvgFpsCounter();
   // const devicePixelRatio = window.devicePixelRatio;
 
   const bindTexture = (
@@ -395,6 +414,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
     }
     currTime = performance.now() / 1000;
     timeDelta = currTime - lastTime;
+    fpsCounter.addTime(timeDelta);
     // const dt = newTime - time;
     lastTime = currTime;
     gl.viewport(0, 0, canvas.width, canvas.height);
@@ -565,6 +585,11 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
 
     onResize: onResize,
     render: render,
+    fps: () => {
+      const avgFrameTime = fpsCounter.getAvg();
+      if (avgFrameTime == 0) return 0;
+      return 1.0 / avgFrameTime;
+    },
   };
 };
 

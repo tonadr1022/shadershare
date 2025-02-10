@@ -3,7 +3,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ShaderData } from "@/types/shader";
 import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
-import { CameraIcon, ArrowLeftToLineIcon, Fullscreen } from "lucide-react";
+import {
+  CameraIcon,
+  ArrowLeftToLineIcon,
+  Fullscreen,
+  Pause,
+  Play,
+} from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -11,6 +17,8 @@ import {
 } from "@/components/ui/tooltip";
 import { IRenderer, promptSaveScreenshot } from "./Renderer";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
+import Fps from "./Fps";
+import { useRendererCtx } from "@/context/RendererContext";
 
 type Props = {
   initialData: ShaderData;
@@ -20,7 +28,11 @@ type Props = {
 const ShaderRenderer = (props: Props) => {
   const { renderer, initialData } = props;
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const { paused, setPaused } = useRendererCtx();
 
+  const onPause = useCallback(() => {
+    setPaused((prev) => !prev);
+  }, [setPaused]);
   const onScreenshot = useCallback(() => {
     if (canvasRef.current) {
       promptSaveScreenshot(canvasRef.current);
@@ -52,7 +64,9 @@ const ShaderRenderer = (props: Props) => {
     let animationFrameId: number;
 
     const render = () => {
-      renderer.render();
+      if (!paused) {
+        renderer.render({ checkResize: true });
+      }
       animationFrameId = requestAnimationFrame(render);
     };
 
@@ -67,7 +81,7 @@ const ShaderRenderer = (props: Props) => {
     return () => {
       cancelAnimationFrame(animationFrameId);
     };
-  }, [renderer, initialData]);
+  }, [renderer, initialData, paused]);
   const [canvasDims, setCanvasDims] = useState({ width: 0, height: 0 });
 
   useEffect(() => {
@@ -118,7 +132,7 @@ const ShaderRenderer = (props: Props) => {
 
   return (
     <div className="flex flex-col w-full">
-      <AspectRatio ratio={16 / 9} className="w-full p-0 m-0 bg-white">
+      <AspectRatio ratio={16 / 9} className="w-full p-0 m-0 bg-background">
         <canvas ref={canvasRef} className="w-full h-full" />
       </AspectRatio>
       <div className="w-full h-[40px] flex ">
@@ -135,6 +149,18 @@ const ShaderRenderer = (props: Props) => {
             </TooltipTrigger>
             <TooltipContent>
               <p>Restart</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" onClick={onPause}>
+                {paused ? <Play /> : <Pause />}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{paused ? "Play" : "Pause"} Alt + p</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -164,6 +190,9 @@ const ShaderRenderer = (props: Props) => {
         </TooltipProvider>
         <div className="font-semibold p-2 border-none">
           {canvasDims.width}x{canvasDims.height}
+        </div>
+        <div className="font-semibold p-2 border-none">
+          <Fps paused={paused} renderer={renderer} />
         </div>
       </div>
     </div>

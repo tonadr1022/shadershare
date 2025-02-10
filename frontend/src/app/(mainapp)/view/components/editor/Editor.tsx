@@ -1,3 +1,5 @@
+"use client";
+
 import React, {
   useCallback,
   useEffect,
@@ -20,6 +22,7 @@ import {
   drawSelection,
   EditorView,
 } from "@codemirror/view";
+import { useRendererCtx } from "@/context/RendererContext";
 import { ErrorWidget } from "./ErrorWidget";
 import { ErrMsg, ShaderData } from "@/types/shader";
 import { cn } from "@/lib/utils";
@@ -82,52 +85,45 @@ type Props2 = {
   onCompile: (idx: number, editorRef: ReactCodeMirrorRef, text: string) => void;
   onTextChange: (text: string, idx: number) => void;
 };
-const getThemeString = (nextTheme: string) => {
-  switch (nextTheme) {
-    case "light":
-      return "light";
-    case "dark":
-      return "dark";
-    default:
-      return window.matchMedia("(prefers-color-scheme: dark)").matches
-        ? "dark"
-        : "light";
-  }
-};
+
+const keyBinds = [
+  { key: "p", alt: true, action: "pause", name: "Pause" },
+  { key: "Enter", alt: true, action: "compile", name: "Compile" },
+  { key: "r", alt: true, action: "restart", name: "Restart" },
+  { key: "b", alt: true, action: "focus", name: "Focus Editor" },
+];
 
 export const Editor2 = React.memo((props: Props2) => {
-  const { theme } = useTheme();
+  const { theme, resolvedTheme } = useTheme();
 
   const { visible } = props;
   const { text, onTextChange, onCompile } = props;
   const editorRef = useRef<ReactCodeMirrorRef | null>(null);
+  const { setPaused, renderer } = useRendererCtx();
 
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key === "e") {
-        event.preventDefault();
-        editorRef.current?.view?.focus();
-      }
-
-      if (event.key === "Enter" && event.altKey) {
-        const editor = editorRef.current;
-        if (onCompile && editor && editor.view) {
-          const text = editor.view.state.doc.toString();
-          onCompile(props.idx, editor, text);
+      for (const keybind of keyBinds) {
+        if (event.key === keybind.key && (keybind.alt ? event.altKey : true)) {
+          if (keybind.action === "focus") {
+            editorRef.current?.view?.focus();
+          } else if (keybind.action === "pause") {
+            setPaused((prev) => !prev);
+          } else if (keybind.action === "restart" && renderer) {
+            renderer.restart();
+          } else if (keybind.action === "compile" && onCompile) {
+            const editor = editorRef.current;
+            if (editor && editor.view) {
+              const text = editor.view.state.doc.toString();
+              // TODO: dont call this from props
+              onCompile(props.idx, editor, text);
+            }
+          }
         }
       }
-      // TODO: setting for this
-      // if (event.key === "Escape") {
-      //   (document.activeElement as HTMLElement)?.blur();
-      // }
     },
-    [onCompile, props.idx],
+    [onCompile, props.idx, setPaused, renderer],
   );
-  // useEffect(() => {
-  //   if (editorRef.current?.view) {
-  //     editorRef.current.
-  //   }
-  // },[]);
 
   useEffect(() => {
     if (visible) {
@@ -163,12 +159,22 @@ export const Editor2 = React.memo((props: Props2) => {
     },
     [debouncedSet, props.idx],
   );
+  const themeStr = useMemo(() => {
+    switch (resolvedTheme || theme) {
+      case "light":
+        return "light";
+      case "dark":
+        return "dark";
+      default:
+        return "light";
+    }
+  }, [theme, resolvedTheme]);
 
   return (
     <CodeMirror
       ref={editorRef}
       value={text}
-      theme={getThemeString(theme || "")}
+      theme={themeStr}
       className={cn(
         props.visible ? "" : "hidden",
         " border-2 cm-editor2 overflow-auto h-[calc(max(300px,100vh-310px))]",
@@ -191,15 +197,18 @@ export const MultiBufferEditor = React.memo((props: Props3) => {
   const [shaderData, setShaderData] = useState(props.initialShaderData);
   const [renderPassEditIdx, setRenderPassEditIdx] = useState(0);
 
-  const onTextUpdate = useCallback((newText: string, idx: number) => {
-    renderer.setShaderDirty(idx);
-    setShaderData((prevData) => ({
-      ...prevData,
-      render_passes: prevData.render_passes.map((renderPass, i) =>
-        i === idx ? { ...renderPass, code: newText } : renderPass,
-      ),
-    }));
-  }, []);
+  const onTextUpdate = useCallback(
+    (newText: string, idx: number) => {
+      renderer.setShaderDirty(idx);
+      setShaderData((prevData) => ({
+        ...prevData,
+        render_passes: prevData.render_passes.map((renderPass, i) =>
+          i === idx ? { ...renderPass, code: newText } : renderPass,
+        ),
+      }));
+    },
+    [renderer],
+  );
 
   const onBufferIdxChange = useCallback((idx: number) => {
     setRenderPassEditIdx(idx);
@@ -257,7 +266,7 @@ export const MultiBufferEditor = React.memo((props: Props3) => {
             key={renderPass.pass_idx}
             className={cn(
               renderPassEditIdx === idx ? "" : "hidden",
-              "bg-white  m-0",
+              "bg-background m-0",
             )}
           >
             <Editor2
