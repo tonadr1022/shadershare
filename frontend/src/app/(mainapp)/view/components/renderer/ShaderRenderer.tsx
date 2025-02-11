@@ -1,6 +1,5 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ShaderData } from "@/types/shader";
 import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
 import {
@@ -15,20 +14,14 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { IRenderer, promptSaveScreenshot } from "./Renderer";
+import { promptSaveScreenshot } from "./Renderer";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import Fps from "./Fps";
 import { useRendererCtx } from "@/context/RendererContext";
 
-type Props = {
-  initialData: ShaderData;
-  renderer: IRenderer | null;
-};
-
-const ShaderRenderer = (props: Props) => {
-  const { renderer, initialData } = props;
+const ShaderRenderer = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const { paused, setPaused } = useRendererCtx();
+  const { paused, setPaused, shaderDataRef, renderer } = useRendererCtx();
 
   const onPause = useCallback(() => {
     setPaused((prev) => !prev);
@@ -73,7 +66,7 @@ const ShaderRenderer = (props: Props) => {
     if (canvasRef.current) {
       renderer.initialize({
         canvas: canvasRef.current,
-        renderData: initialData.render_passes,
+        renderData: shaderDataRef.current.render_passes,
       });
     }
     render();
@@ -81,7 +74,7 @@ const ShaderRenderer = (props: Props) => {
     return () => {
       cancelAnimationFrame(animationFrameId);
     };
-  }, [renderer, initialData, paused]);
+  }, [renderer, shaderDataRef, paused]);
   const [canvasDims, setCanvasDims] = useState({ width: 0, height: 0 });
 
   useEffect(() => {
@@ -128,7 +121,7 @@ const ShaderRenderer = (props: Props) => {
       resizeObserver.disconnect();
       window.removeEventListener("resize", bestAttemptFallback);
     };
-  }, [initialData, renderer]);
+  }, [renderer]);
 
   return (
     <div className="flex flex-col w-full">

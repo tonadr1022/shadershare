@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/resizable";
 import DownloadPreviewImageDialog from "./DownloadPreviewImgDialog";
 import { useRendererCtx } from "@/context/RendererContext";
+import EditShaderMetadata from "./EditShaderMetadata";
 
 const initialShader: ShaderData = MultiPassRed;
 
@@ -41,22 +42,9 @@ const ShaderEditor = () => {
   const { renderer } = useRendererCtx();
 
   const shaderDataRef = useRef(initialShader);
-  const saveShader = useCallback(async () => {
-    const renderer = createRenderer();
-    const canvas = document.createElement("canvas");
-    renderer.initialize({
-      canvas: canvas,
-      renderData: shaderDataRef.current.render_passes,
-    });
-    renderer.onResize(320, 180);
-    renderer.render({ checkResize: false });
-    const screenshotDataURL = await getScreenshotObjectURL(canvas);
-    console.log(screenshotDataURL, shaderDataRef.current);
-    renderer.shutdown();
-  }, []);
 
   const onGetPreviewImg = useCallback((width: number, height: number) => {
-    promptSavePreviewImage(width, height, initialShader);
+    promptSavePreviewImage(width, height, shaderDataRef.current);
   }, []);
 
   useEffect(() => {
@@ -74,10 +62,8 @@ const ShaderEditor = () => {
         collapsible
         collapsedSize={20}
       >
-        <ShaderRenderer renderer={renderer} initialData={initialShader} />
-        <Button variant="outline" onClick={saveShader}>
-          Save
-        </Button>
+        <ShaderRenderer />
+        <EditShaderMetadata />
         <DownloadPreviewImageDialog onSave={onGetPreviewImg} />
       </ResizablePanel>
       <ResizableHandle withHandle />
@@ -88,7 +74,7 @@ const ShaderEditor = () => {
         collapsible
         className=""
       >
-        <MultiBufferEditor initialShaderData={initialShader} />
+        <MultiBufferEditor />
       </ResizablePanel>
     </ResizablePanelGroup>
   );

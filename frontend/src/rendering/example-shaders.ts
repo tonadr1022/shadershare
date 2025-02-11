@@ -6,7 +6,7 @@ export const SimpleMultipass: ShaderData = {
   render_passes: [
     {
       name: "Buffer A",
-      pass_idx: 0,
+      pass_index: 0,
       code: `void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
     vec2 uv = fragCoord/iResolution.xy;
     vec3 col = 0.5 + 0.5*cos(iTime+uv.xyx+vec3(0,2,4));
@@ -16,7 +16,7 @@ export const SimpleMultipass: ShaderData = {
     },
     {
       name: "Image",
-      pass_idx: 1,
+      pass_index: 1,
       code: `void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
     fragColor = vec4(texture(iChannel0,fragCoord).xyz,1.0); 
 }`,
@@ -31,7 +31,7 @@ export const MultipassExample: ShaderData = {
   render_passes: [
     {
       name: "Buffer A",
-      pass_idx: 0,
+      pass_index: 0,
       code: `vec4 readMemory(vec2 coords) {
     return texture(iChannel0, (coords + 0.5)/iChannelResolution[0].xy);
 }
@@ -94,7 +94,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
     },
     {
       name: "Image",
-      pass_idx: 1,
+      pass_index: 1,
       code: `vec4 readMemory(vec2 coords) {
     return texture(iChannel0, (coords + 0.5)/iChannelResolution[0].xy);
 }
@@ -124,7 +124,7 @@ export const MultiPassRed: ShaderData = {
   render_passes: [
     {
       name: "Buffer A",
-      pass_idx: 0,
+      pass_index: 0,
       code: ` vec4 readMemory(vec2 coords) {
     return texture(iChannel0, (coords + 0.5)/iChannelResolution[0].xy);
 }
@@ -145,7 +145,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     },
     {
       name: "Image",
-      pass_idx: 1,
+      pass_index: 1,
       code: `vec4 readMemory(vec2 coords) {
     return texture(iChannel0, (coords + 0.5)/iChannelResolution[0].xy);
 }

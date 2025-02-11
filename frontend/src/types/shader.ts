@@ -1,6 +1,6 @@
 export type RenderPass = {
   code: string;
-  pass_idx: number;
+  pass_index: number;
   name: string;
 };
 

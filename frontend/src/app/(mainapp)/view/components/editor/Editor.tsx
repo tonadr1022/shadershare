@@ -277,7 +277,7 @@ export const MultiBufferEditor = React.memo(() => {
             <TabsTrigger
               value={idx.toString()}
               onClick={() => setRenderPassEditIdx(idx)}
-              key={renderPass.pass_idx}
+              key={renderPass.pass_index}
             >
               Pass {idx}
             </TabsTrigger>
