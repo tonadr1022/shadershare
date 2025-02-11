@@ -79,10 +79,11 @@ const errorField = StateField.define<DecorationSet>({
 });
 
 type Props2 = {
+  errMsgs: ErrMsg[] | null;
   text: string;
   visible: boolean;
   idx: number;
-  onCompile: (idx: number, editorRef: ReactCodeMirrorRef, text: string) => void;
+  onCompile: (focusedBufferIdx: number, focusedBufferText: string) => void;
   onTextChange: (text: string, idx: number) => void;
 };
 
@@ -97,6 +98,29 @@ export const Editor2 = React.memo((props: Props2) => {
   const { theme, resolvedTheme } = useTheme();
 
   const { visible } = props;
+
+  useEffect(() => {
+    if (!editorRef.current) return;
+    const editor = editorRef.current;
+    if (!editor.view) return;
+    const errMsgs = props.errMsgs;
+    editor.view.dispatch({ effects: clearErrorsEffect.of() });
+    // if err msgs are passed, show them
+    if (errMsgs !== null && errMsgs.length) {
+      const editor = editorRef.current;
+      if (editor && editor.view) {
+        editor.view.dispatch({
+          effects: errMsgs.map((err: ErrMsg) =>
+            errorEffect.of({
+              line: err.line,
+              message: err.message || "",
+            }),
+          ),
+        });
+      }
+    }
+  }, [props.errMsgs]);
+
   const { text, onTextChange, onCompile } = props;
   const editorRef = useRef<ReactCodeMirrorRef | null>(null);
   const { setPaused, renderer } = useRendererCtx();
@@ -115,8 +139,8 @@ export const Editor2 = React.memo((props: Props2) => {
             const editor = editorRef.current;
             if (editor && editor.view) {
               const text = editor.view.state.doc.toString();
-              // TODO: dont call this from props
-              onCompile(props.idx, editor, text);
+              // TODO: dont call this from props?
+              onCompile(props.idx, text);
             }
           }
         }
@@ -196,6 +220,7 @@ export const MultiBufferEditor = React.memo((props: Props3) => {
   const { renderer } = props;
   const [shaderData, setShaderData] = useState(props.initialShaderData);
   const [renderPassEditIdx, setRenderPassEditIdx] = useState(0);
+  const [errMsgs, setErrMsgs] = useState<(ErrMsg[] | null)[]>([]);
 
   const onTextUpdate = useCallback(
     (newText: string, idx: number) => {
@@ -214,35 +239,15 @@ export const MultiBufferEditor = React.memo((props: Props3) => {
     setRenderPassEditIdx(idx);
   }, []);
 
-  const onCompileFunc = useCallback(
-    (idx: number, text: string): ErrMsg[] => {
-      if (!renderer) return [];
-      const res = renderer?.setShader(idx, text);
-      return renderer.getErrorMessages(res.message || "");
-    },
-    [renderer],
-  );
-
   const onCompile = useCallback(
-    async (idx: number, editorRef: ReactCodeMirrorRef, text: string) => {
-      // clear existing errors
-      const view = editorRef.view;
-      if (!view) return;
-      view.dispatch({ effects: clearErrorsEffect.of() });
-
-      // compile
-      const result = onCompileFunc(idx, text);
-      if (result.length === 0) return;
-      view.dispatch({
-        effects: result.map((err) =>
-          errorEffect.of({
-            line: err.line,
-            message: err.message || "",
-          }),
-        ),
-      });
+    (focusedBufferIdx: number, focusedBufferText: string) => {
+      const allShaderText = shaderData.render_passes.map((pass, idx) =>
+        idx !== focusedBufferIdx ? pass.code : focusedBufferText,
+      );
+      const res = renderer.setShaders(allShaderText);
+      setErrMsgs(res.errMsgs);
     },
-    [onCompileFunc],
+    [renderer, shaderData.render_passes],
   );
 
   return (
@@ -263,13 +268,14 @@ export const MultiBufferEditor = React.memo((props: Props3) => {
           <TabsContent
             forceMount={true}
             value={idx.toString()}
-            key={renderPass.pass_idx}
+            key={renderPass.name}
             className={cn(
               renderPassEditIdx === idx ? "" : "hidden",
               "bg-background m-0",
             )}
           >
             <Editor2
+              errMsgs={errMsgs[idx]}
               onCompile={onCompile}
               idx={idx}
               visible={renderPassEditIdx === idx}

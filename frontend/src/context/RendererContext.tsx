@@ -23,7 +23,7 @@ export const RendererProvider: React.FC<RendererProviderProps> = ({
   children,
 }) => {
   const [paused, setPaused] = useState<boolean>(false);
-  const renderer = createRenderer();
+  const [renderer] = useState<IRenderer>(createRenderer());
 
   return (
     <RendererContext.Provider value={{ paused, setPaused, renderer }}>

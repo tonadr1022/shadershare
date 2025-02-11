@@ -277,6 +277,7 @@ const webGL2Renderer = () => {
   let currTime = 0;
   let currFrame = 0;
   let initialized = false;
+  let validPipelines = false;
   const fpsCounter = new AvgFpsCounter();
   // const devicePixelRatio = window.devicePixelRatio;
 
@@ -328,21 +329,6 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
     gl.uniform1i(uniforms.iFrame, currFrame);
     gl.uniform4f(uniforms.iMouse, 0, 0, 0, 0);
   };
-  // const bindTextures = (cnt: number, uniforms: FragShaderUniforms) => {
-  //   for (let i = 0; i < cnt; i++) {
-  //     if (uniforms.iChannels[i]) {
-  //       bindTexture(
-  //         uniforms.iChannels[i]!,
-  //         renderPasses[i].renderTarget.textures[
-  //           renderPasses[i].renderTarget.currentTextureIndex
-  //         ],
-  //         i,
-  //       );
-  //     }
-  //   }
-  // };
-
-  // let i = 0;
 
   const enableExtensions = () => {
     // get EXT_color_buffer_float extension
@@ -397,6 +383,9 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
   };
 
   const render = (options?: { checkResize?: boolean }) => {
+    if (!validPipelines) {
+      return;
+    }
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.bindTexture(gl.TEXTURE_2D, null);
     checkGLError(gl);
@@ -458,6 +447,22 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
     resizeBuffers();
   };
 
+  const getErrorMessages = (text: string): ErrMsg[] => {
+    const lines = text.split(/\r\n|\r|\n/);
+    const res: ErrMsg[] = [];
+    for (const lineText of lines) {
+      if (lineText.length <= 12) {
+        continue;
+      }
+      const match = lineText.match(/ERROR: \d+:(\d+): (.*)/);
+      if (match) {
+        const line = parseInt(match[1], 10) - fragmentHeaderLineCnt + 1;
+        const message = match[2];
+        res.push({ line: line, message });
+      }
+    }
+    return res;
+  };
   return {
     screenshot: () => {
       canvas.toBlob((blob) => {
@@ -491,22 +496,6 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
         );
       }
     },
-    getErrorMessages: (text: string): ErrMsg[] => {
-      const lines = text.split(/\r\n|\r|\n/);
-      const res: ErrMsg[] = [];
-      for (const lineText of lines) {
-        if (lineText.length <= 12) {
-          continue;
-        }
-        const match = lineText.match(/ERROR: \d+:(\d+): (.*)/);
-        if (match) {
-          const line = parseInt(match[1], 10) - fragmentHeaderLineCnt + 1;
-          const message = match[2];
-          res.push({ line: line, message });
-        }
-      }
-      return res;
-    },
     shutdown: () => {
       if (!initialized) return;
       initialized = false;
@@ -516,6 +505,46 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
       } else {
         console.error("Failed to get WEBGL_lose_context extension");
       }
+    },
+
+    setShaders: (
+      shaders: string[],
+    ): { error: boolean; errMsgs: (ErrMsg[] | null)[] } => {
+      if (shaders.length != renderPasses.length) {
+        throw new Error("Invalid");
+      }
+      const programOrErrStrs: (string | WebGLProgram)[] = [];
+      let anyError = false;
+      for (let i = 0; i < shaders.length; i++) {
+        const fragmentCode = `${fragmentHeader}${shaders[i]}`;
+        const compileRes = util.createShaderProgram(vertexCode, fragmentCode);
+        if (compileRes.error) {
+          anyError = true;
+          programOrErrStrs.push(compileRes.message!);
+        } else {
+          programOrErrStrs.push(compileRes.data!);
+        }
+      }
+
+      if (!anyError) {
+        for (let i = 0; i < renderPasses.length; i++) {
+          const pass = renderPasses[i];
+
+          if (pass.program) {
+            gl.deleteProgram(pass.program);
+          }
+          pass.uniformLocs = new FragShaderUniforms(programOrErrStrs[i], gl);
+          pass.program = programOrErrStrs[i];
+        }
+        validPipelines = true;
+      }
+
+      return {
+        error: anyError,
+        errMsgs: programOrErrStrs.map((r) =>
+          typeof r === "string" ? getErrorMessages(r) : null,
+        ),
+      };
     },
 
     setShader: (passIdx: number, fragmentText: string) => {
@@ -542,6 +571,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
       }
       renderPasses[idx].dirty = true;
     },
+    // TODO: initialize should return shader compile errors
     initialize: (params: IRendererInitPararms) => {
       if (initialized) return;
       canvas = params.canvas;
@@ -563,6 +593,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
 
       const { renderData } = params;
 
+      // TODO: use other compile func to get err msgs
       // TODO: handle invalid shader for first initialization
       for (let i = 0; i < renderData.length; i++) {
         const type: RenderPassType =
@@ -577,6 +608,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
           new RenderPass(gl, shader.data!, canvas.width, canvas.height, type),
         );
       }
+      validPipelines = true;
       console.log("inisializing renderer");
 
       lastTime = performance.now();
