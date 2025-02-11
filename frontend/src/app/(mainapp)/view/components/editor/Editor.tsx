@@ -7,7 +7,6 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { debounce } from "lodash";
 import CodeMirror, {
   ReactCodeMirrorRef,
   StateEffect,
@@ -29,7 +28,6 @@ import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTheme } from "next-themes";
 import ShaderExamplesDropdown from "./ShaderExamplesDropdown";
-import { IRenderer } from "../renderer/Renderer";
 
 // type EditorOptions = {
 //   fontSize: number;
@@ -83,20 +81,33 @@ type Props2 = {
   text: string;
   visible: boolean;
   idx: number;
-  onCompile: (focusedBufferIdx: number, focusedBufferText: string) => void;
   onTextChange: (text: string, idx: number) => void;
 };
 
-const keyBinds = [
-  { key: "p", alt: true, action: "pause", name: "Pause" },
-  { key: "Enter", alt: true, action: "compile", name: "Compile" },
-  { key: "r", alt: true, action: "restart", name: "Restart" },
-  { key: "b", alt: true, action: "focus", name: "Focus Editor" },
-];
+type KeyBind = {
+  name: string;
+  key: string;
+  alt?: boolean;
+};
+
+type KeyBindsMap = Record<string, KeyBind>;
+
+const keyBindsMap: KeyBindsMap = {
+  pause: { key: "p", alt: true, name: "Pause" },
+  compile: { key: "Enter", alt: true, name: "Compile" },
+  restart: { key: "r", alt: true, name: "Restart" },
+  focus: { key: "b", alt: true, name: "Focus Editor" },
+  unfocus: { key: "Escape", name: "Unfocus Editor" },
+};
+
+const isKeyboardEvent = (action: string, event: KeyboardEvent) => {
+  return (
+    event.key === keyBindsMap[action].key &&
+    (keyBindsMap[action].alt ? event.altKey : true)
+  );
+};
 
 export const Editor2 = React.memo((props: Props2) => {
-  const { theme, resolvedTheme } = useTheme();
-
   const { visible } = props;
 
   useEffect(() => {
@@ -121,40 +132,25 @@ export const Editor2 = React.memo((props: Props2) => {
     }
   }, [props.errMsgs]);
 
-  const { text, onTextChange, onCompile } = props;
+  const { text, onTextChange } = props;
   const editorRef = useRef<ReactCodeMirrorRef | null>(null);
-  const { setPaused, renderer } = useRendererCtx();
-
-  const handleKeyDown = useCallback(
-    (event: KeyboardEvent) => {
-      for (const keybind of keyBinds) {
-        if (event.key === keybind.key && (keybind.alt ? event.altKey : true)) {
-          if (keybind.action === "focus") {
-            editorRef.current?.view?.focus();
-          } else if (keybind.action === "pause") {
-            setPaused((prev) => !prev);
-          } else if (keybind.action === "restart" && renderer) {
-            renderer.restart();
-          } else if (keybind.action === "compile" && onCompile) {
-            const editor = editorRef.current;
-            if (editor && editor.view) {
-              const text = editor.view.state.doc.toString();
-              // TODO: dont call this from props?
-              onCompile(props.idx, text);
-            }
-          }
-        }
-      }
-    },
-    [onCompile, props.idx, setPaused, renderer],
-  );
 
   useEffect(() => {
     if (visible) {
-      window.addEventListener("keydown", handleKeyDown);
+      const handleKeyDown = (event: KeyboardEvent) => {
+        if (!editorRef.current || !editorRef.current.view) return;
+        if (isKeyboardEvent("focus", event)) {
+          editorRef.current.view.focus();
+        } else if (isKeyboardEvent("unfocus", event)) {
+          if (document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur();
+          }
+        }
+      };
+      window.addEventListener("keydown", handleKeyDown, { passive: true });
       return () => window.removeEventListener("keydown", handleKeyDown);
     }
-  }, [visible, handleKeyDown]);
+  }, [visible]);
 
   const extensions = useMemo(
     () => [
@@ -169,20 +165,14 @@ export const Editor2 = React.memo((props: Props2) => {
     [],
   );
 
-  const debouncedSet = React.useMemo(
-    () =>
-      debounce((text: string, idx: number) => {
-        onTextChange(text, idx);
-      }, 750),
-    [onTextChange],
-  );
-
   const codeMirrorOnTextChange = useCallback(
     (text: string) => {
-      debouncedSet(text, props.idx);
+      onTextChange(text, props.idx);
     },
-    [debouncedSet, props.idx],
+    [onTextChange, props.idx],
   );
+
+  const { theme, resolvedTheme } = useTheme();
   const themeStr = useMemo(() => {
     switch (resolvedTheme || theme) {
       case "light":
@@ -211,60 +201,89 @@ export const Editor2 = React.memo((props: Props2) => {
 });
 Editor2.displayName = "Editor2";
 
-type Props3 = {
-  initialShaderData: ShaderData;
-  renderer: IRenderer;
-};
-
-export const MultiBufferEditor = React.memo((props: Props3) => {
-  const { renderer } = props;
-  const [shaderData, setShaderData] = useState(props.initialShaderData);
+export const MultiBufferEditor = React.memo(() => {
   const [renderPassEditIdx, setRenderPassEditIdx] = useState(0);
   const [errMsgs, setErrMsgs] = useState<(ErrMsg[] | null)[]>([]);
+
+  const { setPaused, renderer, shaderDataRef } = useRendererCtx();
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      Object.entries(keyBindsMap).forEach(([action, keybind]) => {
+        if (event.key === keybind.key && (keybind.alt ? event.altKey : true)) {
+          switch (action) {
+            case "pause":
+              setPaused((prev) => !prev);
+              break;
+            case "restart":
+              renderer.restart();
+              break;
+            case "compile":
+              const res = renderer.setShaders(
+                shaderDataRef.current.render_passes.map((pass) => pass.code),
+              );
+              setErrMsgs(res.errMsgs);
+              break;
+            default:
+              break;
+          }
+        }
+      });
+    };
+    window.addEventListener("keydown", handleKeyDown, { passive: true });
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [renderer, setPaused, shaderDataRef]);
 
   const onTextUpdate = useCallback(
     (newText: string, idx: number) => {
       renderer.setShaderDirty(idx);
-      setShaderData((prevData) => ({
-        ...prevData,
-        render_passes: prevData.render_passes.map((renderPass, i) =>
-          i === idx ? { ...renderPass, code: newText } : renderPass,
-        ),
-      }));
+      shaderDataRef.current.render_passes[idx].code = newText;
+      // setShaderData((prevData) => ({
+      //   ...prevData,
+      //   render_passes: prevData.render_passes.map((renderPass, i) =>
+      //     i === idx ? { ...renderPass, code: newText } : renderPass,
+      //   ),
+      // }));
+    },
+    [renderer, shaderDataRef],
+  );
+
+  const onCompile = useCallback(
+    (shaderData: ShaderData) => {
+      const res = renderer.setShaders(
+        shaderData.render_passes.map((pass) => pass.code),
+      );
+      setErrMsgs(res.errMsgs);
     },
     [renderer],
   );
 
-  const onBufferIdxChange = useCallback((idx: number) => {
-    setRenderPassEditIdx(idx);
-  }, []);
-
-  const onCompile = useCallback(
-    (focusedBufferIdx: number, focusedBufferText: string) => {
-      const allShaderText = shaderData.render_passes.map((pass, idx) =>
-        idx !== focusedBufferIdx ? pass.code : focusedBufferText,
-      );
-      const res = renderer.setShaders(allShaderText);
-      setErrMsgs(res.errMsgs);
+  const onExampleSelect = useCallback(
+    (shader: ShaderData) => {
+      // TODO: uplaod these and make a new tab for them
+      shaderDataRef.current = shader;
+      // setShaderData(shader);
+      onCompile(shader);
+      renderer.restart();
     },
-    [renderer, shaderData.render_passes],
+    [renderer, onCompile, shaderDataRef],
   );
 
   return (
     <div className=" flex flex-col w-full h-full">
       <Tabs defaultValue="0" className="m-0 p-0">
         <TabsList>
-          {shaderData.render_passes.map((renderPass, idx) => (
+          {shaderDataRef.current.render_passes.map((renderPass, idx) => (
             <TabsTrigger
               value={idx.toString()}
-              onClick={() => onBufferIdxChange(idx)}
+              onClick={() => setRenderPassEditIdx(idx)}
               key={renderPass.pass_idx}
             >
               Pass {idx}
             </TabsTrigger>
           ))}
         </TabsList>
-        {shaderData.render_passes.map((renderPass, idx) => (
+        {shaderDataRef.current.render_passes.map((renderPass, idx) => (
           <TabsContent
             forceMount={true}
             value={idx.toString()}
@@ -276,7 +295,6 @@ export const MultiBufferEditor = React.memo((props: Props3) => {
           >
             <Editor2
               errMsgs={errMsgs[idx]}
-              onCompile={onCompile}
               idx={idx}
               visible={renderPassEditIdx === idx}
               text={renderPass.code}
@@ -286,12 +304,7 @@ export const MultiBufferEditor = React.memo((props: Props3) => {
         ))}
       </Tabs>
       <div className="flex flex-row">
-        <ShaderExamplesDropdown
-          onSelect={(shader: ShaderData) => {
-            // TODO: uplaod these and make a new tab for them
-            setShaderData(shader);
-          }}
-        />
+        <ShaderExamplesDropdown onSelect={onExampleSelect} />
       </div>
     </div>
   );

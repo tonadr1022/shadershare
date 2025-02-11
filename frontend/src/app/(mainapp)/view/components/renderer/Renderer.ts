@@ -7,6 +7,19 @@ import {
 import { createEmptyResult } from "../util";
 import { webgl2Utils, WebGL2Utils } from "./Util";
 
+export const getScreenshotObjectURL = (canvas: HTMLCanvasElement) => {
+  return new Promise<string>((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        reject("Failed to capture canvas as blob");
+        return;
+      }
+      const url = window.URL.createObjectURL(blob!);
+      resolve(url);
+    }, "image/png");
+  });
+};
+
 export const promptSaveScreenshot = (canvas: HTMLCanvasElement) => {
   canvas.toBlob((blob) => {
     if (!blob) {
@@ -228,7 +241,7 @@ class RenderTarget {
 }
 
 type RenderPassType = "image" | "buffer";
-class RenderPass {
+class RRenderPass {
   dirty: boolean = true;
   program: WebGLProgram;
   uniformLocs: FragShaderUniforms;
@@ -291,7 +304,7 @@ const webGL2Renderer = () => {
     gl.uniform1i(location, index);
   };
 
-  const renderPasses: RenderPass[] = [];
+  const renderPasses: RRenderPass[] = [];
 
   let util: WebGL2Utils;
 
@@ -507,6 +520,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
       }
     },
 
+    // TODO: compilation stats and character counts and line counts
     setShaders: (
       shaders: string[],
     ): { error: boolean; errMsgs: (ErrMsg[] | null)[] } => {
@@ -605,7 +619,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
           return;
         }
         renderPasses.push(
-          new RenderPass(gl, shader.data!, canvas.width, canvas.height, type),
+          new RRenderPass(gl, shader.data!, canvas.width, canvas.height, type),
         );
       }
       validPipelines = true;

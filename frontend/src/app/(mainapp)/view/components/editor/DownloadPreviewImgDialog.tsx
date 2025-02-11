@@ -10,15 +10,22 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 
-const DownloadPreviewImageDialog = () => {
-  const [size, setSize] = useState(50);
+type Props = {
+  onSave: (width: number, height: number) => void;
+};
 
-  const handleSave = () => {
-    const profileData = { size: size };
-    console.log("Profile data:", profileData); // Here is where you would handle the saved data (e.g., send to an API)
-  };
+const heightFromWidth = (size: number) => {
+  return (size * 9) / 16;
+};
+
+const DownloadPreviewImageDialog = ({ onSave }: Props) => {
+  const [width, setWidth] = useState(50);
+
+  const handleSave = useCallback(() => {
+    onSave(width, heightFromWidth(width));
+  }, [width, onSave]);
 
   return (
     <Dialog>
@@ -32,14 +39,16 @@ const DownloadPreviewImageDialog = () => {
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <Slider
-            defaultValue={[size]}
-            value={[size]}
-            onValueChange={(value) => setSize(value[0])}
-            max={100}
-            step={1}
+            defaultValue={[width]}
+            value={[width]}
+            onValueChange={(value) => setWidth(value[0])}
+            max={4000}
+            step={10}
           />
         </div>
-        <div>{size}</div>
+        <div>
+          {width} x {heightFromWidth(width)}
+        </div>
         <DialogFooter>
           <Button type="button" onClick={handleSave}>
             Save

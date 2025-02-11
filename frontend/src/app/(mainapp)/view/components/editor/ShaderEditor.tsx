@@ -1,12 +1,15 @@
 "use client";
 import ShaderRenderer from "../renderer/ShaderRenderer";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { MultiBufferEditor } from "./Editor";
-import { createRenderer, promptSaveScreenshot } from "../renderer/Renderer";
+import {
+  createRenderer,
+  getScreenshotObjectURL,
+  promptSaveScreenshot,
+} from "../renderer/Renderer";
 import { Button } from "@/components/ui/button";
 import { ShaderData } from "@/types/shader";
 import { MultiPassRed } from "@/rendering/example-shaders";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   ResizablePanelGroup,
   ResizablePanel,
@@ -30,27 +33,30 @@ const promptSavePreviewImage = (
   });
   renderer.onResize(width, height);
   renderer.render({ checkResize: false });
-  renderer.shutdown();
   promptSaveScreenshot(canvas);
+  renderer.shutdown();
 };
 
 const ShaderEditor = () => {
   const { renderer } = useRendererCtx();
-  const saveShader = useCallback(() => {
+
+  const shaderDataRef = useRef(initialShader);
+  const saveShader = useCallback(async () => {
     const renderer = createRenderer();
     const canvas = document.createElement("canvas");
     renderer.initialize({
       canvas: canvas,
-      renderData: initialShader.render_passes,
+      renderData: shaderDataRef.current.render_passes,
     });
     renderer.onResize(320, 180);
     renderer.render({ checkResize: false });
+    const screenshotDataURL = await getScreenshotObjectURL(canvas);
+    console.log(screenshotDataURL, shaderDataRef.current);
     renderer.shutdown();
-    promptSaveScreenshot(canvas);
   }, []);
 
-  const onGetPreviewImg = useCallback(() => {
-    promptSavePreviewImage(320, 180, initialShader);
+  const onGetPreviewImg = useCallback((width: number, height: number) => {
+    promptSavePreviewImage(width, height, initialShader);
   }, []);
 
   useEffect(() => {
@@ -72,7 +78,7 @@ const ShaderEditor = () => {
         <Button variant="outline" onClick={saveShader}>
           Save
         </Button>
-        <DownloadPreviewImageDialog />
+        <DownloadPreviewImageDialog onSave={onGetPreviewImg} />
       </ResizablePanel>
       <ResizableHandle withHandle />
       <ResizablePanel
@@ -82,14 +88,7 @@ const ShaderEditor = () => {
         collapsible
         className=""
       >
-        {renderer ? (
-          <MultiBufferEditor
-            renderer={renderer}
-            initialShaderData={initialShader}
-          />
-        ) : (
-          <Skeleton className="w-full h-full"></Skeleton>
-        )}
+        <MultiBufferEditor initialShaderData={initialShader} />
       </ResizablePanel>
     </ResizablePanelGroup>
   );
