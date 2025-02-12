@@ -16,6 +16,8 @@ export type ShaderData = {
   render_passes: RenderPass[];
 };
 
+export type ShortShaderData = {};
+
 export type CompileResult = {
   success: boolean;
 };

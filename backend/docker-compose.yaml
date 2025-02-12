@@ -3,6 +3,9 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      minio:
+        condition: service_healthy
+
     build:
       context: .
       dockerfile: cmd/server/Dockerfile.dev
@@ -27,8 +30,34 @@ services:
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
       - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
+      - S3_BUCKET_NAME=dev-bucket
+      - S3_ACCOUNT_ID=admin
+      - AWS_ACCESS_KEY_ID=admin
+      - AWS_ACCESS_KEY_SECRET=password
+      - S3_ENDPOINT_URL=http://minio:9000
+      - AWS_REGION=us-east-1
     networks:
       - localnet
+  minio:
+    image: quay.io/minio/minio
+    container_name: minio
+    ports:
+      - "9000:9000"
+      - "9090:9090"
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: password
+    command: server /data --console-address ":9090"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 1s
+      timeout: 5s
+      retries: 10
+    networks:
+      - localnet
+
   db:
     image: postgres
     container_name: postgres_db
@@ -66,15 +95,18 @@ services:
       - ./db/migrations:/migrations
     environment:
       - DATABASE_URL=postgres://postgres:password@db:5432/postgres?sslmode=disable
+
   migrate-create:
     <<: *basemigrate
     entrypoint: migrate create -dir /migrations -ext sql
     command: ""
+
   database-reset:
     <<: *basemigrate
     command: ["drop", "-f"]
 
 volumes:
+  minio_data:
   pgdata:
 networks:
   localnet:

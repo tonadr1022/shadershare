@@ -22,3 +22,6 @@ UPDATE render_passes
 SET code = COALESCE(NULLIF($2::TEXT,''), code),
     name = COALESCE(NULLIF($3::TEXT,''), name)
 WHERE id = $1 RETURNING *;
+
+-- name: GetRenderPassesByShaderIDs :many
+SELECT * FROM render_passes WHERE shader_id = ANY ($1);

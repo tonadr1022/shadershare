@@ -96,6 +96,37 @@ func (q *Queries) GetRenderPassesByShaderID(ctx context.Context, shaderID uuid.U
 	return items, nil
 }
 
+const getRenderPassesByShaderIDs = `-- name: GetRenderPassesByShaderIDs :many
+SELECT id, shader_id, code, pass_index, name, created_at FROM render_passes WHERE shader_id = ANY ($1)
+`
+
+func (q *Queries) GetRenderPassesByShaderIDs(ctx context.Context, shaderID uuid.UUID) ([]RenderPass, error) {
+	rows, err := q.db.Query(ctx, getRenderPassesByShaderIDs, shaderID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []RenderPass
+	for rows.Next() {
+		var i RenderPass
+		if err := rows.Scan(
+			&i.ID,
+			&i.ShaderID,
+			&i.Code,
+			&i.PassIndex,
+			&i.Name,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listRenderPasses = `-- name: ListRenderPasses :many
 SELECT id, shader_id, code, pass_index, name, created_at FROM render_passes
 ORDER BY id LIMIT $1 OFFSET $2

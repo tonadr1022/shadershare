@@ -63,6 +63,7 @@ type (
 
 	ShaderRepository interface {
 		GetShaderList(ctx context.Context, sort string, limit int, offset int) ([]Shader, error)
+		GetShadersListWithRenderPasses(ctx context.Context, sort string, limit int, offset int) ([]ShaderWithRenderPasses, error)
 		CreateShader(ctx context.Context, userID uuid.UUID, shaderPayload CreateShaderPayload) (*ShaderWithRenderPasses, error)
 		GetUserShaderList(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]Shader, error)
 		UpdateShader(ctx context.Context, userID uuid.UUID, shaderID uuid.UUID, updatePayload UpdateShaderPayload) (*Shader, error)
@@ -73,6 +74,7 @@ type (
 	ShaderService interface {
 		GetShaderList(ctx context.Context, sort string, limit int, offset int) ([]Shader, error)
 		CreateShader(ctx context.Context, userID uuid.UUID, shaderPayload CreateShaderPayload) (*ShaderWithRenderPasses, error)
+		GetShadersListWithRenderPasses(ctx context.Context, sort string, limit int, offset int) ([]ShaderWithRenderPasses, error)
 		GetUserShaderList(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]Shader, error)
 		UpdateShader(ctx context.Context, userID uuid.UUID, shaderID uuid.UUID, updatePayload UpdateShaderPayload) (*Shader, error)
 		GetShader(ctx context.Context, shaderID uuid.UUID) (*ShaderWithRenderPasses, error)

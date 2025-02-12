@@ -69,7 +69,7 @@ const EditShaderMetadata = ({ initialData }: Props) => {
     mutationFn: createShader,
     onError: toastAxiosErrors,
     onSuccess: (data: ShaderData) => {
-      queryClient.invalidateQueries({ queryKey: ["profile-shaders"] });
+      queryClient.invalidateQueries({ queryKey: ["shaders", "profile"] });
       router.push(`/view/${data.shader.id}`);
     },
   });
@@ -77,7 +77,7 @@ const EditShaderMetadata = ({ initialData }: Props) => {
     mutationFn: updateShader,
     onError: toastAxiosErrors,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["profile-shaders"] });
+      queryClient.invalidateQueries({ queryKey: ["shaders", "profile"] });
       toast.success("Shader saved successfully");
     },
   });

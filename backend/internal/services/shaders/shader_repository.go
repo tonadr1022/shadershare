@@ -66,6 +66,78 @@ func NewShaderRepository(db *pgxpool.Pool, queries *db.Queries) domain.ShaderRep
 	}
 }
 
+const getRenderPassesByShaderIDsQuery = `-- name: GetRenderPassesByShaderIDs :many
+SELECT id, shader_id, code, pass_index, name, created_at FROM render_passes WHERE shader_id = ANY ($1)
+`
+
+func getRenderPassesByShaderIDs(conn db.DBTX, ctx context.Context, shaderID []uuid.UUID) ([]db.RenderPass, error) {
+	rows, err := conn.Query(ctx, getRenderPassesByShaderIDsQuery, shaderID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []db.RenderPass
+	for rows.Next() {
+		var i db.RenderPass
+		if err := rows.Scan(
+			&i.ID,
+			&i.ShaderID,
+			&i.Code,
+			&i.PassIndex,
+			&i.Name,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+func (r shaderRepository) GetShadersListWithRenderPasses(ctx context.Context, sort string, limit int, offset int) ([]domain.ShaderWithRenderPasses, error) {
+	dbShaders, err := r.queries.ListShaders(ctx, db.ListShadersParams{Limit: int32(limit), Offset: int32(offset)})
+	if err != nil {
+		return nil, err
+	}
+
+	if len(dbShaders) == 0 {
+		return nil, nil
+	}
+
+	// Extract shader IDs for batch querying
+	shaderIDs := make([]uuid.UUID, len(dbShaders))
+	for i, dbShader := range dbShaders {
+		shaderIDs[i] = dbShader.ID
+	}
+
+	// Fetch all render passes in a single query
+	renderPasses, err := getRenderPassesByShaderIDs(r.db, ctx, shaderIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	// Organize render passes by shader ID using a map
+	renderPassMap := make(map[uuid.UUID][]domain.RenderPass)
+	for _, dbRenderPass := range renderPasses {
+		renderPassMap[dbRenderPass.ShaderID] = append(renderPassMap[dbRenderPass.ShaderID], r.RenderPassFromDB(dbRenderPass))
+	}
+
+	// Build response
+	apiShaders := make([]domain.ShaderWithRenderPasses, len(dbShaders))
+	for i, dbShader := range dbShaders {
+		shader := r.ShaderFromDB(dbShader)
+		apiShaders[i] = domain.ShaderWithRenderPasses{
+			Shader:       shader,
+			RenderPasses: renderPassMap[dbShader.ID], // Efficient lookup
+		}
+	}
+
+	return apiShaders, nil
+}
+
 func (r shaderRepository) GetShaderList(ctx context.Context, sort string, limit int, offset int) ([]domain.Shader, error) {
 	dbShaders, err := r.queries.ListShaders(ctx, db.ListShadersParams{Limit: int32(limit), Offset: int32(offset)})
 	if err != nil {

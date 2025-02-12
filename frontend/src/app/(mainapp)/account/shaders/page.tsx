@@ -9,7 +9,7 @@ const ProfileShaders = () => {
   // console.log(data);
 
   const { data, isPending, isError } = useQuery({
-    queryKey: ["profile-shaders"],
+    queryKey: ["shaders", "profile"],
     queryFn: getUserShaders,
   });
 

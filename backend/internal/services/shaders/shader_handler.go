@@ -18,10 +18,10 @@ type ShaderHandler struct {
 
 func RegisterHandlers(r *gin.RouterGroup, service domain.ShaderService) {
 	h := &ShaderHandler{service}
-	r.GET("/shader", h.getShaderList)
-	r.GET("/shader/:id", h.getShader)
-	r.POST("/shader", middleware.Auth(), h.createShader)
-	r.PUT("/shader/:id", middleware.Auth(), h.updateShader)
+	r.GET("/shaders", h.getShaderList)
+	r.GET("/shaders/:id", h.getShader)
+	r.POST("/shaders", middleware.Auth(), h.createShader)
+	r.PUT("/shaders/:id", middleware.Auth(), h.updateShader)
 }
 
 func (h ShaderHandler) updateShader(c *gin.Context) {
@@ -82,12 +82,13 @@ func (h ShaderHandler) getShaderList(c *gin.Context) {
 	if err != nil {
 		return
 	}
+	limit = min(limit, 20)
 	offset, err := com.DefaultQueryIntCheck(c, "offset", 0)
 	if err != nil {
 		return
 	}
 
-	shaders, err := h.service.GetShaderList(c, sort, limit, offset)
+	shaders, err := h.service.GetShadersListWithRenderPasses(c, sort, limit, offset)
 	if err != nil {
 		util.SetInternalServiceErrorResponse(c)
 		return

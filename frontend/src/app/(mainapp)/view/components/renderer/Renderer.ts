@@ -104,11 +104,11 @@ uniform vec4 iMouse; // xy = curr pixel coords, zw = click pixel coords
 out vec4 fC;
 
 
-void mainImage(in vec2 fragCoord, out vec4 fragColor);
+void mainImage(out vec4 fragColor, in vec2 fragCoord);
 
 void main() {
     fC = vec4(1.0,1.0,1.0,1.0);
-    mainImage(gl_FragCoord.xy, fC);
+    mainImage(fC, gl_FragCoord.xy);
 }
 `;
 
@@ -160,7 +160,7 @@ class FragShaderUniforms {
   }
 }
 
-export const initialFragmentShaderText = `void mainImage(in vec2 fragCoord, out vec4 fragColor) {
+export const initialFragmentShaderText = `void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     // Normalized pixel coordinates (from 0 to 1)
     vec2 uv = fragCoord/iResolution.xy;
 
