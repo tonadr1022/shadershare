@@ -74,7 +74,8 @@ const vertexCode = `#version 300 es
 #ifdef GL_ES
 precision highp float;
 precision highp int;
-precision mediump sampler3D;
+// precision highp sampler3D;
+precision mediump sampler2D;
 #endif
 void main() {
     vec2 out_uv = vec2((gl_VertexID << 1) & 2, gl_VertexID & 2);
@@ -84,7 +85,7 @@ const fragmentHeader = `#version 300 es
 #ifdef GL_ES
 precision highp float;
 precision highp int;
-precision mediump sampler3D;
+// precision mediump sampler3D;
 #endif
 
 uniform sampler2D iChannel0;
@@ -100,12 +101,14 @@ uniform float iChannelTime[4];
 uniform vec3 iChannelResolution[4];
 uniform vec4 iMouse; // xy = curr pixel coords, zw = click pixel coords
 
-out vec4 fragColor;
+out vec4 fC;
 
-void mainImage(out vec4 fragColor, in vec2 fragCoord);
+
+void mainImage(in vec2 fragCoord, out vec4 fragColor);
 
 void main() {
-    mainImage(fragColor, vec2(gl_FragCoord.xy));
+    fC = vec4(1.0,1.0,1.0,1.0);
+    mainImage(gl_FragCoord.xy, fC);
 }
 `;
 
@@ -157,7 +160,7 @@ class FragShaderUniforms {
   }
 }
 
-export const initialFragmentShaderText = `void mainImage(out vec4 fragColor, in vec2 fragCoord) {
+export const initialFragmentShaderText = `void mainImage(in vec2 fragCoord, out vec4 fragColor) {
     // Normalized pixel coordinates (from 0 to 1)
     vec2 uv = fragCoord/iResolution.xy;
 
@@ -427,6 +430,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
   };
 
   const compileShader = (fragmentText: string): Result<WebGLProgram> => {
+    // TODO: dynamically create the header based on what is actually used in the shader
     const fragmentCode = `${fragmentHeader}${fragmentText}`;
     const compileRes = util.createShaderProgram(vertexCode, fragmentCode);
     if (compileRes.error) {

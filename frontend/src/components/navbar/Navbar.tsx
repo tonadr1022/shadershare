@@ -17,12 +17,12 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 const navbarItems = [
   { href: url.browse, label: "Browse" },
-  { href: "/account/shaders", label: "Shaders" },
   { href: url.new, label: "New" },
 ];
 
 export default function Navbar() {
   const { data: user, isPending } = useGetMe();
+  console.log(user && user.email);
 
   // TODO: bar when small screen
   return (

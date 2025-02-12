@@ -27,6 +27,9 @@ const ProfileDropdown = () => {
         <Link href={url.account}>
           <DropdownMenuItem>Account</DropdownMenuItem>
         </Link>
+        <Link href={"/account/shaders"}>
+          <DropdownMenuItem>My Shaders</DropdownMenuItem>
+        </Link>
         <ThemeDropdown />
 
         {user ? (

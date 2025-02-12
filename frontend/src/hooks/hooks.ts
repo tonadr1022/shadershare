@@ -1,6 +1,6 @@
 "use client";
 import { getMe, logoutUser } from "@/api/auth-api";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useCallback } from "react";
 import { useTheme } from "next-themes";
@@ -17,10 +17,13 @@ export const useGetMe = () => {
 
 export const useLogout = () => {
   const router = useRouter();
+  const client = useQueryClient();
   const logout = useCallback(async () => {
     await logoutUser();
-    router.refresh();
-  }, [router]);
+    client.invalidateQueries({ queryKey: ["me"] });
+    client.resetQueries({ queryKey: ["me"] });
+    router.push("/");
+  }, [router, client]);
 
   return logout;
 };
