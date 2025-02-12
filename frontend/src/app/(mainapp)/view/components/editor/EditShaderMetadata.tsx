@@ -1,7 +1,11 @@
 import { Button } from "@/components/ui/button";
 import React, { useCallback } from "react";
 import { createRenderer, getScreenshotObjectURL } from "../renderer/Renderer";
-import { RenderPass, ShaderData } from "@/types/shader";
+import {
+  RenderPass,
+  ShaderData,
+  ShaderUpdateCreatePayload,
+} from "@/types/shader";
 import { useRendererCtx } from "@/context/RendererContext";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -20,6 +24,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createShader, updateShader } from "@/api/shader-api";
 import { toastAxiosErrors } from "@/lib/utils";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 const formSchema = z.object({
   title: z.string().min(2, {
@@ -48,7 +53,7 @@ type Props = {
 };
 
 const EditShaderMetadata = ({ initialData }: Props) => {
-  const { shaderDataRef } = useRendererCtx();
+  const { shaderDataRef, codeDirtyRef } = useRendererCtx();
   const router = useRouter();
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -66,7 +71,6 @@ const EditShaderMetadata = ({ initialData }: Props) => {
     onSuccess: (data: ShaderData) => {
       queryClient.invalidateQueries({ queryKey: ["profile-shaders"] });
       router.push(`/view/${data.shader.id}`);
-      // TODO: redirect to the id
     },
   });
   const updateShaderMut = useMutation({
@@ -74,30 +78,49 @@ const EditShaderMetadata = ({ initialData }: Props) => {
     onError: toastAxiosErrors,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["profile-shaders"] });
+      toast.success("Shader saved successfully");
     },
   });
+
   const onSubmit = useCallback(
     async (values: z.infer<typeof formSchema>) => {
       // TODO: preview img
       // const previewImg = await getPreviewScreenshot(
       //   shaderDataRef.current.render_passes,
       // );
-      const payload = {
-        id: "",
+      const isUpdate = initialData?.shader.id;
+
+      const payload: ShaderUpdateCreatePayload = {
         title: values.title,
         description: values.description,
-        // TODO: get dirty render passes
-        render_passes: shaderDataRef.current.render_passes,
       };
-
-      if (initialData?.shader.id) {
+      if (isUpdate) {
         payload.id = initialData.shader.id;
+        const dirtyRenderPasses = shaderDataRef.current.render_passes.filter(
+          (_, idx) => codeDirtyRef.current[idx],
+        );
+        if (dirtyRenderPasses.length > 0) {
+          console.log(dirtyRenderPasses);
+          payload.render_passes = dirtyRenderPasses;
+        }
+      } else {
+        payload.render_passes = shaderDataRef.current.render_passes;
+      }
+
+      if (isUpdate) {
+        console.log(payload);
         updateShaderMut.mutate(payload);
       } else {
         createShaderMut.mutate(payload);
       }
     },
-    [shaderDataRef, createShaderMut, updateShaderMut, initialData],
+    [
+      codeDirtyRef,
+      shaderDataRef,
+      createShaderMut,
+      updateShaderMut,
+      initialData,
+    ],
   );
 
   return (

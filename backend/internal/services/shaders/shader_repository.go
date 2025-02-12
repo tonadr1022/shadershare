@@ -118,6 +118,18 @@ func (r shaderRepository) UpdateShader(ctx context.Context, userID uuid.UUID, sh
 		}
 		return nil, err
 	}
+	for _, renderPass := range updatePayload.RenderPasses {
+		params := db.UpdateRenderPassParams{
+			ID: renderPass.ID,
+		}
+		if renderPass.Code != nil {
+			params.Column2 = *renderPass.Code
+		}
+		if renderPass.Name != nil {
+			params.Column3 = *renderPass.Name
+		}
+		r.queries.UpdateRenderPass(ctx, params)
+	}
 
 	shader := r.ShaderFromDB(dbshader)
 	return &shader, nil

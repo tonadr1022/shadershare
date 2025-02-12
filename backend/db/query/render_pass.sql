@@ -16,3 +16,9 @@ INSERT INTO render_passes (
 ) VALUES (
     $1, $2, $3, $4
 ) RETURNING *;
+
+-- name: UpdateRenderPass :one
+UPDATE render_passes
+SET code = COALESCE(NULLIF($2::TEXT,''), code),
+    name = COALESCE(NULLIF($3::TEXT,''), name)
+WHERE id = $1 RETURNING *;

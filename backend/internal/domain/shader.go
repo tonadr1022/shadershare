@@ -26,9 +26,10 @@ type (
 	}
 
 	UpdateRenderPassPayload struct {
-		Code      *string `json:"code,omitempty"`
-		PassIndex *int    `json:"pass_index,omitempty"`
-		Name      *string `json:"name,omitempty"`
+		ID        uuid.UUID `json:"id" binding:"required"`
+		Code      *string   `json:"code,omitempty"`
+		PassIndex *int      `json:"pass_index,omitempty"`
+		Name      *string   `json:"name,omitempty"`
 	}
 
 	UpdateShaderPayload struct {

@@ -196,7 +196,7 @@ export const MultiBufferEditor = React.memo(() => {
   const [renderPassEditIdx, setRenderPassEditIdx] = useState(0);
   const [errMsgs, setErrMsgs] = useState<(ErrMsg[] | null)[]>([]);
 
-  const { setPaused, renderer, shaderDataRef } = useRendererCtx();
+  const { codeDirtyRef, setPaused, renderer, shaderDataRef } = useRendererCtx();
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -230,6 +230,8 @@ export const MultiBufferEditor = React.memo(() => {
     (newText: string, idx: number) => {
       if (!renderer) return;
       renderer.setShaderDirty(idx);
+      codeDirtyRef.current[idx] = true;
+
       shaderDataRef.current.render_passes[idx].code = newText;
       // setShaderData((prevData) => ({
       //   ...prevData,
@@ -238,7 +240,7 @@ export const MultiBufferEditor = React.memo(() => {
       //   ),
       // }));
     },
-    [renderer, shaderDataRef],
+    [renderer, shaderDataRef, codeDirtyRef],
   );
 
   const onCompile = useCallback(

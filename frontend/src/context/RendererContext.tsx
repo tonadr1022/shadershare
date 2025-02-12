@@ -19,6 +19,7 @@ interface RendererContextType {
   setPaused: React.Dispatch<React.SetStateAction<boolean>>;
   renderer: IRenderer | null;
   shaderDataRef: React.RefObject<ShaderData>;
+  codeDirtyRef: React.RefObject<boolean[]>;
 }
 
 const RendererContext = createContext<RendererContextType | undefined>(
@@ -40,11 +41,13 @@ export const RendererProvider: React.FC<RendererProviderProps> = ({
   const shaderDataRef = React.useRef<ShaderData>(
     initialShaderData || DefaultNewShader,
   );
+  const codeDirtyRef = useRef<boolean[]>([]);
 
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
     setRenderer(createRenderer());
+    codeDirtyRef.current = shaderDataRef.current.render_passes.map(() => false);
     return () => {
       renderer?.shutdown();
     };
@@ -52,7 +55,13 @@ export const RendererProvider: React.FC<RendererProviderProps> = ({
 
   return (
     <RendererContext.Provider
-      value={{ paused, setPaused, renderer, shaderDataRef }}
+      value={{
+        codeDirtyRef,
+        paused,
+        setPaused,
+        renderer,
+        shaderDataRef,
+      }}
     >
       {children}
     </RendererContext.Provider>

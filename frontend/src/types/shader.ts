@@ -2,6 +2,7 @@ export type RenderPass = {
   code: string;
   pass_index: number;
   name: string;
+  id?: string;
 };
 
 export type ShaderData = {
@@ -41,4 +42,11 @@ export type ErrMsg = {
 export type IRendererInitPararms = {
   canvas: HTMLCanvasElement;
   renderData: RenderPass[];
+};
+
+export type ShaderUpdateCreatePayload = {
+  id?: string;
+  title?: string;
+  description?: string;
+  render_passes?: RenderPass[];
 };

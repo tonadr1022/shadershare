@@ -132,3 +132,30 @@ func (q *Queries) ListRenderPasses(ctx context.Context, arg ListRenderPassesPara
 	}
 	return items, nil
 }
+
+const updateRenderPass = `-- name: UpdateRenderPass :one
+UPDATE render_passes
+SET code = COALESCE(NULLIF($2::TEXT,''), code),
+    name = COALESCE(NULLIF($3::TEXT,''), name)
+WHERE id = $1 RETURNING id, shader_id, code, pass_index, name, created_at
+`
+
+type UpdateRenderPassParams struct {
+	ID      uuid.UUID
+	Column2 string
+	Column3 string
+}
+
+func (q *Queries) UpdateRenderPass(ctx context.Context, arg UpdateRenderPassParams) (RenderPass, error) {
+	row := q.db.QueryRow(ctx, updateRenderPass, arg.ID, arg.Column2, arg.Column3)
+	var i RenderPass
+	err := row.Scan(
+		&i.ID,
+		&i.ShaderID,
+		&i.Code,
+		&i.PassIndex,
+		&i.Name,
+		&i.CreatedAt,
+	)
+	return i, err
+}
