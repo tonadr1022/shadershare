@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS render_passes (
     shader_id UUID NOT NULL,
     code TEXT NOT NULL,
     pass_index INT NOT NULL,
+    name TEXT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
 
     FOREIGN KEY (shader_id) REFERENCES shaders(id) ON DELETE CASCADE

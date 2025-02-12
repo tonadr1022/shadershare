@@ -22,11 +22,19 @@ type (
 		ShaderID  string    `json:"shader_id"`
 		Code      string    `json:"code"`
 		PassIndex int       `json:"pass_index"`
+		Name      string    `json:"name"`
+	}
+
+	UpdateRenderPassPayload struct {
+		Code      *string `json:"code,omitempty"`
+		PassIndex *int    `json:"pass_index,omitempty"`
+		Name      *string `json:"name,omitempty"`
 	}
 
 	UpdateShaderPayload struct {
-		Title       *string `json:"title,omitempty"`
-		Description *string `json:"description,omitempty"`
+		Title        *string                   `json:"title,omitempty"`
+		Description  *string                   `json:"description,omitempty"`
+		RenderPasses []UpdateRenderPassPayload `json:"render_passes,omitempty"`
 	}
 
 	CreateRenderPassForShaderPayload struct {
@@ -38,6 +46,7 @@ type (
 	CreateRenderPassPayload struct {
 		Code      string `json:"code" binding:"required"`
 		PassIndex int    `json:"pass_index" binding:"required"`
+		Name      string `json:"name" binding:"required"`
 	}
 
 	CreateShaderPayload struct {
@@ -56,6 +65,7 @@ type (
 		CreateShader(ctx context.Context, userID uuid.UUID, shaderPayload CreateShaderPayload) (*ShaderWithRenderPasses, error)
 		GetUserShaderList(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]Shader, error)
 		UpdateShader(ctx context.Context, userID uuid.UUID, shaderID uuid.UUID, updatePayload UpdateShaderPayload) (*Shader, error)
+		GetShader(ctx context.Context, shaderID uuid.UUID) (*ShaderWithRenderPasses, error)
 		// CreateRenderPass(ctx context.Context, payload CreateRenderPassPayload) error
 	}
 
@@ -64,5 +74,6 @@ type (
 		CreateShader(ctx context.Context, userID uuid.UUID, shaderPayload CreateShaderPayload) (*ShaderWithRenderPasses, error)
 		GetUserShaderList(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]Shader, error)
 		UpdateShader(ctx context.Context, userID uuid.UUID, shaderID uuid.UUID, updatePayload UpdateShaderPayload) (*Shader, error)
+		GetShader(ctx context.Context, shaderID uuid.UUID) (*ShaderWithRenderPasses, error)
 	}
 )

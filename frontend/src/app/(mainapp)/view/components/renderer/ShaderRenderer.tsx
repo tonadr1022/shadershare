@@ -14,14 +14,15 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { promptSaveScreenshot } from "./Renderer";
+import { createRenderer, promptSaveScreenshot } from "./Renderer";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import Fps from "./Fps";
 import { useRendererCtx } from "@/context/RendererContext";
 
 const ShaderRenderer = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const { paused, setPaused, shaderDataRef, rendererRef } = useRendererCtx();
+  const { paused, setPaused, shaderDataRef, renderer, setRenderer } =
+    useRendererCtx();
 
   const onPause = useCallback(() => {
     setPaused((prev) => !prev);
@@ -33,8 +34,8 @@ const ShaderRenderer = () => {
   }, []);
 
   const onRestart = useCallback(() => {
-    rendererRef.current?.restart();
-  }, [rendererRef]);
+    renderer?.restart();
+  }, [renderer]);
 
   const toggleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
@@ -48,7 +49,6 @@ const ShaderRenderer = () => {
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    const renderer = rendererRef.current;
     if (!canvas || !renderer) return;
 
     let animationFrameId: number;
@@ -68,15 +68,14 @@ const ShaderRenderer = () => {
 
     return () => {
       cancelAnimationFrame(animationFrameId);
-      renderer.shutdown();
+      renderer?.shutdown();
     };
-  }, [rendererRef, shaderDataRef, paused]);
+  }, [setRenderer, renderer, shaderDataRef, paused]);
 
   const [canvasDims, setCanvasDims] = useState({ width: 0, height: 0 });
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    const renderer = rendererRef.current;
     if (!canvas || !renderer) return;
     const bestAttemptFallback = function () {
       const devicePixelRatio = window.devicePixelRatio || 1;
@@ -122,7 +121,7 @@ const ShaderRenderer = () => {
       renderer.shutdown();
       // renderer.shutdown();
     };
-  }, [rendererRef]);
+  }, [renderer]);
 
   return (
     <div className="flex flex-col w-full">
@@ -186,7 +185,7 @@ const ShaderRenderer = () => {
           {canvasDims.width}x{canvasDims.height}
         </div>
         <div className="font-semibold p-2 border-none">
-          <Fps paused={paused} renderer={rendererRef.current} />
+          <Fps paused={paused} renderer={renderer} />
         </div>
       </div>
     </div>

@@ -157,7 +157,7 @@ class FragShaderUniforms {
   }
 }
 
-export const initialFragmentShaderText = `void imageMain(vec2 fragCoord, vec3 iResolution) {
+export const initialFragmentShaderText = `void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     // Normalized pixel coordinates (from 0 to 1)
     vec2 uv = fragCoord/iResolution.xy;
 
@@ -166,9 +166,7 @@ export const initialFragmentShaderText = `void imageMain(vec2 fragCoord, vec3 iR
 
     // Output to screen
     fragColor = vec4(col,1.0);
-    fragColor = vec4(uv,0.,1.0);
-}
-`;
+}`;
 
 class RenderTarget {
   fbo: WebGLFramebuffer;

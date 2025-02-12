@@ -205,12 +205,11 @@ export const MultiBufferEditor = React.memo(() => {
   const [renderPassEditIdx, setRenderPassEditIdx] = useState(0);
   const [errMsgs, setErrMsgs] = useState<(ErrMsg[] | null)[]>([]);
 
-  const { setPaused, rendererRef, shaderDataRef } = useRendererCtx();
+  const { setPaused, renderer, shaderDataRef } = useRendererCtx();
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (!rendererRef.current) return;
-      const renderer = rendererRef.current;
+      if (!renderer) return;
       Object.entries(keyBindsMap).forEach(([action, keybind]) => {
         if (event.key === keybind.key && (keybind.alt ? event.altKey : true)) {
           switch (action) {
@@ -234,11 +233,12 @@ export const MultiBufferEditor = React.memo(() => {
     };
     window.addEventListener("keydown", handleKeyDown, { passive: true });
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [rendererRef, setPaused, shaderDataRef]);
+  }, [renderer, setPaused, shaderDataRef]);
 
   const onTextUpdate = useCallback(
     (newText: string, idx: number) => {
-      rendererRef.current?.setShaderDirty(idx);
+      if (!renderer) return;
+      renderer.setShaderDirty(idx);
       shaderDataRef.current.render_passes[idx].code = newText;
       // setShaderData((prevData) => ({
       //   ...prevData,
@@ -247,29 +247,30 @@ export const MultiBufferEditor = React.memo(() => {
       //   ),
       // }));
     },
-    [rendererRef, shaderDataRef],
+    [renderer, shaderDataRef],
   );
 
   const onCompile = useCallback(
     (shaderData: ShaderData) => {
-      if (!rendererRef.current) return;
-      const res = rendererRef.current.setShaders(
+      if (!renderer) return;
+      const res = renderer.setShaders(
         shaderData.render_passes.map((pass) => pass.code),
       );
       setErrMsgs(res.errMsgs);
     },
-    [rendererRef],
+    [renderer],
   );
 
   const onExampleSelect = useCallback(
     (shader: ShaderData) => {
+      if (!renderer) return;
       // TODO: uplaod these and make a new tab for them
       shaderDataRef.current = shader;
       // setShaderData(shader);
       onCompile(shader);
-      rendererRef.current?.restart();
+      renderer.restart();
     },
-    [rendererRef, onCompile, shaderDataRef],
+    [renderer, onCompile, shaderDataRef],
   );
 
   return (
@@ -280,7 +281,7 @@ export const MultiBufferEditor = React.memo(() => {
             <TabsTrigger
               value={idx.toString()}
               onClick={() => setRenderPassEditIdx(idx)}
-              key={renderPass.pass_index}
+              key={renderPass.name}
             >
               Pass {idx}
             </TabsTrigger>

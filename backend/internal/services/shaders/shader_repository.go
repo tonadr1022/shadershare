@@ -9,11 +9,12 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type shaderRepository struct {
 	queries *db.Queries
-	db      *pgx.Conn
+	db      *pgxpool.Pool
 }
 
 func (r shaderRepository) CreateShader(ctx context.Context, userID uuid.UUID, shaderPayload domain.CreateShaderPayload) (*domain.ShaderWithRenderPasses, error) {
@@ -43,6 +44,7 @@ func (r shaderRepository) CreateShader(ctx context.Context, userID uuid.UUID, sh
 			ShaderID:  shader.ID,
 			Code:      renderPass.Code,
 			PassIndex: int32(renderPass.PassIndex),
+			Name:      renderPass.Name,
 		})
 		if err != nil {
 			return nil, err
@@ -57,7 +59,7 @@ func (r shaderRepository) CreateShader(ctx context.Context, userID uuid.UUID, sh
 	return shaderWithRenderPasses, nil
 }
 
-func NewShaderRepository(db *pgx.Conn, queries *db.Queries) domain.ShaderRepository {
+func NewShaderRepository(db *pgxpool.Pool, queries *db.Queries) domain.ShaderRepository {
 	return &shaderRepository{
 		queries: queries,
 		db:      db,
@@ -131,4 +133,24 @@ func (r shaderRepository) GetUserShaderList(ctx context.Context, userID uuid.UUI
 		apiShaders[i] = r.ShaderFromDB(dbShader)
 	}
 	return apiShaders, nil
+}
+
+func (r shaderRepository) GetShader(ctx context.Context, shaderID uuid.UUID) (*domain.ShaderWithRenderPasses, error) {
+	dbShader, err := r.queries.GetShader(ctx, shaderID)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, e.ErrNotFound
+		}
+		return nil, err
+	}
+	renderPasses, err := r.queries.GetRenderPassesByShaderID(ctx, shaderID)
+	if err != nil {
+		return nil, err
+	}
+	apiRenderPasses := make([]domain.RenderPass, len(renderPasses))
+	for i, dbRenderPass := range renderPasses {
+		apiRenderPasses[i] = r.RenderPassFromDB(dbRenderPass)
+	}
+	shader := r.ShaderFromDB(dbShader)
+	return &domain.ShaderWithRenderPasses{Shader: shader, RenderPasses: apiRenderPasses}, nil
 }

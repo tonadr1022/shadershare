@@ -13,33 +13,40 @@ import (
 
 const createRenderPass = `-- name: CreateRenderPass :one
 INSERT INTO render_passes (
-    shader_id, code, pass_index
+    shader_id, code, pass_index,name
 ) VALUES (
-    $1, $2, $3
-) RETURNING id, shader_id, code, pass_index, created_at
+    $1, $2, $3, $4
+) RETURNING id, shader_id, code, pass_index, name, created_at
 `
 
 type CreateRenderPassParams struct {
 	ShaderID  uuid.UUID
 	Code      string
 	PassIndex int32
+	Name      string
 }
 
 func (q *Queries) CreateRenderPass(ctx context.Context, arg CreateRenderPassParams) (RenderPass, error) {
-	row := q.db.QueryRow(ctx, createRenderPass, arg.ShaderID, arg.Code, arg.PassIndex)
+	row := q.db.QueryRow(ctx, createRenderPass,
+		arg.ShaderID,
+		arg.Code,
+		arg.PassIndex,
+		arg.Name,
+	)
 	var i RenderPass
 	err := row.Scan(
 		&i.ID,
 		&i.ShaderID,
 		&i.Code,
 		&i.PassIndex,
+		&i.Name,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const getRenderPass = `-- name: GetRenderPass :one
-SELECT id, shader_id, code, pass_index, created_at FROM render_passes
+SELECT id, shader_id, code, pass_index, name, created_at FROM render_passes
 WHERE id = $1
 `
 
@@ -51,13 +58,14 @@ func (q *Queries) GetRenderPass(ctx context.Context, id uuid.UUID) (RenderPass, 
 		&i.ShaderID,
 		&i.Code,
 		&i.PassIndex,
+		&i.Name,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const getRenderPassesByShaderID = `-- name: GetRenderPassesByShaderID :many
-SELECT id, shader_id, code, pass_index, created_at FROM render_passes
+SELECT id, shader_id, code, pass_index, name, created_at FROM render_passes
 WHERE shader_id = $1
 `
 
@@ -75,6 +83,7 @@ func (q *Queries) GetRenderPassesByShaderID(ctx context.Context, shaderID uuid.U
 			&i.ShaderID,
 			&i.Code,
 			&i.PassIndex,
+			&i.Name,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -88,7 +97,7 @@ func (q *Queries) GetRenderPassesByShaderID(ctx context.Context, shaderID uuid.U
 }
 
 const listRenderPasses = `-- name: ListRenderPasses :many
-SELECT id, shader_id, code, pass_index, created_at FROM render_passes
+SELECT id, shader_id, code, pass_index, name, created_at FROM render_passes
 ORDER BY id LIMIT $1 OFFSET $2
 `
 
@@ -111,6 +120,7 @@ func (q *Queries) ListRenderPasses(ctx context.Context, arg ListRenderPassesPara
 			&i.ShaderID,
 			&i.Code,
 			&i.PassIndex,
+			&i.Name,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err

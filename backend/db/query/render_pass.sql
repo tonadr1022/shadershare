@@ -12,7 +12,7 @@ WHERE shader_id = $1;
 
 -- name: CreateRenderPass :one
 INSERT INTO render_passes (
-    shader_id, code, pass_index
+    shader_id, code, pass_index,name
 ) VALUES (
-    $1, $2, $3
+    $1, $2, $3, $4
 ) RETURNING *;

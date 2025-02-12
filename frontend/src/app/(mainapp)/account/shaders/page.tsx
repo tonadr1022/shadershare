@@ -1,26 +1,43 @@
-import { fullAPIPath } from "@/api/api";
-import { headers } from "next/headers";
+"use client";
+import { getUserShaders } from "@/api/shader-api";
+import { useQuery } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import React from "react";
 
-async function getUserShaders() {
-  const res = await fetch(`${fullAPIPath}/profile?show=shaders`, {
-    headers: await headers(),
-    credentials: "include",
-    next: {
-      tags: ["user-shaders"],
-      revalidate: 3600,
-    },
-  });
-  if (!res.ok) {
-    const d = await res.json();
-    console.error("Failed to fetch user shaders", res.statusText, d);
-  }
-  return await res.json();
-}
-const ProfileShaders = async () => {
+const ProfileShaders = () => {
   // const data = await getUserShaders();
   // console.log(data);
-  return <div>ProfileShaders</div>;
+
+  const { data, isPending, isError } = useQuery({
+    queryKey: ["profile-shaders"],
+    queryFn: getUserShaders,
+  });
+
+  if (data) {
+    console.log(data);
+  }
+  const router = useRouter();
+  return (
+    <div>
+      {isPending ? (
+        <div>Loading...</div>
+      ) : isError ? (
+        <div>Error loading shaders</div>
+      ) : (
+        <div>
+          {data?.map((shader: any) => (
+            <div
+              key={shader.id}
+              onClick={() => router.push(`/view/${shader.id}`)}
+            >
+              <h3>{shader.title}</h3>
+              <p>{shader.description}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 };
 
 export default ProfileShaders;

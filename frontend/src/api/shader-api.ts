@@ -4,7 +4,11 @@ import axiosInstance from "./api";
 
 // TODO: type
 export const createShader = async (data: unknown) => {
-  await fakeDelay(1000);
   const res = await axiosInstance.post("/shader", data);
+  return res.data;
+};
+
+export const getUserShaders = async () => {
+  const res = await axiosInstance.get("/profile?show=shaders");
   return res.data;
 };

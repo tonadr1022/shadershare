@@ -3,14 +3,22 @@ import {
   createRenderer,
   IRenderer,
 } from "@/app/(mainapp)/view/components/renderer/Renderer";
-import { MultiPassRed } from "@/rendering/example-shaders";
+import { DefaultNewShader, MultiPassRed } from "@/rendering/example-shaders";
 import { ShaderData } from "@/types/shader";
-import React, { createContext, useState, useContext, ReactNode } from "react";
+import React, {
+  createContext,
+  useState,
+  useContext,
+  ReactNode,
+  useEffect,
+  useRef,
+} from "react";
 
 interface RendererContextType {
   paused: boolean;
   setPaused: React.Dispatch<React.SetStateAction<boolean>>;
-  rendererRef: React.RefObject<IRenderer | null>;
+  renderer: IRenderer | null;
+  setRenderer: React.Dispatch<React.SetStateAction<IRenderer | null>>;
   shaderDataRef: React.RefObject<ShaderData>;
 }
 
@@ -28,26 +36,24 @@ export const RendererProvider: React.FC<RendererProviderProps> = ({
   children,
 }) => {
   const [paused, setPaused] = useState<boolean>(false);
-  const rendererRef = React.useRef<IRenderer | null>(null);
-  if (rendererRef.current === null) {
-    rendererRef.current = createRenderer();
-  }
+  const [renderer, setRenderer] = useState<IRenderer | null>(null);
+  const initialized = useRef(false);
   const shaderDataRef = React.useRef<ShaderData>(
-    initialShaderData || MultiPassRed,
+    initialShaderData || DefaultNewShader,
   );
 
-  // useEffect(() => {
-  //   return () => {
-  //     if (rendererRef.current) {
-  //       console.log("shutdown renderer");
-  //       rendererRef.current.shutdown();
-  //     }
-  //   };
-  // }, []);
+  useEffect(() => {
+    if (initialized.current) return;
+    initialized.current = true;
+    setRenderer(createRenderer());
+    return () => {
+      renderer?.shutdown();
+    };
+  }, [renderer]);
 
   return (
     <RendererContext.Provider
-      value={{ paused, setPaused, rendererRef, shaderDataRef }}
+      value={{ paused, setPaused, renderer, setRenderer, shaderDataRef }}
     >
       {children}
     </RendererContext.Provider>

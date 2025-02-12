@@ -19,6 +19,7 @@ type ShaderHandler struct {
 func RegisterHandlers(r *gin.RouterGroup, service domain.ShaderService) {
 	h := &ShaderHandler{service}
 	r.GET("/shader", h.getShaderList)
+	r.GET("/shader/:id", h.getShader)
 	r.POST("/shader", middleware.Auth(), h.createShader)
 	r.PUT("/shader/:id", middleware.Auth(), h.updateShader)
 }
@@ -93,4 +94,24 @@ func (h ShaderHandler) getShaderList(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, shaders)
+}
+
+func (h ShaderHandler) getShader(c *gin.Context) {
+	shaderID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		util.SetErrorResponse(c, http.StatusBadRequest, "Invalid shader ID")
+		return
+	}
+
+	shader, err := h.service.GetShader(c, shaderID)
+	if err != nil {
+		if err == e.ErrNotFound {
+			util.SetErrorResponse(c, http.StatusNotFound, "Shader not found")
+			return
+		}
+		util.SetInternalServiceErrorResponse(c)
+		return
+	}
+
+	c.JSON(http.StatusOK, shader)
 }

@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createShader } from "@/api/shader-api";
 import { toast } from "sonner";
 import { AxiosError } from "axios";
@@ -55,6 +55,7 @@ const EditShaderMetadata = () => {
     },
   });
 
+  const queryClient = useQueryClient();
   const createShaderMut = useMutation({
     mutationFn: createShader,
     onError: (error: AxiosError) => {
@@ -62,6 +63,9 @@ const EditShaderMetadata = () => {
       for (const err of errs) {
         toast.error("Error: " + err);
       }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["profile-shaders"] });
     },
   });
   const onSubmit = useCallback(

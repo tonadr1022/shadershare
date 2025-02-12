@@ -14,6 +14,7 @@ type RenderPass struct {
 	ShaderID  uuid.UUID
 	Code      string
 	PassIndex int32
+	Name      string
 	CreatedAt pgtype.Timestamptz
 }
 

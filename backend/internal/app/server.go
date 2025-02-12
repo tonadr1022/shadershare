@@ -15,7 +15,7 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func setupS3() {
@@ -65,6 +65,7 @@ func Run() {
 	if err != nil {
 		log.Fatalf("Error initializing database: %v", err)
 	}
+	defer dbConn.Close()
 
 	config := cors.DefaultConfig()
 
@@ -102,14 +103,16 @@ func Run() {
 	}
 }
 
-func initDB() (*pgx.Conn, error) {
-	conn, err := pgx.Connect(context.Background(), os.Getenv("DATABASE_URL"))
+func initDB() (*pgxpool.Pool, error) {
+	config, _ := pgxpool.ParseConfig(os.Getenv("DATABASE_URL"))
+	dbPool, err := pgxpool.NewWithConfig(context.Background(), config)
+	// conn, err := pgx.Connect(context.Background(), os.Getenv("DATABASE_URL"))
 	if err != nil {
 		return nil, fmt.Errorf("unable to connect to database: %v", err)
 	}
 	// ping
-	if err := conn.Ping(context.Background()); err != nil {
+	if err := dbPool.Ping(context.Background()); err != nil {
 		return nil, fmt.Errorf("unable to ping database: %v", err)
 	}
-	return conn, nil
+	return dbPool, nil
 }

@@ -9,10 +9,14 @@ import {
 import DownloadPreviewImageDialog from "./DownloadPreviewImgDialog";
 import EditShaderMetadata from "./EditShaderMetadata";
 import { RendererProvider } from "@/context/RendererContext";
+import { ShaderData } from "@/types/shader";
 
-const ShaderEditor = () => {
+type Props = {
+  shaderData?: ShaderData;
+};
+const ShaderEditor = ({ shaderData }: Props) => {
   return (
-    <RendererProvider>
+    <RendererProvider initialShaderData={shaderData}>
       <ResizablePanelGroup direction="horizontal" className="gap-2">
         <ResizablePanel
           className="flex flex-col w-full h-full"

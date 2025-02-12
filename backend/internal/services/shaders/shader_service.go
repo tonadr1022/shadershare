@@ -30,3 +30,7 @@ func (s shaderService) GetShaderList(ctx context.Context, sort string, limit int
 func (s shaderService) CreateShader(ctx context.Context, userID uuid.UUID, shaderPayload domain.CreateShaderPayload) (*domain.ShaderWithRenderPasses, error) {
 	return s.repo.CreateShader(ctx, userID, shaderPayload)
 }
+
+func (s shaderService) GetShader(ctx context.Context, shaderID uuid.UUID) (*domain.ShaderWithRenderPasses, error) {
+	return s.repo.GetShader(ctx, shaderID)
+}

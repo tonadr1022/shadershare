@@ -1,3 +1,4 @@
+import { initialFragmentShaderText } from "@/app/(mainapp)/view/components/renderer/Renderer";
 import { ShaderData } from "@/types/shader";
 
 export const SimpleMultipass: ShaderData = {
@@ -114,6 +115,18 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
     
 	fragColor = col;
 }`,
+    },
+  ],
+};
+
+export const DefaultNewShader: ShaderData = {
+  title: "",
+  description: "",
+  render_passes: [
+    {
+      name: "Image",
+      pass_index: 0,
+      code: initialFragmentShaderText,
     },
   ],
 };
