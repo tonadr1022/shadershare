@@ -11,23 +11,48 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
+import { ShaderData } from "@/types/shader";
 import React, { useCallback, useState } from "react";
+import { createRenderer, promptSaveScreenshot } from "../renderer/Renderer";
+import { useRendererCtx } from "@/context/RendererContext";
 
-type Props = {
-  onSave: (width: number, height: number) => void;
-};
+// type Props = {
+//   onSave: (width: number, height: number) => void;
+// };
 
 const heightFromWidth = (size: number) => {
   return (size * 9) / 16;
 };
 
+const promptSavePreviewImage = (
+  width: number,
+  height: number,
+  shaderData: ShaderData,
+) => {
+  const renderer = createRenderer();
+  const canvas = document.createElement("canvas");
+  renderer.initialize({
+    canvas: canvas,
+    renderData: shaderData.render_passes,
+  });
+  renderer.onResize(width, height);
+  renderer.render({ checkResize: false });
+  promptSaveScreenshot(canvas);
+  renderer.shutdown();
+};
+
 const DEFAULT_WIDTH = 1600;
-const DownloadPreviewImageDialog = ({ onSave }: Props) => {
+const DownloadPreviewImageDialog = () => {
   const [width, setWidth] = useState(DEFAULT_WIDTH);
 
+  const { shaderDataRef } = useRendererCtx();
   const handleSave = useCallback(() => {
-    onSave(width, heightFromWidth(width));
-  }, [width, onSave]);
+    promptSavePreviewImage(
+      width,
+      heightFromWidth(width),
+      shaderDataRef.current,
+    );
+  }, [width, shaderDataRef]);
 
   const onClose = useCallback((open: boolean) => {
     if (!open) {

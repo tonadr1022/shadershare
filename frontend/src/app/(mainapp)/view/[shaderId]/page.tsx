@@ -1,12 +1,9 @@
-import { RendererProvider } from "@/context/RendererContext";
 import ShaderEditor from "../components/editor/ShaderEditor";
 
-export default async function Home() {
+export default function Home() {
   return (
-    <>
-      <RendererProvider>
-        <ShaderEditor />
-      </RendererProvider>
-    </>
+    <div className="p-4">
+      <ShaderEditor />
+    </div>
   );
 }

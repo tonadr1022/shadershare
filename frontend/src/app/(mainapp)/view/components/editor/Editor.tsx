@@ -205,10 +205,12 @@ export const MultiBufferEditor = React.memo(() => {
   const [renderPassEditIdx, setRenderPassEditIdx] = useState(0);
   const [errMsgs, setErrMsgs] = useState<(ErrMsg[] | null)[]>([]);
 
-  const { setPaused, renderer, shaderDataRef } = useRendererCtx();
+  const { setPaused, rendererRef, shaderDataRef } = useRendererCtx();
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (!rendererRef.current) return;
+      const renderer = rendererRef.current;
       Object.entries(keyBindsMap).forEach(([action, keybind]) => {
         if (event.key === keybind.key && (keybind.alt ? event.altKey : true)) {
           switch (action) {
@@ -232,11 +234,11 @@ export const MultiBufferEditor = React.memo(() => {
     };
     window.addEventListener("keydown", handleKeyDown, { passive: true });
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [renderer, setPaused, shaderDataRef]);
+  }, [rendererRef, setPaused, shaderDataRef]);
 
   const onTextUpdate = useCallback(
     (newText: string, idx: number) => {
-      renderer.setShaderDirty(idx);
+      rendererRef.current?.setShaderDirty(idx);
       shaderDataRef.current.render_passes[idx].code = newText;
       // setShaderData((prevData) => ({
       //   ...prevData,
@@ -245,17 +247,18 @@ export const MultiBufferEditor = React.memo(() => {
       //   ),
       // }));
     },
-    [renderer, shaderDataRef],
+    [rendererRef, shaderDataRef],
   );
 
   const onCompile = useCallback(
     (shaderData: ShaderData) => {
-      const res = renderer.setShaders(
+      if (!rendererRef.current) return;
+      const res = rendererRef.current.setShaders(
         shaderData.render_passes.map((pass) => pass.code),
       );
       setErrMsgs(res.errMsgs);
     },
-    [renderer],
+    [rendererRef],
   );
 
   const onExampleSelect = useCallback(
@@ -264,9 +267,9 @@ export const MultiBufferEditor = React.memo(() => {
       shaderDataRef.current = shader;
       // setShaderData(shader);
       onCompile(shader);
-      renderer.restart();
+      rendererRef.current?.restart();
     },
-    [renderer, onCompile, shaderDataRef],
+    [rendererRef, onCompile, shaderDataRef],
   );
 
   return (

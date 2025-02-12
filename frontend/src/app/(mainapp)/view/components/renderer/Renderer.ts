@@ -39,7 +39,7 @@ export const promptSaveScreenshot = (canvas: HTMLCanvasElement) => {
 const checkGLError = (gl: WebGL2RenderingContext) => {
   const error = gl.getError();
   if (error !== gl.NO_ERROR) {
-    console.error("WebGL Error:", error);
+    // console.error("WebGL Error:", error);
     switch (error) {
       case gl.INVALID_ENUM:
         console.error("INVALID_ENUM: An enum argument is out of range.");
@@ -62,8 +62,10 @@ const checkGLError = (gl: WebGL2RenderingContext) => {
           "INVALID_FRAMEBUFFER_OPERATION: The framebuffer is not complete.",
         );
         break;
+      case gl.CONTEXT_LOST_WEBGL:
+        console.error("CONTEXT_LOST_WEBGL: The WebGL context is lost.");
       default:
-        console.error("Unknown WebGL error.");
+        console.error("Unknown WebGL error.", error);
         break;
     }
   }
@@ -282,6 +284,7 @@ export class AvgFpsCounter {
 }
 
 const webGL2Renderer = () => {
+  console.log("create wbgl2 renderer");
   const fragmentHeaderLineCnt = fragmentHeader.split(/\r\n|\r|\n/).length;
   let canvas: HTMLCanvasElement;
   let gl: WebGL2RenderingContext;
@@ -396,6 +399,9 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
   };
 
   const render = (options?: { checkResize?: boolean }) => {
+    if (!initialized || !gl || !canvas) {
+      return;
+    }
     if (!validPipelines) {
       return;
     }
@@ -410,10 +416,6 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
       }
     }
 
-    // TODO: refactor
-    if (!initialized || !gl || !canvas) {
-      return;
-    }
     currTime = performance.now() / 1000;
     timeDelta = currTime - lastTime;
     fpsCounter.addTime(timeDelta);
@@ -518,6 +520,9 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
       } else {
         console.error("Failed to get WEBGL_lose_context extension");
       }
+      console.log("shutdown renderer done");
+      gl = undefined as any;
+      canvas = undefined as any;
     },
 
     // TODO: compilation stats and character counts and line counts
@@ -592,14 +597,18 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
       if (!canvas) {
         return;
       }
-      const glResult = canvas.getContext("webgl2", {
-        preserveDrawingBuffer: true,
-        powerPreference: "high-performance",
-      });
-      if (!glResult) {
-        return;
+      console.log("canvas dims", canvas.width, canvas.height);
+      if (!gl) {
+        const glResult = canvas.getContext("webgl2", {
+          preserveDrawingBuffer: true,
+          powerPreference: "high-performance",
+        });
+        if (!glResult) {
+          return;
+        }
+        gl = glResult;
       }
-      gl = glResult;
+      checkGLError(gl);
       util = webgl2Utils(gl);
       if (!enableExtensions()) {
         return;

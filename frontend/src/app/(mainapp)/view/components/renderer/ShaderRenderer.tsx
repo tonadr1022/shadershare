@@ -21,7 +21,7 @@ import { useRendererCtx } from "@/context/RendererContext";
 
 const ShaderRenderer = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const { paused, setPaused, shaderDataRef, renderer } = useRendererCtx();
+  const { paused, setPaused, shaderDataRef, rendererRef } = useRendererCtx();
 
   const onPause = useCallback(() => {
     setPaused((prev) => !prev);
@@ -33,8 +33,8 @@ const ShaderRenderer = () => {
   }, []);
 
   const onRestart = useCallback(() => {
-    renderer?.restart();
-  }, [renderer]);
+    rendererRef.current?.restart();
+  }, [rendererRef]);
 
   const toggleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
@@ -48,11 +48,8 @@ const ShaderRenderer = () => {
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    if (!renderer) {
-      return;
-    }
+    const renderer = rendererRef.current;
+    if (!canvas || !renderer) return;
 
     let animationFrameId: number;
 
@@ -63,22 +60,23 @@ const ShaderRenderer = () => {
       animationFrameId = requestAnimationFrame(render);
     };
 
-    if (canvasRef.current) {
-      renderer.initialize({
-        canvas: canvasRef.current,
-        renderData: shaderDataRef.current.render_passes,
-      });
-    }
+    renderer.initialize({
+      canvas: canvas,
+      renderData: shaderDataRef.current.render_passes,
+    });
     render();
 
     return () => {
       cancelAnimationFrame(animationFrameId);
+      renderer.shutdown();
     };
-  }, [renderer, shaderDataRef, paused]);
+  }, [rendererRef, shaderDataRef, paused]);
+
   const [canvasDims, setCanvasDims] = useState({ width: 0, height: 0 });
 
   useEffect(() => {
     const canvas = canvasRef.current;
+    const renderer = rendererRef.current;
     if (!canvas || !renderer) return;
     const bestAttemptFallback = function () {
       const devicePixelRatio = window.devicePixelRatio || 1;
@@ -91,7 +89,8 @@ const ShaderRenderer = () => {
     // src: Shader toy JS source in network tab :D
     const resizeObserver = new ResizeObserver((entries, observer) => {
       const entry = entries.find((entry) => entry.target === canvas);
-      if (!entry) return;
+      if (!entry || !renderer) return;
+
       if (!entry["devicePixelContentBoxSize"]) {
         observer.unobserve(entry.target);
         console.log(
@@ -120,8 +119,10 @@ const ShaderRenderer = () => {
     return () => {
       resizeObserver.disconnect();
       window.removeEventListener("resize", bestAttemptFallback);
+      renderer.shutdown();
+      // renderer.shutdown();
     };
-  }, [renderer]);
+  }, [rendererRef]);
 
   return (
     <div className="flex flex-col w-full">
@@ -185,7 +186,7 @@ const ShaderRenderer = () => {
           {canvasDims.width}x{canvasDims.height}
         </div>
         <div className="font-semibold p-2 border-none">
-          <Fps paused={paused} renderer={renderer} />
+          <Fps paused={paused} renderer={rendererRef.current} />
         </div>
       </div>
     </div>
