@@ -26,8 +26,8 @@ import { ErrorWidget } from "./ErrorWidget";
 import { ErrMsg, ShaderData } from "@/types/shader";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useTheme } from "next-themes";
 import ShaderExamplesDropdown from "./ShaderExamplesDropdown";
+import { useResolvedTheme } from "@/hooks/hooks";
 
 // type EditorOptions = {
 //   fontSize: number;
@@ -172,23 +172,14 @@ export const Editor2 = React.memo((props: Props2) => {
     [onTextChange, props.idx],
   );
 
-  const { theme, resolvedTheme } = useTheme();
-  const themeStr = useMemo(() => {
-    switch (resolvedTheme || theme) {
-      case "light":
-        return "light";
-      case "dark":
-        return "dark";
-      default:
-        return "light";
-    }
-  }, [theme, resolvedTheme]);
+  const themeStr = useResolvedTheme();
 
   return (
     <CodeMirror
       ref={editorRef}
       value={text}
       theme={themeStr}
+      suppressHydrationWarning
       className={cn(
         props.visible ? "" : "hidden",
         " border-2 cm-editor2 overflow-auto h-[calc(max(300px,100vh-310px))]",

@@ -14,15 +14,14 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { createRenderer, promptSaveScreenshot } from "./Renderer";
+import { promptSaveScreenshot } from "./Renderer";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import Fps from "./Fps";
 import { useRendererCtx } from "@/context/RendererContext";
 
 const ShaderRenderer = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const { paused, setPaused, shaderDataRef, renderer, setRenderer } =
-    useRendererCtx();
+  const { paused, setPaused, shaderDataRef, renderer } = useRendererCtx();
 
   const onPause = useCallback(() => {
     setPaused((prev) => !prev);
@@ -70,7 +69,7 @@ const ShaderRenderer = () => {
       cancelAnimationFrame(animationFrameId);
       renderer?.shutdown();
     };
-  }, [setRenderer, renderer, shaderDataRef, paused]);
+  }, [renderer, shaderDataRef, paused]);
 
   const [canvasDims, setCanvasDims] = useState({ width: 0, height: 0 });
 

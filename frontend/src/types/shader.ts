@@ -5,8 +5,13 @@ export type RenderPass = {
 };
 
 export type ShaderData = {
-  title: string;
-  description: string;
+  shader: {
+    id: string;
+    title: string;
+    description: string;
+    created_at: string;
+    user_id: string;
+  };
   render_passes: RenderPass[];
 };
 

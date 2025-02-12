@@ -3,7 +3,7 @@ import {
   createRenderer,
   IRenderer,
 } from "@/app/(mainapp)/view/components/renderer/Renderer";
-import { DefaultNewShader, MultiPassRed } from "@/rendering/example-shaders";
+import { DefaultNewShader } from "@/rendering/example-shaders";
 import { ShaderData } from "@/types/shader";
 import React, {
   createContext,
@@ -18,7 +18,6 @@ interface RendererContextType {
   paused: boolean;
   setPaused: React.Dispatch<React.SetStateAction<boolean>>;
   renderer: IRenderer | null;
-  setRenderer: React.Dispatch<React.SetStateAction<IRenderer | null>>;
   shaderDataRef: React.RefObject<ShaderData>;
 }
 
@@ -53,7 +52,7 @@ export const RendererProvider: React.FC<RendererProviderProps> = ({
 
   return (
     <RendererContext.Provider
-      value={{ paused, setPaused, renderer, setRenderer, shaderDataRef }}
+      value={{ paused, setPaused, renderer, shaderDataRef }}
     >
       {children}
     </RendererContext.Provider>

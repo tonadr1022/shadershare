@@ -595,7 +595,6 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
       if (!canvas) {
         return;
       }
-      console.log("canvas dims", canvas.width, canvas.height);
       if (!gl) {
         const glResult = canvas.getContext("webgl2", {
           preserveDrawingBuffer: true,

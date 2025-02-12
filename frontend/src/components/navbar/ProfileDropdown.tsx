@@ -9,12 +9,13 @@ import {
 import { url } from "@/utils/links";
 import Link from "next/link";
 import React from "react";
-import { ThemeDropdown } from "./ModeToggle";
-import LogoutDropdownItem from "./LogoutProfileItem";
-import { useGetMe } from "@/hooks/hooks";
+import { ThemeDropdown } from "../ModeToggle";
+import { useGetMe, useLogout } from "@/hooks/hooks";
 
 const ProfileDropdown = () => {
-  const { data: user, isPending } = useGetMe();
+  const { data: user } = useGetMe();
+
+  const logout = useLogout();
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className="transition-none" asChild>
@@ -29,7 +30,7 @@ const ProfileDropdown = () => {
         <ThemeDropdown />
 
         {user ? (
-          <LogoutDropdownItem />
+          <DropdownMenuItem onClick={logout}>Logout</DropdownMenuItem>
         ) : (
           <DropdownMenuItem>
             <Link href={url.login}>Login</Link>

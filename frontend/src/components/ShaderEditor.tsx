@@ -1,20 +1,22 @@
 "use client";
-import ShaderRenderer from "../renderer/ShaderRenderer";
-import { MultiBufferEditor } from "./Editor";
+import ShaderRenderer from "@/app/(mainapp)/view/components/renderer/ShaderRenderer";
+import { MultiBufferEditor } from "@/app/(mainapp)/view/components/editor/Editor";
 import {
   ResizablePanelGroup,
   ResizablePanel,
   ResizableHandle,
 } from "@/components/ui/resizable";
-import DownloadPreviewImageDialog from "./DownloadPreviewImgDialog";
-import EditShaderMetadata from "./EditShaderMetadata";
+import DownloadPreviewImageDialog from "@/app/(mainapp)/view/components/editor/DownloadPreviewImgDialog";
+import EditShaderMetadata from "@/app/(mainapp)/view/components/editor/EditShaderMetadata";
 import { RendererProvider } from "@/context/RendererContext";
 import { ShaderData } from "@/types/shader";
+import ShaderMetadata from "@/app/(mainapp)/view/components/editor/ShaderMetadata";
 
 type Props = {
   shaderData?: ShaderData;
+  editable: boolean;
 };
-const ShaderEditor = ({ shaderData }: Props) => {
+const ShaderEditor = ({ shaderData, editable }: Props) => {
   return (
     <RendererProvider initialShaderData={shaderData}>
       <ResizablePanelGroup direction="horizontal" className="gap-2">
@@ -26,7 +28,11 @@ const ShaderEditor = ({ shaderData }: Props) => {
           collapsedSize={20}
         >
           <ShaderRenderer />
-          <EditShaderMetadata />
+          {editable ? (
+            <EditShaderMetadata initialData={shaderData} />
+          ) : (
+            <ShaderMetadata shaderData={shaderData!} />
+          )}
           <DownloadPreviewImageDialog />
         </ResizablePanel>
         <ResizableHandle withHandle />

@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import React, { useCallback } from "react";
 import { createRenderer, getScreenshotObjectURL } from "../renderer/Renderer";
-import { RenderPass } from "@/types/shader";
+import { RenderPass, ShaderData } from "@/types/shader";
 import { useRendererCtx } from "@/context/RendererContext";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -17,10 +17,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createShader } from "@/api/shader-api";
-import { toast } from "sonner";
-import { AxiosError } from "axios";
-import { ErrorResponse } from "@/types/base";
+import { createShader, updateShader } from "@/api/shader-api";
+import { toastAxiosErrors } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 
 const formSchema = z.object({
   title: z.string().min(2, {
@@ -44,26 +43,35 @@ const getPreviewScreenshot = async (render_passes: RenderPass[]) => {
   return screenshotDataURL;
 };
 
-const EditShaderMetadata = () => {
+type Props = {
+  initialData?: ShaderData;
+};
+
+const EditShaderMetadata = ({ initialData }: Props) => {
   const { shaderDataRef } = useRendererCtx();
+  const router = useRouter();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      title: shaderDataRef.current.title,
-      description: shaderDataRef.current.description || "",
+      title: initialData?.shader.title || "",
+      description: initialData?.shader.description || "",
     },
   });
 
   const queryClient = useQueryClient();
   const createShaderMut = useMutation({
     mutationFn: createShader,
-    onError: (error: AxiosError) => {
-      const errs = (error.response?.data as ErrorResponse)?.errors || [];
-      for (const err of errs) {
-        toast.error("Error: " + err);
-      }
+    onError: toastAxiosErrors,
+    onSuccess: (data: ShaderData) => {
+      queryClient.invalidateQueries({ queryKey: ["profile-shaders"] });
+      router.push(`/view/${data.shader.id}`);
+      // TODO: redirect to the id
     },
+  });
+  const updateShaderMut = useMutation({
+    mutationFn: updateShader,
+    onError: toastAxiosErrors,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["profile-shaders"] });
     },
@@ -75,14 +83,21 @@ const EditShaderMetadata = () => {
       //   shaderDataRef.current.render_passes,
       // );
       const payload = {
+        id: "",
         title: values.title,
         description: values.description,
+        // TODO: get dirty render passes
         render_passes: shaderDataRef.current.render_passes,
       };
-      // console.log(values, shaderDataRef.current.render_passes[0].code);
-      createShaderMut.mutate(payload);
+
+      if (initialData?.shader.id) {
+        payload.id = initialData.shader.id;
+        updateShaderMut.mutate(payload);
+      } else {
+        createShaderMut.mutate(payload);
+      }
     },
-    [shaderDataRef, createShaderMut],
+    [shaderDataRef, createShaderMut, updateShaderMut, initialData],
   );
 
   return (
@@ -115,9 +130,10 @@ const EditShaderMetadata = () => {
         />
 
         <Button
+          className="mx-auto block"
           type="submit"
           variant="default"
-          disabled={createShaderMut.isPending}
+          disabled={createShaderMut.isPending || updateShaderMut.isPending}
         >
           Save
         </Button>

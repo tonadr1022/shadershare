@@ -11,7 +11,7 @@ import {
   DrawerTrigger,
 } from "@/components/ui/drawer";
 import Link from "next/link";
-import ProfileDropdown from "./ProfileDropdown";
+import ProfileDropdown from "@/components/navbar/ProfileDropdown";
 import { useGetMe } from "@/hooks/hooks";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
@@ -21,7 +21,7 @@ const navbarItems = [
   { href: url.new, label: "New" },
 ];
 
-export default function Navbar3() {
+export default function Navbar() {
   const { data: user, isPending } = useGetMe();
 
   // TODO: bar when small screen
