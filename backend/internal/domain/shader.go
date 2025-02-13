@@ -9,13 +9,14 @@ import (
 
 type (
 	Shader struct {
-		ID            uuid.UUID `json:"id"`
-		Title         string    `json:"title"`
-		Description   string    `json:"description"`
-		UserID        uuid.UUID `json:"user_id"`
-		PreviewImgURL string    `json:"preview_img_url"`
-		CreatedAt     time.Time `json:"created_at"`
-		UpdatedAt     time.Time `json:"updated_at"`
+		ID            uuid.UUID   `json:"id"`
+		Title         string      `json:"title"`
+		Description   string      `json:"description"`
+		UserID        uuid.UUID   `json:"user_id"`
+		AccessLevel   AccessLevel `json:"access_level"`
+		PreviewImgURL string      `json:"preview_img_url"`
+		CreatedAt     time.Time   `json:"created_at"`
+		UpdatedAt     time.Time   `json:"updated_at"`
 	}
 
 	RenderPass struct {
@@ -39,6 +40,7 @@ type (
 		Title         *string                   `json:"title,omitempty"`
 		Description   *string                   `json:"description,omitempty"`
 		PreviewImgURL *string                   `json:"preview_img_url,omitempty"`
+		AccessLevel   *AccessLevel              `json:"access_level,omitempty"`
 		RenderPasses  []UpdateRenderPassPayload `json:"render_passes,omitempty"`
 	}
 
@@ -58,6 +60,7 @@ type (
 		Title         string                    `json:"title" binding:"required"`
 		Description   string                    `json:"description" binding:"required"`
 		PreviewImgURL string                    `json:"preview_img_url"`
+		AccessLevel   AccessLevel               `json:"access_level" binding:"required"`
 		RenderPasses  []CreateRenderPassPayload `json:"render_passes" binding:"required"`
 	}
 
@@ -72,8 +75,8 @@ type (
 	}
 
 	ShaderRepository interface {
-		GetShaderList(ctx context.Context, sort string, limit int, offset int) ([]Shader, error)
-		GetShadersListWithRenderPasses(ctx context.Context, sort string, limit int, offset int) ([]ShaderWithRenderPasses, error)
+		GetShaderList(ctx context.Context, sort string, limit int, offset int, accAccessLevel AccessLevel) ([]Shader, error)
+		GetShadersListWithRenderPasses(ctx context.Context, sort string, limit int, offset int, accessLevel AccessLevel) ([]ShaderWithRenderPasses, error)
 		CreateShader(ctx context.Context, userID uuid.UUID, shaderPayload CreateShaderPayload) (*ShaderWithRenderPasses, error)
 		GetUserShaderList(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]Shader, error)
 		UpdateShader(ctx context.Context, userID uuid.UUID, shaderID uuid.UUID, updatePayload UpdateShaderPayload) (*Shader, error)
@@ -82,10 +85,10 @@ type (
 	}
 
 	ShaderService interface {
-		GetShaderList(ctx context.Context, sort string, limit int, offset int) ([]Shader, error)
+		GetShaderList(ctx context.Context, sort string, limit int, offset int, accesLevel AccessLevel) ([]Shader, error)
 		CreateShader(ctx context.Context, userID uuid.UUID, shaderPayload CreateShaderPayload) (*ShaderWithRenderPasses, error)
-		GetShadersListWithRenderPasses(ctx context.Context, sort string, limit int, offset int) ([]ShaderWithRenderPasses, error)
-		GetShaderListWithUsernames(ctx context.Context, sort string, limit int, offset int) (*ShadersListWithUsernames, error)
+		GetShadersListWithRenderPasses(ctx context.Context, sort string, limit int, offset int, accessLevel AccessLevel) ([]ShaderWithRenderPasses, error)
+		GetShaderListWithUsernames(ctx context.Context, sort string, limit int, offset int, accessLevel AccessLevel) (*ShadersListWithUsernames, error)
 		GetUserShaderList(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]Shader, error)
 		UpdateShader(ctx context.Context, userID uuid.UUID, shaderID uuid.UUID, updatePayload UpdateShaderPayload) (*Shader, error)
 		GetShader(ctx context.Context, shaderID uuid.UUID) (*ShaderWithRenderPasses, error)

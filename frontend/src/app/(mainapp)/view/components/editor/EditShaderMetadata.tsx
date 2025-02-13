@@ -1,7 +1,11 @@
 import { Button } from "@/components/ui/button";
 import React, { useCallback } from "react";
 import { createRenderer } from "../renderer/Renderer";
-import { ShaderData, ShaderUpdateCreatePayload } from "@/types/shader";
+import {
+  AccessLevel,
+  ShaderData,
+  ShaderUpdateCreatePayload,
+} from "@/types/shader";
 import { useRendererCtx } from "@/context/RendererContext";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -24,12 +28,21 @@ import {
 import { toastAxiosErrors } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const formSchema = z.object({
   title: z.string().min(2, {
     message: "Title must be at least 2 characters.",
   }),
   description: z.string().optional(),
+  access_level: z.string(),
 });
 
 type Props = {
@@ -40,11 +53,16 @@ const EditShaderMetadata = ({ initialData }: Props) => {
   const { shaderDataRef, codeDirtyRef } = useRendererCtx();
   const router = useRouter();
 
+  let accessLevel = AccessLevel.PRIVATE;
+  if (initialData) {
+    accessLevel = initialData.shader.access_level;
+  }
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       title: initialData?.shader.title || "",
       description: initialData?.shader.description || "",
+      access_level: accessLevel.toString(),
     },
   });
 
@@ -109,7 +127,6 @@ const EditShaderMetadata = ({ initialData }: Props) => {
           (_, idx) => codeDirtyRef.current[idx],
         );
         if (dirtyRenderPasses.length > 0) {
-          console.log(dirtyRenderPasses);
           payload.render_passes = dirtyRenderPasses;
         }
       } else {
@@ -132,6 +149,8 @@ const EditShaderMetadata = ({ initialData }: Props) => {
         }
       }
 
+      // TODO: invalidate queries for browse?
+      payload.access_level = parseInt(values.access_level) as AccessLevel;
       if (isUpdate) {
         updateShaderMut.mutate({ data: payload, previewFile: previewFile });
       } else {
@@ -175,7 +194,39 @@ const EditShaderMetadata = ({ initialData }: Props) => {
             </FormItem>
           )}
         />
-
+        <FormField
+          control={form.control}
+          name="access_level"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Access Level</FormLabel>
+              <FormControl>
+                <Select
+                  {...field}
+                  onValueChange={field.onChange}
+                  value={field.value}
+                >
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value={AccessLevel.PRIVATE.toString()}>
+                        Private
+                      </SelectItem>
+                      <SelectItem value={AccessLevel.PUBLIC.toString()}>
+                        Public
+                      </SelectItem>
+                      <SelectItem value={AccessLevel.UNLISTED.toString()}>
+                        Unlisted
+                      </SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </FormControl>
+            </FormItem>
+          )}
+        />
         <Button
           className="mx-auto block"
           type="submit"

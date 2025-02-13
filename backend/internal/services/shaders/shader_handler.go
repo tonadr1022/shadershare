@@ -50,7 +50,7 @@ func (h ShaderHandler) getShaderListWithUsernames(c *gin.Context) {
 		return
 	}
 
-	shaders, err := h.service.GetShaderListWithUsernames(c, sort, limit, offset)
+	shaders, err := h.service.GetShaderListWithUsernames(c, sort, limit, offset, domain.AccessLevelPublic)
 	if err != nil {
 		util.SetInternalServiceErrorResponse(c)
 		return
@@ -171,7 +171,7 @@ func (h ShaderHandler) getShaderList(c *gin.Context) {
 		return
 	}
 
-	shaders, err := h.service.GetShadersListWithRenderPasses(c, sort, limit, offset)
+	shaders, err := h.service.GetShadersListWithRenderPasses(c, sort, limit, offset, domain.AccessLevelPublic)
 	if err != nil {
 		util.SetInternalServiceErrorResponse(c)
 		return

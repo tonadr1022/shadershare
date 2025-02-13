@@ -5,12 +5,19 @@ export type RenderPass = {
   id?: string;
 };
 
+export enum AccessLevel {
+  PRIVATE = 0,
+  PUBLIC = 1,
+  UNLISTED = 2,
+}
+
 export type ShaderData = {
   shader: {
     id: string;
     title: string;
     description: string;
     created_at: string;
+    access_level: AccessLevel;
     preview_img_url: string | undefined;
     user_id: string;
   };
@@ -54,6 +61,7 @@ export type ShaderUpdateCreatePayload = {
   id?: string;
   title?: string;
   user_id?: string;
+  access_level?: AccessLevel;
   preview_img_url?: string;
   description?: string;
   render_passes?: RenderPass[];

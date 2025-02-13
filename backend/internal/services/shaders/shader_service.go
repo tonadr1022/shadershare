@@ -25,12 +25,12 @@ func (s shaderService) UpdateShader(ctx context.Context, userID uuid.UUID, shade
 	return s.repo.UpdateShader(ctx, userID, shaderID, updatePayload)
 }
 
-func (s shaderService) GetShaderList(ctx context.Context, sort string, limit int, offset int) ([]domain.Shader, error) {
-	return s.repo.GetShaderList(ctx, sort, limit, offset)
+func (s shaderService) GetShaderList(ctx context.Context, sort string, limit int, offset int, accessLevel domain.AccessLevel) ([]domain.Shader, error) {
+	return s.repo.GetShaderList(ctx, sort, limit, offset, accessLevel)
 }
 
-func (s shaderService) GetShadersListWithRenderPasses(ctx context.Context, sort string, limit int, offset int) ([]domain.ShaderWithRenderPasses, error) {
-	return s.repo.GetShadersListWithRenderPasses(ctx, sort, limit, offset)
+func (s shaderService) GetShadersListWithRenderPasses(ctx context.Context, sort string, limit int, offset int, accessLevel domain.AccessLevel) ([]domain.ShaderWithRenderPasses, error) {
+	return s.repo.GetShadersListWithRenderPasses(ctx, sort, limit, offset, accessLevel)
 }
 
 func (s shaderService) CreateShader(ctx context.Context, userID uuid.UUID, shaderPayload domain.CreateShaderPayload) (*domain.ShaderWithRenderPasses, error) {
@@ -41,8 +41,8 @@ func (s shaderService) GetShader(ctx context.Context, shaderID uuid.UUID) (*doma
 	return s.repo.GetShader(ctx, shaderID)
 }
 
-func (s shaderService) GetShaderListWithUsernames(ctx context.Context, sort string, limit int, offset int) (*domain.ShadersListWithUsernames, error) {
-	shaders, err := s.repo.GetShadersListWithRenderPasses(ctx, sort, limit, offset)
+func (s shaderService) GetShaderListWithUsernames(ctx context.Context, sort string, limit int, offset int, accessLevel domain.AccessLevel) (*domain.ShadersListWithUsernames, error) {
+	shaders, err := s.repo.GetShadersListWithRenderPasses(ctx, sort, limit, offset, accessLevel)
 	if err != nil {
 		return nil, err
 	}

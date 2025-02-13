@@ -100,8 +100,8 @@ func getRenderPassesByShaderIDs(conn db.DBTX, ctx context.Context, shaderID []uu
 	return items, nil
 }
 
-func (r shaderRepository) GetShadersListWithRenderPasses(ctx context.Context, sort string, limit int, offset int) ([]domain.ShaderWithRenderPasses, error) {
-	dbShaders, err := r.queries.ListShaders(ctx, db.ListShadersParams{Limit: int32(limit), Offset: int32(offset)})
+func (r shaderRepository) GetShadersListWithRenderPasses(ctx context.Context, sort string, limit int, offset int, accessLevel domain.AccessLevel) ([]domain.ShaderWithRenderPasses, error) {
+	dbShaders, err := r.queries.ListShaders(ctx, db.ListShadersParams{Limit: int32(limit), Offset: int32(offset), AccessLevel: int16(accessLevel)})
 	if err != nil {
 		return nil, err
 	}
@@ -141,8 +141,8 @@ func (r shaderRepository) GetShadersListWithRenderPasses(ctx context.Context, so
 	return apiShaders, nil
 }
 
-func (r shaderRepository) GetShaderList(ctx context.Context, sort string, limit int, offset int) ([]domain.Shader, error) {
-	dbShaders, err := r.queries.ListShaders(ctx, db.ListShadersParams{Limit: int32(limit), Offset: int32(offset)})
+func (r shaderRepository) GetShaderList(ctx context.Context, sort string, limit int, offset int, accessLevel domain.AccessLevel) ([]domain.Shader, error) {
+	dbShaders, err := r.queries.ListShaders(ctx, db.ListShadersParams{Limit: int32(limit), Offset: int32(offset), AccessLevel: int16(accessLevel)})
 	if err != nil {
 		return nil, err
 	}
@@ -167,6 +167,7 @@ func (r shaderRepository) ShaderFromDB(dbShader db.Shader) domain.Shader {
 		ID:          dbShader.ID,
 		Title:       dbShader.Title,
 		Description: dbShader.Description.String,
+		AccessLevel: domain.AccessLevel(dbShader.AccessLevel),
 		UserID:      dbShader.UserID,
 		CreatedAt:   dbShader.CreatedAt.Time,
 		UpdatedAt:   dbShader.UpdatedAt.Time,
@@ -194,6 +195,9 @@ func (r shaderRepository) UpdateShader(ctx context.Context, userID uuid.UUID, sh
 
 	if updatePayload.Description != nil {
 		params.Description = pgtype.Text{String: *updatePayload.Description, Valid: true}
+	}
+	if updatePayload.AccessLevel != nil {
+		params.AccessLevel = int16(*updatePayload.AccessLevel)
 	}
 
 	dbshader, err := r.queries.UpdateShader(ctx, params)

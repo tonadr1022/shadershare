@@ -14,12 +14,12 @@ import (
 
 const createShader = `-- name: CreateShader :one
 INSERT INTO shaders (
-    title, description, user_id, preview_img_url
+    title, description, user_id, preview_img_url, access_level
 ) VALUES (
-    $1, $2, $3, $4
+    $1, $2, $3, $4, $5
 )
 ON CONFLICT (title) DO NOTHING
-RETURNING id, title, description, user_id, preview_img_url, created_at, updated_at
+RETURNING id, title, description, user_id, access_level, preview_img_url, created_at, updated_at
 `
 
 type CreateShaderParams struct {
@@ -27,6 +27,7 @@ type CreateShaderParams struct {
 	Description   pgtype.Text
 	UserID        uuid.UUID
 	PreviewImgUrl pgtype.Text
+	AccessLevel   int16
 }
 
 func (q *Queries) CreateShader(ctx context.Context, arg CreateShaderParams) (Shader, error) {
@@ -35,6 +36,7 @@ func (q *Queries) CreateShader(ctx context.Context, arg CreateShaderParams) (Sha
 		arg.Description,
 		arg.UserID,
 		arg.PreviewImgUrl,
+		arg.AccessLevel,
 	)
 	var i Shader
 	err := row.Scan(
@@ -42,6 +44,7 @@ func (q *Queries) CreateShader(ctx context.Context, arg CreateShaderParams) (Sha
 		&i.Title,
 		&i.Description,
 		&i.UserID,
+		&i.AccessLevel,
 		&i.PreviewImgUrl,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -50,7 +53,7 @@ func (q *Queries) CreateShader(ctx context.Context, arg CreateShaderParams) (Sha
 }
 
 const getShader = `-- name: GetShader :one
-SELECT id, title, description, user_id, preview_img_url, created_at, updated_at FROM shaders
+SELECT id, title, description, user_id, access_level, preview_img_url, created_at, updated_at FROM shaders
 WHERE id = $1 LIMIT 1
 `
 
@@ -62,6 +65,7 @@ func (q *Queries) GetShader(ctx context.Context, id uuid.UUID) (Shader, error) {
 		&i.Title,
 		&i.Description,
 		&i.UserID,
+		&i.AccessLevel,
 		&i.PreviewImgUrl,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -70,7 +74,7 @@ func (q *Queries) GetShader(ctx context.Context, id uuid.UUID) (Shader, error) {
 }
 
 const getUserShaderList = `-- name: GetUserShaderList :many
-SELECT id, title, description, user_id, preview_img_url, created_at, updated_at FROM shaders 
+SELECT id, title, description, user_id, access_level, preview_img_url, created_at, updated_at FROM shaders 
 WHERE user_id = $1
 LIMIT $2 OFFSET $3
 `
@@ -95,6 +99,7 @@ func (q *Queries) GetUserShaderList(ctx context.Context, arg GetUserShaderListPa
 			&i.Title,
 			&i.Description,
 			&i.UserID,
+			&i.AccessLevel,
 			&i.PreviewImgUrl,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -110,17 +115,19 @@ func (q *Queries) GetUserShaderList(ctx context.Context, arg GetUserShaderListPa
 }
 
 const listShaders = `-- name: ListShaders :many
-SELECT id, title, description, user_id, preview_img_url, created_at, updated_at FROM shaders
+SELECT id, title, description, user_id, access_level, preview_img_url, created_at, updated_at FROM shaders
+WHERE access_level = $3
 ORDER BY id LIMIT $1 OFFSET $2
 `
 
 type ListShadersParams struct {
-	Limit  int32
-	Offset int32
+	Limit       int32
+	Offset      int32
+	AccessLevel int16
 }
 
 func (q *Queries) ListShaders(ctx context.Context, arg ListShadersParams) ([]Shader, error) {
-	rows, err := q.db.Query(ctx, listShaders, arg.Limit, arg.Offset)
+	rows, err := q.db.Query(ctx, listShaders, arg.Limit, arg.Offset, arg.AccessLevel)
 	if err != nil {
 		return nil, err
 	}
@@ -133,6 +140,7 @@ func (q *Queries) ListShaders(ctx context.Context, arg ListShadersParams) ([]Sha
 			&i.Title,
 			&i.Description,
 			&i.UserID,
+			&i.AccessLevel,
 			&i.PreviewImgUrl,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -151,9 +159,10 @@ const updateShader = `-- name: UpdateShader :one
 UPDATE shaders 
 SET title = COALESCE(NULLIF($3::TEXT,''), title),
     description = COALESCE($4, description),
-    preview_img_url = COALESCE($5, preview_img_url)
+    preview_img_url = COALESCE($5, preview_img_url),
+    access_level = COALESCE($6, access_level)
 WHERE id = $1 AND user_id = $2
-RETURNING id, title, description, user_id, preview_img_url, created_at, updated_at
+RETURNING id, title, description, user_id, access_level, preview_img_url, created_at, updated_at
 `
 
 type UpdateShaderParams struct {
@@ -162,6 +171,7 @@ type UpdateShaderParams struct {
 	Column3       string
 	Description   pgtype.Text
 	PreviewImgUrl pgtype.Text
+	AccessLevel   int16
 }
 
 func (q *Queries) UpdateShader(ctx context.Context, arg UpdateShaderParams) (Shader, error) {
@@ -171,6 +181,7 @@ func (q *Queries) UpdateShader(ctx context.Context, arg UpdateShaderParams) (Sha
 		arg.Column3,
 		arg.Description,
 		arg.PreviewImgUrl,
+		arg.AccessLevel,
 	)
 	var i Shader
 	err := row.Scan(
@@ -178,6 +189,7 @@ func (q *Queries) UpdateShader(ctx context.Context, arg UpdateShaderParams) (Sha
 		&i.Title,
 		&i.Description,
 		&i.UserID,
+		&i.AccessLevel,
 		&i.PreviewImgUrl,
 		&i.CreatedAt,
 		&i.UpdatedAt,

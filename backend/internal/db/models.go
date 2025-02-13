@@ -23,6 +23,7 @@ type Shader struct {
 	Title         string
 	Description   pgtype.Text
 	UserID        uuid.UUID
+	AccessLevel   int16
 	PreviewImgUrl pgtype.Text
 	CreatedAt     pgtype.Timestamptz
 	UpdatedAt     pgtype.Timestamptz
