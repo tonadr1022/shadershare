@@ -8,9 +8,9 @@ ORDER BY id LIMIT $1 OFFSET $2;
 
 -- name: CreateShader :one
 INSERT INTO shaders (
-    title, description, user_id
+    title, description, user_id, preview_img_url
 ) VALUES (
-    $1, $2, $3
+    $1, $2, $3, $4
 )
 ON CONFLICT (title) DO NOTHING
 RETURNING *;

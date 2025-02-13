@@ -11,6 +11,7 @@ export type ShaderData = {
     title: string;
     description: string;
     created_at: string;
+    preview_img_url: string | undefined;
     user_id: string;
   };
   render_passes: RenderPass[];

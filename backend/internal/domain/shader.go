@@ -9,12 +9,13 @@ import (
 
 type (
 	Shader struct {
-		ID          uuid.UUID `json:"id"`
-		Title       string    `json:"title"`
-		Description string    `json:"description"`
-		UserID      string    `json:"user_id"`
-		CreatedAt   time.Time `json:"created_at"`
-		UpdatedAt   time.Time `json:"updated_at"`
+		ID            uuid.UUID `json:"id"`
+		Title         string    `json:"title"`
+		Description   string    `json:"description"`
+		UserID        uuid.UUID `json:"user_id"`
+		PreviewImgURL string    `json:"preview_img_url"`
+		CreatedAt     time.Time `json:"created_at"`
+		UpdatedAt     time.Time `json:"updated_at"`
 	}
 
 	RenderPass struct {
@@ -33,9 +34,10 @@ type (
 	}
 
 	UpdateShaderPayload struct {
-		Title        *string                   `json:"title,omitempty"`
-		Description  *string                   `json:"description,omitempty"`
-		RenderPasses []UpdateRenderPassPayload `json:"render_passes,omitempty"`
+		Title         *string                   `json:"title,omitempty"`
+		Description   *string                   `json:"description,omitempty"`
+		PreviewImgURL string                    `json:"preview_img_url"`
+		RenderPasses  []UpdateRenderPassPayload `json:"render_passes,omitempty"`
 	}
 
 	CreateRenderPassForShaderPayload struct {
@@ -51,9 +53,10 @@ type (
 	}
 
 	CreateShaderPayload struct {
-		Title        string                    `json:"title" binding:"required"`
-		Description  string                    `json:"description" binding:"required"`
-		RenderPasses []CreateRenderPassPayload `json:"render_passes" binding:"required"`
+		Title         string                    `json:"title" binding:"required"`
+		Description   string                    `json:"description" binding:"required"`
+		PreviewImgURL string                    `json:"preview_img_url"`
+		RenderPasses  []CreateRenderPassPayload `json:"render_passes" binding:"required"`
 	}
 
 	ShaderWithRenderPasses struct {

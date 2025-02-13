@@ -29,6 +29,9 @@ func (r shaderRepository) CreateShader(ctx context.Context, userID uuid.UUID, sh
 		Description: pgtype.Text{String: shaderPayload.Description, Valid: true},
 		UserID:      userID,
 	}
+	if shaderPayload.PreviewImgURL != "" {
+		params.PreviewImgUrl = pgtype.Text{String: shaderPayload.PreviewImgURL, Valid: true}
+	}
 	shader, err = r.queries.CreateShader(ctx, params)
 	if err != nil {
 		if err == pgx.ErrNoRows {
@@ -160,14 +163,19 @@ func (r shaderRepository) RenderPassFromDB(dbRenderPass db.RenderPass) domain.Re
 }
 
 func (r shaderRepository) ShaderFromDB(dbShader db.Shader) domain.Shader {
-	return domain.Shader{
+	shader := domain.Shader{
 		ID:          dbShader.ID,
 		Title:       dbShader.Title,
 		Description: dbShader.Description.String,
-		UserID:      dbShader.UserID.String(),
+		UserID:      dbShader.UserID,
 		CreatedAt:   dbShader.CreatedAt.Time,
 		UpdatedAt:   dbShader.UpdatedAt.Time,
 	}
+
+	if dbShader.PreviewImgUrl.Valid {
+		shader.PreviewImgURL = dbShader.PreviewImgUrl.String
+	}
+	return shader
 }
 
 func (r shaderRepository) UpdateShader(ctx context.Context, userID uuid.UUID, shaderID uuid.UUID, updatePayload domain.UpdateShaderPayload) (*domain.Shader, error) {

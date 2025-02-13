@@ -21,7 +21,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createShader, updateShader } from "@/api/shader-api";
+import {
+  createShaderWithPreview,
+  updateShader,
+  updateShaderWithPreview,
+} from "@/api/shader-api";
 import { toastAxiosErrors } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -53,7 +57,7 @@ type Props = {
 };
 
 const EditShaderMetadata = ({ initialData }: Props) => {
-  const { shaderDataRef, codeDirtyRef } = useRendererCtx();
+  const { renderer, shaderDataRef, codeDirtyRef } = useRendererCtx();
   const router = useRouter();
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -66,15 +70,16 @@ const EditShaderMetadata = ({ initialData }: Props) => {
 
   const queryClient = useQueryClient();
   const createShaderMut = useMutation({
-    mutationFn: createShader,
+    mutationFn: createShaderWithPreview,
     onError: toastAxiosErrors,
     onSuccess: (data: ShaderData) => {
       queryClient.invalidateQueries({ queryKey: ["shaders", "profile"] });
       router.push(`/view/${data.shader.id}`);
     },
   });
+
   const updateShaderMut = useMutation({
-    mutationFn: updateShader,
+    mutationFn: updateShaderWithPreview,
     onError: toastAxiosErrors,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["shaders", "profile"] });
@@ -84,10 +89,49 @@ const EditShaderMetadata = ({ initialData }: Props) => {
 
   const onSubmit = useCallback(
     async (values: z.infer<typeof formSchema>) => {
-      // TODO: preview img
-      // const previewImg = await getPreviewScreenshot(
-      //   shaderDataRef.current.render_passes,
-      // );
+      // get preview image
+      const getPreviewImgFile = async (): Promise<File | null> => {
+        // delay by 100ms
+        // await new Promise((resolve) => setTimeout(resolve, 100));
+
+        return new Promise((resolve) => {
+          const renderer = createRenderer();
+          const canvas = document.createElement("canvas");
+          renderer.initialize({
+            canvas: canvas,
+            renderData: shaderDataRef.current.render_passes,
+          });
+          renderer.onResize(320, 180);
+          renderer.render({ checkResize: false });
+          canvas.toBlob((blob) => {
+            if (!blob) {
+              resolve(null);
+              return;
+            }
+            const file = new File([blob], "preview.png", {
+              type: "image/png",
+            });
+            resolve(file);
+          });
+          renderer.shutdown();
+
+          // if (!renderer) {
+          //   resolve(null);
+          //   return;
+          // }
+          // renderer.canvas().toBlob((blob) => {
+          //   if (!blob) {
+          //     resolve(null);
+          //     return;
+          //   }
+          //   const file = new File([blob], "preview.png", {
+          //     type: "image/png",
+          //   });
+          //   resolve(file);
+          // });
+        });
+      };
+
       const isUpdate = initialData?.shader.id;
 
       const payload: ShaderUpdateCreatePayload = {
@@ -107,11 +151,15 @@ const EditShaderMetadata = ({ initialData }: Props) => {
         payload.render_passes = shaderDataRef.current.render_passes;
       }
 
+      const previewFile = await getPreviewImgFile();
+      if (!previewFile) {
+        toast.error("Failed to generate preview image");
+        return;
+      }
       if (isUpdate) {
-        console.log(payload);
-        updateShaderMut.mutate(payload);
+        updateShaderMut.mutate({ data: payload, previewFile: previewFile });
       } else {
-        createShaderMut.mutate(payload);
+        createShaderMut.mutate({ data: payload, previewFile: previewFile });
       }
     },
     [

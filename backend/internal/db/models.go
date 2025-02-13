@@ -19,12 +19,13 @@ type RenderPass struct {
 }
 
 type Shader struct {
-	ID          uuid.UUID
-	Title       string
-	Description pgtype.Text
-	UserID      uuid.UUID
-	CreatedAt   pgtype.Timestamptz
-	UpdatedAt   pgtype.Timestamptz
+	ID            uuid.UUID
+	Title         string
+	Description   pgtype.Text
+	UserID        uuid.UUID
+	PreviewImgUrl pgtype.Text
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
 }
 
 type User struct {

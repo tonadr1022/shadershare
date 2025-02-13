@@ -10,9 +10,9 @@ const axiosInstance = axios.create({
   baseURL: `${apiBaseURL}${apiPath}`,
   timeout: 10000,
   withCredentials: true,
-  headers: {
-    "Content-Type": "application/json",
-  },
+  // headers: {
+  //   "Content-Type": "application/json",
+  // },
 });
 
 // axiosInstance.interceptors.response.use((response) => {

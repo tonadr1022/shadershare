@@ -8,9 +8,36 @@ export const createShader = async (data: ShaderUpdateCreatePayload) => {
   return res.data;
 };
 
-// TODO: type
+export const createShaderWithPreview = async ({
+  data,
+  previewFile,
+}: {
+  data: ShaderUpdateCreatePayload;
+  previewFile: File;
+}): Promise<ShaderData> => {
+  const formData = new FormData();
+  formData.append("file", previewFile);
+  formData.append("json", JSON.stringify(data));
+  const res = await axiosInstance.post("/shaders", formData);
+  return res.data;
+};
+
 export const updateShader = async (data: ShaderUpdateCreatePayload) => {
   const res = await axiosInstance.put(`/shaders/${data.id}`, data);
+  return res.data;
+};
+
+export const updateShaderWithPreview = async ({
+  data,
+  previewFile,
+}: {
+  data: ShaderUpdateCreatePayload;
+  previewFile: File;
+}) => {
+  const formData = new FormData();
+  formData.append("file", previewFile);
+  formData.append("json", JSON.stringify(data));
+  const res = await axiosInstance.put(`/shaders/${data.id}`, formData);
   return res.data;
 };
 

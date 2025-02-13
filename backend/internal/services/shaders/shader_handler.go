@@ -1,9 +1,11 @@
 package shaders
 
 import (
+	"log"
 	"net/http"
 	"shadershare/internal/domain"
 	"shadershare/internal/e"
+	"shadershare/internal/filestore"
 	"shadershare/internal/middleware"
 	"shadershare/internal/pkg/com"
 	"shadershare/internal/util"
@@ -14,6 +16,10 @@ import (
 
 type ShaderHandler struct {
 	service domain.ShaderService
+}
+
+func randomFileName(ext string) string {
+	return uuid.New().String() + ext
 }
 
 func RegisterHandlers(r *gin.RouterGroup, service domain.ShaderService) {
@@ -34,9 +40,53 @@ func (h ShaderHandler) updateShader(c *gin.Context) {
 	if !ok {
 		util.SetInternalServiceErrorResponse(c)
 	}
-	var payload domain.UpdateShaderPayload
-	if ok := util.ValidateAndSetErrors(c, &payload); !ok {
+	if ok := util.ValidateContentTypeAndSetError(c, "multipart/form-data"); !ok {
 		return
+	}
+
+	var payload domain.UpdateShaderPayload
+	if ok := util.ValidateMultiPartJSONAndSetErrors(c, &payload); !ok {
+		return
+	}
+
+	file, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	existingShader, err := h.service.GetShader(c, shaderID)
+	if err != nil {
+		if err == e.ErrNotFound {
+			util.SetErrorResponse(c, http.StatusNotFound, "Shader not found")
+			return
+		}
+		util.SetInternalServiceErrorResponse(c)
+		return
+	}
+	if existingShader.Shader.UserID != userctx.ID {
+		util.SetErrorResponse(c, http.StatusForbidden, "You do not have permission to update this shader")
+		return
+	}
+
+	// update if exists already
+	if existingShader.Shader.PreviewImgURL != "" {
+		err = filestore.UpdateFile(file, existingShader.Shader.PreviewImgURL)
+		if err != nil {
+			log.Println("Error updating file", err)
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+	} else {
+		// create a preview for ones that don't
+		file.Filename = randomFileName(".png")
+		fileUrl, err := filestore.UploadFile(file)
+		if err != nil {
+			log.Println("Error uploading file", err)
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		payload.PreviewImgURL = fileUrl
 	}
 
 	shader, err := h.service.UpdateShader(c, userctx.ID, shaderID, payload)
@@ -58,10 +108,28 @@ func (h ShaderHandler) createShader(c *gin.Context) {
 		util.SetErrorResponse(c, http.StatusInternalServerError, "Internal Server Error")
 		return
 	}
-	var payload domain.CreateShaderPayload
-	if ok := util.ValidateAndSetErrors(c, &payload); !ok {
+	if ok := util.ValidateContentTypeAndSetError(c, "multipart/form-data"); !ok {
 		return
 	}
+
+	var payload domain.CreateShaderPayload
+	if ok := util.ValidateMultiPartJSONAndSetErrors(c, &payload); !ok {
+		return
+	}
+	file, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	file.Filename = randomFileName(".png")
+	fileUrl, err := filestore.UploadFile(file)
+	if err != nil {
+		log.Println("Error uploading file", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	payload.PreviewImgURL = fileUrl
 
 	shader, err := h.service.CreateShader(c, userctx.ID, payload)
 	if err != nil {
