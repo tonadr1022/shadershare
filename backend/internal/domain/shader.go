@@ -34,9 +34,11 @@ type (
 	}
 
 	UpdateShaderPayload struct {
+		ID            uuid.UUID                 `json:"id" binding:"required"`
+		UserID        uuid.UUID                 `json:"user_id" binding:"required"`
 		Title         *string                   `json:"title,omitempty"`
 		Description   *string                   `json:"description,omitempty"`
-		PreviewImgURL string                    `json:"preview_img_url"`
+		PreviewImgURL *string                   `json:"preview_img_url,omitempty"`
 		RenderPasses  []UpdateRenderPassPayload `json:"render_passes,omitempty"`
 	}
 

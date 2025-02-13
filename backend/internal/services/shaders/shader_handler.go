@@ -49,56 +49,42 @@ func (h ShaderHandler) updateShader(c *gin.Context) {
 		return
 	}
 
-	file, err := c.FormFile("file")
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	existingShader, err := h.service.GetShader(c, shaderID)
-	if err != nil {
-		if err == e.ErrNotFound {
-			util.SetErrorResponse(c, http.StatusNotFound, "Shader not found")
-			return
-		}
-		util.SetInternalServiceErrorResponse(c)
-		return
-	}
-	if existingShader.Shader.UserID != userctx.ID {
+	if userctx.ID != payload.UserID {
 		util.SetErrorResponse(c, http.StatusForbidden, "You do not have permission to update this shader")
 		return
 	}
 
-	// update if exists already
-	if existingShader.Shader.PreviewImgURL != "" {
-		err = filestore.UpdateFile(file, existingShader.Shader.PreviewImgURL)
-		if err != nil {
-			log.Println("Error updating file", err)
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	// TODO: only get file if needed
+	file, err := c.FormFile("file")
+	if err != nil {
+		if err != http.ErrMissingFile {
+			util.SetErrorResponse(c, http.StatusBadRequest, err.Error())
 			return
 		}
-	} else {
-		// create a preview for ones that don't
-		file.Filename = randomFileName(".png")
-		fileUrl, err := filestore.UploadFile(file)
-		if err != nil {
-			log.Println("Error uploading file", err)
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-		payload.PreviewImgURL = fileUrl
 	}
 
 	shader, err := h.service.UpdateShader(c, userctx.ID, shaderID, payload)
 	if err != nil {
 		if err == e.ErrNotFound {
-			util.SetErrorResponse(c, http.StatusNotFound, "Shader not found")
+			util.SetErrorResponse(c, http.StatusNotFound, "Shader not found or access denied")
 			return
 		} else {
 			util.SetInternalServiceErrorResponse(c)
 			return
 		}
 	}
+
+	// update if exists already
+	if payload.PreviewImgURL != nil && file != nil {
+		err = filestore.UpdateFile(file, *payload.PreviewImgURL)
+		if err != nil {
+			log.Println("Error updating file", err)
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+	}
+	// update only after success
+
 	c.JSON(http.StatusOK, shader)
 }
 

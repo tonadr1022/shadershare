@@ -40,7 +40,7 @@ const ShaderEditor = ({ shaderData, editable }: Props) => {
               alt="preview"
               width={320}
               height={180}
-              src={`${shaderData.shader.preview_img_url}?t=${new Date().getTime()}`}
+              src={`${shaderData.shader.preview_img_url}`}
               className="w-full h-auto"
             />
           )}

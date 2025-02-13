@@ -150,16 +150,18 @@ func (q *Queries) ListShaders(ctx context.Context, arg ListShadersParams) ([]Sha
 const updateShader = `-- name: UpdateShader :one
 UPDATE shaders 
 SET title = COALESCE(NULLIF($3::TEXT,''), title),
-    description = COALESCE($4, description)
+    description = COALESCE($4, description),
+    preview_img_url = COALESCE($5, preview_img_url)
 WHERE id = $1 AND user_id = $2
 RETURNING id, title, description, user_id, preview_img_url, created_at, updated_at
 `
 
 type UpdateShaderParams struct {
-	ID          uuid.UUID
-	UserID      uuid.UUID
-	Column3     string
-	Description pgtype.Text
+	ID            uuid.UUID
+	UserID        uuid.UUID
+	Column3       string
+	Description   pgtype.Text
+	PreviewImgUrl pgtype.Text
 }
 
 func (q *Queries) UpdateShader(ctx context.Context, arg UpdateShaderParams) (Shader, error) {
@@ -168,6 +170,7 @@ func (q *Queries) UpdateShader(ctx context.Context, arg UpdateShaderParams) (Sha
 		arg.UserID,
 		arg.Column3,
 		arg.Description,
+		arg.PreviewImgUrl,
 	)
 	var i Shader
 	err := row.Scan(

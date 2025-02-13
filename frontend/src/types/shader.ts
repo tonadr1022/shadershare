@@ -50,6 +50,8 @@ export type IRendererInitPararms = {
 export type ShaderUpdateCreatePayload = {
   id?: string;
   title?: string;
+  user_id?: string;
+  preview_img_url?: string;
   description?: string;
   render_passes?: RenderPass[];
 };

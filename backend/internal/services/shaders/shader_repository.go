@@ -183,6 +183,11 @@ func (r shaderRepository) UpdateShader(ctx context.Context, userID uuid.UUID, sh
 		ID:     shaderID,
 		UserID: userID,
 	}
+
+	if updatePayload.PreviewImgURL != nil {
+		params.PreviewImgUrl = pgtype.Text{String: *updatePayload.PreviewImgURL, Valid: true}
+	}
+
 	if updatePayload.Title != nil {
 		params.Column3 = *updatePayload.Title
 	}

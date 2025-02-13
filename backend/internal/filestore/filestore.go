@@ -72,6 +72,7 @@ func SetupS3(isProd bool) {
 }
 
 func UpdateFile(file *multipart.FileHeader, fileURL string) error {
+	fmt.Println("UPDATING FILE", fileURL)
 	src, err := file.Open()
 	if err != nil {
 		return fmt.Errorf("failed to open file: %v", err)
@@ -110,6 +111,5 @@ func UploadFile(file *multipart.FileHeader) (string, error) {
 	}
 	// TODO: in prod need s3 url!
 	minioURL := fmt.Sprintf("http://%s/%s/%s", "localhost:9000", bucketName, file.Filename)
-	fmt.Println("minioURL", minioURL)
 	return minioURL, nil
 }

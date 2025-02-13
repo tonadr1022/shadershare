@@ -1,11 +1,7 @@
 import { Button } from "@/components/ui/button";
 import React, { useCallback } from "react";
-import { createRenderer, getScreenshotObjectURL } from "../renderer/Renderer";
-import {
-  RenderPass,
-  ShaderData,
-  ShaderUpdateCreatePayload,
-} from "@/types/shader";
+import { createRenderer } from "../renderer/Renderer";
+import { ShaderData, ShaderUpdateCreatePayload } from "@/types/shader";
 import { useRendererCtx } from "@/context/RendererContext";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -23,7 +19,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   createShaderWithPreview,
-  updateShader,
   updateShaderWithPreview,
 } from "@/api/shader-api";
 import { toastAxiosErrors } from "@/lib/utils";
@@ -37,27 +32,12 @@ const formSchema = z.object({
   description: z.string().optional(),
 });
 
-// TODO: move into renderer and check if things are dirty before screenshot preview
-const getPreviewScreenshot = async (render_passes: RenderPass[]) => {
-  const renderer = createRenderer();
-  const canvas = document.createElement("canvas");
-  renderer.initialize({
-    canvas: canvas,
-    renderData: render_passes,
-  });
-  renderer.onResize(320, 180);
-  renderer.render({ checkResize: false });
-  const screenshotDataURL = await getScreenshotObjectURL(canvas);
-  renderer.shutdown();
-  return screenshotDataURL;
-};
-
 type Props = {
   initialData?: ShaderData;
 };
 
 const EditShaderMetadata = ({ initialData }: Props) => {
-  const { renderer, shaderDataRef, codeDirtyRef } = useRendererCtx();
+  const { shaderDataRef, codeDirtyRef } = useRendererCtx();
   const router = useRouter();
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -114,21 +94,6 @@ const EditShaderMetadata = ({ initialData }: Props) => {
             resolve(file);
           });
           renderer.shutdown();
-
-          // if (!renderer) {
-          //   resolve(null);
-          //   return;
-          // }
-          // renderer.canvas().toBlob((blob) => {
-          //   if (!blob) {
-          //     resolve(null);
-          //     return;
-          //   }
-          //   const file = new File([blob], "preview.png", {
-          //     type: "image/png",
-          //   });
-          //   resolve(file);
-          // });
         });
       };
 
@@ -140,6 +105,8 @@ const EditShaderMetadata = ({ initialData }: Props) => {
       };
       if (isUpdate) {
         payload.id = initialData.shader.id;
+        payload.user_id = initialData.shader.user_id;
+        payload.preview_img_url = initialData.shader.preview_img_url;
         const dirtyRenderPasses = shaderDataRef.current.render_passes.filter(
           (_, idx) => codeDirtyRef.current[idx],
         );
@@ -150,7 +117,6 @@ const EditShaderMetadata = ({ initialData }: Props) => {
       } else {
         payload.render_passes = shaderDataRef.current.render_passes;
       }
-
       const previewFile = await getPreviewImgFile();
       if (!previewFile) {
         toast.error("Failed to generate preview image");
