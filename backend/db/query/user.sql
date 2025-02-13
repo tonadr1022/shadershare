@@ -34,3 +34,7 @@ RETURNING *;
 -- name: DeleteUser :exec
 DELETE FROM users
 WHERE id = $1;
+
+-- name: GetUsernames :many 
+SELECT username FROM users
+WHERE id = ANY($1);

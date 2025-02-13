@@ -64,6 +64,8 @@ const EditShaderMetadata = ({ initialData }: Props) => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["shaders", "profile"] });
       toast.success("Shader saved successfully");
+      // TODO: extract somewhere else
+      codeDirtyRef.current = codeDirtyRef.current.map(() => false);
     },
   });
 
@@ -71,9 +73,6 @@ const EditShaderMetadata = ({ initialData }: Props) => {
     async (values: z.infer<typeof formSchema>) => {
       // get preview image
       const getPreviewImgFile = async (): Promise<File | null> => {
-        // delay by 100ms
-        // await new Promise((resolve) => setTimeout(resolve, 100));
-
         return new Promise((resolve) => {
           const renderer = createRenderer();
           const canvas = document.createElement("canvas");
@@ -106,7 +105,6 @@ const EditShaderMetadata = ({ initialData }: Props) => {
       if (isUpdate) {
         payload.id = initialData.shader.id;
         payload.user_id = initialData.shader.user_id;
-        payload.preview_img_url = initialData.shader.preview_img_url;
         const dirtyRenderPasses = shaderDataRef.current.render_passes.filter(
           (_, idx) => codeDirtyRef.current[idx],
         );
@@ -117,15 +115,27 @@ const EditShaderMetadata = ({ initialData }: Props) => {
       } else {
         payload.render_passes = shaderDataRef.current.render_passes;
       }
-      const previewFile = await getPreviewImgFile();
-      if (!previewFile) {
-        toast.error("Failed to generate preview image");
-        return;
+      // TODO: check images etc
+      const shaderDirty = codeDirtyRef.current.some((dirty) => dirty);
+
+      let previewFile: File | null = null;
+      const needNewPreview = (shaderDirty && isUpdate) || !isUpdate;
+      if (shaderDirty && isUpdate) {
+        payload.preview_img_url = initialData.shader.preview_img_url;
       }
+
+      if (needNewPreview) {
+        previewFile = await getPreviewImgFile();
+        if (previewFile == null) {
+          toast.error("Failed to generate preview image");
+          return;
+        }
+      }
+
       if (isUpdate) {
         updateShaderMut.mutate({ data: payload, previewFile: previewFile });
       } else {
-        createShaderMut.mutate({ data: payload, previewFile: previewFile });
+        createShaderMut.mutate({ data: payload, previewFile: previewFile! });
       }
     },
     [

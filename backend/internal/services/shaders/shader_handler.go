@@ -22,12 +22,41 @@ func randomFileName(ext string) string {
 	return uuid.New().String() + ext
 }
 
+var (
+	defaultShaderGetLimit = 10
+	maxShaderGetLimit     = 20
+	defaultShaderGetSort  = "popularity"
+)
+
 func RegisterHandlers(r *gin.RouterGroup, service domain.ShaderService) {
 	h := &ShaderHandler{service}
 	r.GET("/shaders", h.getShaderList)
 	r.GET("/shaders/:id", h.getShader)
 	r.POST("/shaders", middleware.Auth(), h.createShader)
 	r.PUT("/shaders/:id", middleware.Auth(), h.updateShader)
+	// TODO: design better using query params?
+	r.GET("/shaderswithusernames", h.getShaderListWithUsernames)
+}
+
+func (h ShaderHandler) getShaderListWithUsernames(c *gin.Context) {
+	sort := c.DefaultQuery("sort", defaultShaderGetSort)
+	limit, err := com.DefaultQueryIntCheck(c, "limit", defaultShaderGetLimit)
+	if err != nil {
+		return
+	}
+	limit = min(limit, maxShaderGetLimit)
+	offset, err := com.DefaultQueryIntCheck(c, "offset", 0)
+	if err != nil {
+		return
+	}
+
+	shaders, err := h.service.GetShaderListWithUsernames(c, sort, limit, offset)
+	if err != nil {
+		util.SetInternalServiceErrorResponse(c)
+		return
+	}
+
+	c.JSON(http.StatusOK, shaders)
 }
 
 func (h ShaderHandler) updateShader(c *gin.Context) {

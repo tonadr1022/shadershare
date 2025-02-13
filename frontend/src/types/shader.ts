@@ -17,7 +17,10 @@ export type ShaderData = {
   render_passes: RenderPass[];
 };
 
-export type ShortShaderData = {};
+export type ShaderDataWithUsernameResponse = {
+  shaders: ShaderData[];
+  usernames: string[];
+};
 
 export type CompileResult = {
   success: boolean;

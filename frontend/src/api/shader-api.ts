@@ -1,5 +1,9 @@
 "use client";
-import { ShaderData, ShaderUpdateCreatePayload } from "@/types/shader";
+import {
+  ShaderData,
+  ShaderDataWithUsernameResponse,
+  ShaderUpdateCreatePayload,
+} from "@/types/shader";
 import axiosInstance from "./api";
 
 // TODO: type
@@ -32,10 +36,12 @@ export const updateShaderWithPreview = async ({
   previewFile,
 }: {
   data: ShaderUpdateCreatePayload;
-  previewFile: File;
+  previewFile?: File | null;
 }) => {
   const formData = new FormData();
-  formData.append("file", previewFile);
+  if (previewFile) {
+    formData.append("file", previewFile);
+  }
   formData.append("json", JSON.stringify(data));
   const res = await axiosInstance.put(`/shaders/${data.id}`, formData);
   return res.data;
@@ -50,6 +56,18 @@ export const getUserShaders = async () => {
   return res.data;
 };
 
+export const getShadersWithUsernames = async (
+  offset?: number,
+  limit?: number,
+): Promise<ShaderDataWithUsernameResponse> => {
+  const res = await axiosInstance.get("/shaderswithusernames", {
+    params: {
+      offset: offset || 0,
+      limit: limit || 10,
+    },
+  });
+  return res.data;
+};
 export const getShaders = async (
   offset?: number,
   limit?: number,

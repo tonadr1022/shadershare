@@ -2,17 +2,19 @@ package shaders
 
 import (
 	"context"
+	"fmt"
 	"shadershare/internal/domain"
 
 	"github.com/google/uuid"
 )
 
 type shaderService struct {
-	repo domain.ShaderRepository
+	repo     domain.ShaderRepository
+	userRepo domain.UserRepository
 }
 
-func NewShaderService(repo domain.ShaderRepository) domain.ShaderService {
-	return &shaderService{repo}
+func NewShaderService(repo domain.ShaderRepository, userRepo domain.UserRepository) domain.ShaderService {
+	return &shaderService{repo, userRepo}
 }
 
 func (s shaderService) GetUserShaderList(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]domain.Shader, error) {
@@ -37,4 +39,37 @@ func (s shaderService) CreateShader(ctx context.Context, userID uuid.UUID, shade
 
 func (s shaderService) GetShader(ctx context.Context, shaderID uuid.UUID) (*domain.ShaderWithRenderPasses, error) {
 	return s.repo.GetShader(ctx, shaderID)
+}
+
+func (s shaderService) GetShaderListWithUsernames(ctx context.Context, sort string, limit int, offset int) (*domain.ShadersListWithUsernames, error) {
+	shaders, err := s.repo.GetShadersListWithRenderPasses(ctx, sort, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	userIDs := make([]uuid.UUID, len(shaders))
+	for i, shader := range shaders {
+		userIDs[i] = shader.Shader.UserID
+	}
+	if shaders == nil {
+		return nil, nil
+	}
+	usernames, err := s.userRepo.GetUsernames(ctx, userIDs)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Println("usernames", usernames)
+	fmt.Println("userIDs", userIDs)
+	usernamesMap := make(map[uuid.UUID]string)
+	for i, username := range usernames {
+		usernamesMap[userIDs[i]] = username
+	}
+	result := &domain.ShadersListWithUsernames{
+		Shaders: shaders,
+	}
+	result.Usernames = make([]string, len(shaders))
+
+	for i, shader := range shaders {
+		result.Usernames[i] = usernamesMap[shader.Shader.UserID]
+	}
+	return result, nil
 }

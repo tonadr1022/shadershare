@@ -45,6 +45,7 @@ type (
 	}
 
 	UserRepository interface {
+		GetUsernames(ctx context.Context, userIDs []uuid.UUID) ([]string, error)
 		CreateUser(ctx context.Context, payload CreateUserPayload) (*User, error)
 		GetUserByID(ctx context.Context, id uuid.UUID) (*User, error)
 		GetUserByEmail(ctx context.Context, email string) (*User, error)

@@ -11,7 +11,6 @@ import EditShaderMetadata from "@/app/(mainapp)/view/components/editor/EditShade
 import { RendererProvider } from "@/context/RendererContext";
 import { ShaderData } from "@/types/shader";
 import ShaderMetadata from "@/app/(mainapp)/view/components/editor/ShaderMetadata";
-import Image from "next/image";
 
 type Props = {
   shaderData?: ShaderData;
@@ -35,15 +34,15 @@ const ShaderEditor = ({ shaderData, editable }: Props) => {
             <ShaderMetadata shaderData={shaderData!} />
           )}
           <DownloadPreviewImageDialog />
-          {shaderData && shaderData.shader.preview_img_url && (
-            <Image
-              alt="preview"
-              width={320}
-              height={180}
-              src={`${shaderData.shader.preview_img_url}`}
-              className="w-full h-auto"
-            />
-          )}
+          {/* {shaderData && shaderData.shader.preview_img_url && ( */}
+          {/*   <Image */}
+          {/*     alt="preview" */}
+          {/*     width={320} */}
+          {/*     height={180} */}
+          {/*     src={`${shaderData.shader.preview_img_url}`} */}
+          {/*     className="w-full h-auto" */}
+          {/*   /> */}
+          {/* )} */}
         </ResizablePanel>
         <ResizableHandle withHandle />
         <ResizablePanel

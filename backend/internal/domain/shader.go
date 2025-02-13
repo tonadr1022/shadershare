@@ -66,6 +66,11 @@ type (
 		RenderPasses []RenderPass `json:"render_passes"`
 	}
 
+	ShadersListWithUsernames struct {
+		Shaders   []ShaderWithRenderPasses `json:"shaders"`
+		Usernames []string                 `json:"usernames"`
+	}
+
 	ShaderRepository interface {
 		GetShaderList(ctx context.Context, sort string, limit int, offset int) ([]Shader, error)
 		GetShadersListWithRenderPasses(ctx context.Context, sort string, limit int, offset int) ([]ShaderWithRenderPasses, error)
@@ -80,6 +85,7 @@ type (
 		GetShaderList(ctx context.Context, sort string, limit int, offset int) ([]Shader, error)
 		CreateShader(ctx context.Context, userID uuid.UUID, shaderPayload CreateShaderPayload) (*ShaderWithRenderPasses, error)
 		GetShadersListWithRenderPasses(ctx context.Context, sort string, limit int, offset int) ([]ShaderWithRenderPasses, error)
+		GetShaderListWithUsernames(ctx context.Context, sort string, limit int, offset int) (*ShadersListWithUsernames, error)
 		GetUserShaderList(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]Shader, error)
 		UpdateShader(ctx context.Context, userID uuid.UUID, shaderID uuid.UUID, updatePayload UpdateShaderPayload) (*Shader, error)
 		GetShader(ctx context.Context, shaderID uuid.UUID) (*ShaderWithRenderPasses, error)

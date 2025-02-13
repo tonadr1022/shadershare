@@ -106,9 +106,11 @@ func Run() {
 		c.JSON(http.StatusOK, gin.H{"status": "up"})
 	})
 
-	shaderService := shaders.NewShaderService(shaders.NewShaderRepository(dbConn, queries))
+	shadersRepo := shaders.NewShaderRepository(dbConn, queries)
+	usersRepo := user.NewUserRepository(dbConn, queries)
+	shaderService := shaders.NewShaderService(shadersRepo, usersRepo)
 	util.InitUsernameGenerator()
-	userService := user.NewUserService(user.NewUserRepository(queries))
+	userService := user.NewUserService(usersRepo)
 	shaders.RegisterHandlers(api, shaderService)
 	user.RegisterHandlers(baseClientUrl, r, api, shaderService, userService)
 
