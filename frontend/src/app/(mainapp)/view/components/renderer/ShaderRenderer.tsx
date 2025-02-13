@@ -53,9 +53,24 @@ const ShaderRenderer = () => {
     let animationFrameId: number;
 
     const render = () => {
+      const currRealTime = performance.now() / 1000;
+
       if (!paused) {
-        renderer.render({ checkResize: true });
+        if (renderer.getWasPaused()) {
+          // Adjust last real time so there's no jump
+          renderer.setLastRealTime(currRealTime);
+          renderer.setWasPaused(false);
+        }
+
+        const dt = currRealTime - renderer.getLastRealTime();
+        renderer.setShaderTime(renderer.getShaderTime() + dt);
+
+        renderer.render({ checkResize: true, dt: dt });
+        renderer.setLastRealTime(currRealTime);
+      } else {
+        renderer.setWasPaused(true);
       }
+
       animationFrameId = requestAnimationFrame(render);
     };
 

@@ -289,12 +289,12 @@ const webGL2Renderer = () => {
   const fragmentHeaderLineCnt = fragmentHeader.split(/\r\n|\r|\n/).length;
   let canvas: HTMLCanvasElement;
   let gl: WebGL2RenderingContext;
-  let lastTime = 0;
-  let timeDelta = 0;
-  let currTime = 0;
   let currFrame = 0;
   let initialized = false;
   let validPipelines = false;
+  let wasPaused = false;
+  let currTime = 0;
+  let timeDelta = 0;
   const fpsCounter = new AvgFpsCounter();
   // const devicePixelRatio = window.devicePixelRatio;
 
@@ -327,7 +327,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
       canvas.height,
       window.devicePixelRatio,
     );
-    gl.uniform1f(uniforms.iTime, currTime);
+    gl.uniform1f(uniforms.iTime, shaderTime);
     gl.uniform1f(uniforms.iTimeDelta, timeDelta);
     //  fragColor = vec4(fragCoord.xy/iChannelResolution[0].xy,0.,1.)
     gl.uniform1fv(uniforms.iChannelTimes, [
@@ -399,13 +399,20 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
     }
   };
 
-  const render = (options?: { checkResize?: boolean }) => {
+  const render = (options?: { checkResize?: boolean; dt: number }) => {
     if (!initialized || !gl || !canvas) {
       return;
     }
     if (!validPipelines) {
       return;
     }
+    // currTime = performance.now() / 1000;
+    // timeDelta = currTime - lastTime;
+    timeDelta = options?.dt || 0;
+    fpsCounter.addTime(timeDelta);
+    // const dt = newTime - time;
+    // lastTime = currTime;
+
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.bindTexture(gl.TEXTURE_2D, null);
     checkGLError(gl);
@@ -417,11 +424,6 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
       }
     }
 
-    currTime = performance.now() / 1000;
-    timeDelta = currTime - lastTime;
-    fpsCounter.addTime(timeDelta);
-    // const dt = newTime - time;
-    lastTime = currTime;
     gl.viewport(0, 0, canvas.width, canvas.height);
 
     renderInternal(null);
@@ -480,7 +482,22 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
     }
     return res;
   };
+  let shaderTime = 0;
+  let lastRealTime = 0;
   return {
+    setShaderTime: (t: number) => {
+      shaderTime = t;
+    },
+    getShaderTime: () => shaderTime,
+    setLastRealTime: (t: number) => {
+      lastRealTime = t;
+    },
+    getLastRealTime: () => lastRealTime,
+    setWasPaused: (paused: boolean) => {
+      wasPaused = paused;
+    },
+    getWasPaused: () => wasPaused,
+
     canvas: () => canvas,
     screenshot: () => {
       canvas.toBlob((blob) => {
@@ -505,7 +522,9 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
     restart: () => {
       timeDelta = 0;
       currTime = 0;
-      lastTime = 0;
+      shaderTime = 0;
+      lastRealTime = 0;
+      wasPaused = true;
       for (const renderPass of renderPasses) {
         renderPass.renderTarget = new RenderTarget(
           gl,
@@ -524,8 +543,6 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
         console.error("Failed to get WEBGL_lose_context extension");
       }
       console.log("shutdown renderer done");
-      gl = undefined as any;
-      canvas = undefined as any;
     },
 
     // TODO: compilation stats and character counts and line counts
@@ -636,7 +653,6 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
       validPipelines = true;
       console.log("inisializing renderer");
 
-      lastTime = performance.now();
       initialized = true;
     },
 
