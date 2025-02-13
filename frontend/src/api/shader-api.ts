@@ -56,12 +56,14 @@ export const getUserShaders = async () => {
   return res.data;
 };
 
+// TODO: combine with other getshaders?
 export const getShadersWithUsernames = async (
   offset?: number,
   limit?: number,
 ): Promise<ShaderDataWithUsernameResponse> => {
-  const res = await axiosInstance.get("/shaderswithusernames", {
+  const res = await axiosInstance.get("/shaders", {
     params: {
+      include: "usernames",
       offset: offset || 0,
       limit: limit || 10,
     },

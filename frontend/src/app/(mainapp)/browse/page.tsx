@@ -12,6 +12,7 @@ const BrowsePage = () => {
     isPending,
     isError,
   } = useQuery({
+    // TODO: pagination
     queryKey: ["shaders"],
     queryFn: () => getShadersWithUsernames(0, 10),
   });

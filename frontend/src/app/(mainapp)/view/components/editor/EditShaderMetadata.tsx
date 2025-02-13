@@ -50,7 +50,7 @@ type Props = {
 };
 
 const EditShaderMetadata = ({ initialData }: Props) => {
-  const { shaderDataRef, codeDirtyRef } = useRendererCtx();
+  const { shaderDataRef, codeDirtyRef, renderer } = useRendererCtx();
   const router = useRouter();
 
   let accessLevel = AccessLevel.PRIVATE;
@@ -71,7 +71,7 @@ const EditShaderMetadata = ({ initialData }: Props) => {
     mutationFn: createShaderWithPreview,
     onError: toastAxiosErrors,
     onSuccess: (data: ShaderData) => {
-      queryClient.invalidateQueries({ queryKey: ["shaders", "profile"] });
+      queryClient.invalidateQueries({ queryKey: ["shaders"] });
       router.push(`/view/${data.shader.id}`);
     },
   });
@@ -80,7 +80,7 @@ const EditShaderMetadata = ({ initialData }: Props) => {
     mutationFn: updateShaderWithPreview,
     onError: toastAxiosErrors,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["shaders", "profile"] });
+      queryClient.invalidateQueries({ queryKey: ["shaders"] });
       toast.success("Shader saved successfully");
       // TODO: extract somewhere else
       codeDirtyRef.current = codeDirtyRef.current.map(() => false);
@@ -89,6 +89,19 @@ const EditShaderMetadata = ({ initialData }: Props) => {
 
   const onSubmit = useCallback(
     async (values: z.infer<typeof formSchema>) => {
+      // if not able to compile, can't save it
+      if (!renderer) {
+        toast.error("Failed to save, renderer not initialized");
+        return;
+      }
+      const res = renderer!.setShaders(
+        shaderDataRef.current.render_passes.map((pass) => pass.code),
+      );
+
+      if (res.error) {
+        toast.error("Cannot save, shader has errors. Compile to see them");
+        return;
+      }
       // get preview image
       const getPreviewImgFile = async (): Promise<File | null> => {
         return new Promise((resolve) => {

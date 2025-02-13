@@ -9,6 +9,8 @@ import (
 	"shadershare/internal/middleware"
 	"shadershare/internal/pkg/com"
 	"shadershare/internal/util"
+	"slices"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -35,28 +37,6 @@ func RegisterHandlers(r *gin.RouterGroup, service domain.ShaderService) {
 	r.POST("/shaders", middleware.Auth(), h.createShader)
 	r.PUT("/shaders/:id", middleware.Auth(), h.updateShader)
 	// TODO: design better using query params?
-	r.GET("/shaderswithusernames", h.getShaderListWithUsernames)
-}
-
-func (h ShaderHandler) getShaderListWithUsernames(c *gin.Context) {
-	sort := c.DefaultQuery("sort", defaultShaderGetSort)
-	limit, err := com.DefaultQueryIntCheck(c, "limit", defaultShaderGetLimit)
-	if err != nil {
-		return
-	}
-	limit = min(limit, maxShaderGetLimit)
-	offset, err := com.DefaultQueryIntCheck(c, "offset", 0)
-	if err != nil {
-		return
-	}
-
-	shaders, err := h.service.GetShaderListWithUsernames(c, sort, limit, offset, domain.AccessLevelPublic)
-	if err != nil {
-		util.SetInternalServiceErrorResponse(c)
-		return
-	}
-
-	c.JSON(http.StatusOK, shaders)
 }
 
 func (h ShaderHandler) updateShader(c *gin.Context) {
@@ -161,6 +141,7 @@ func (h ShaderHandler) createShader(c *gin.Context) {
 
 func (h ShaderHandler) getShaderList(c *gin.Context) {
 	sort := c.DefaultQuery("sort", "popularity")
+	var err error
 	limit, err := com.DefaultQueryIntCheck(c, "limit", 10)
 	if err != nil {
 		return
@@ -171,12 +152,20 @@ func (h ShaderHandler) getShaderList(c *gin.Context) {
 		return
 	}
 
-	shaders, err := h.service.GetShadersListWithRenderPasses(c, sort, limit, offset, domain.AccessLevelPublic)
+	// includes query params is an array of strings
+	includeQuery := c.DefaultQuery("include", "")
+	includes := strings.Split(includeQuery, ",")
+	var shaders interface{}
+	// TODO: refactor service?
+	if len(includes) == 0 {
+		shaders, err = h.service.GetShadersListWithRenderPasses(c, sort, limit, offset, domain.AccessLevelPublic)
+	} else if slices.Contains(includes, "usernames") {
+		shaders, err = h.service.GetShaderListWithUsernames(c, sort, limit, offset, domain.AccessLevelPublic)
+	}
 	if err != nil {
 		util.SetInternalServiceErrorResponse(c)
 		return
 	}
-
 	c.JSON(http.StatusOK, shaders)
 }
 

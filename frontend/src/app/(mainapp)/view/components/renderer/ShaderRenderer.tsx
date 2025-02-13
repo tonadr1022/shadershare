@@ -67,7 +67,7 @@ const ShaderRenderer = () => {
 
     return () => {
       cancelAnimationFrame(animationFrameId);
-      renderer?.shutdown();
+      // renderer?.shutdown();
     };
   }, [renderer, shaderDataRef, paused]);
 
@@ -117,7 +117,6 @@ const ShaderRenderer = () => {
     return () => {
       resizeObserver.disconnect();
       window.removeEventListener("resize", bestAttemptFallback);
-      renderer.shutdown();
       // renderer.shutdown();
     };
   }, [renderer]);
