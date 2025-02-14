@@ -24,7 +24,7 @@ const heightFromWidth = (size: number) => {
   return (size * 9) / 16;
 };
 
-const promptSavePreviewImage = (
+const promptSavePreviewImage = async (
   width: number,
   height: number,
   shaderData: ShaderData,
@@ -33,10 +33,13 @@ const promptSavePreviewImage = (
   const canvas = document.createElement("canvas");
   renderer.initialize({
     canvas: canvas,
-    renderData: shaderData.render_passes,
+    shaderInputs: shaderData.shader_inputs,
+    shaderOutputs: shaderData.shader_outputs,
   });
   renderer.onResize(width, height);
-  renderer.render({ checkResize: false });
+  for (let i = 0; i < 2; i++) {
+    renderer.render({ checkResize: false, dt: 0.07 });
+  }
   promptSaveScreenshot(canvas);
   renderer.shutdown();
 };

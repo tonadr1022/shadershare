@@ -104,6 +104,17 @@ func (q *Queries) DeleteShaderOutput(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
+const getShaderCount = `-- name: GetShaderCount :one
+SELECT COUNT(*) FROM shaders
+`
+
+func (q *Queries) GetShaderCount(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, getShaderCount)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const getShaderDetailed = `-- name: GetShaderDetailed :one
 SELECT 
   s.id, s.title, s.description, s.user_id, s.access_level, s.preview_img_url, s.created_at, s.updated_at,
@@ -181,6 +192,7 @@ SELECT
         )) FROM shader_outputs so WHERE so.shader_id = s.id) AS outputs
 FROM shaders s
 WHERE s.access_level = $3
+ORDER BY s.updated_at DESC
 LIMIT $1 OFFSET $2
 `
 
@@ -340,7 +352,7 @@ const updateShaderInput = `-- name: UpdateShaderInput :one
 UPDATE shader_inputs
 SET url = COALESCE(NULLIF($2::TEXT,''), url),
     type = COALESCE(NULLIF($3::TEXT,''), type),
-    idx = COALESCE(NULLIF($4::SMALLINT,''), idx),
+    idx = COALESCE($4, idx),
     name = COALESCE(NULLIF($5::TEXT,''), name)
 WHERE id = $1 RETURNING id, shader_id, url, type, idx, name
 `
@@ -349,7 +361,7 @@ type UpdateShaderInputParams struct {
 	ID      uuid.UUID
 	Column2 string
 	Column3 string
-	Column4 int16
+	Idx     int16
 	Column5 string
 }
 
@@ -358,7 +370,7 @@ func (q *Queries) UpdateShaderInput(ctx context.Context, arg UpdateShaderInputPa
 		arg.ID,
 		arg.Column2,
 		arg.Column3,
-		arg.Column4,
+		arg.Idx,
 		arg.Column5,
 	)
 	var i ShaderInput
@@ -378,7 +390,7 @@ UPDATE shader_outputs
 SET code = COALESCE(NULLIF($2::TEXT,''), code),
     name = COALESCE(NULLIF($3::TEXT,''), name),
     type = COALESCE(NULLIF($4::TEXT,''), type),
-    idx = COALESCE(NULLIF($5::SMALLINT,''), idx)
+    idx = COALESCE($5, idx)
 WHERE id = $1 RETURNING id, shader_id, code, name, type, idx
 `
 
@@ -387,7 +399,7 @@ type UpdateShaderOutputParams struct {
 	Column2 string
 	Column3 string
 	Column4 string
-	Column5 int16
+	Idx     int16
 }
 
 func (q *Queries) UpdateShaderOutput(ctx context.Context, arg UpdateShaderOutputParams) (ShaderOutput, error) {
@@ -396,7 +408,7 @@ func (q *Queries) UpdateShaderOutput(ctx context.Context, arg UpdateShaderOutput
 		arg.Column2,
 		arg.Column3,
 		arg.Column4,
-		arg.Column5,
+		arg.Idx,
 	)
 	var i ShaderOutput
 	err := row.Scan(

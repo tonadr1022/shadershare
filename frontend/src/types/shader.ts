@@ -39,6 +39,7 @@ export type ShaderData = {
 export type ShaderDataWithUsernameResponse = {
   shaders: ShaderData[];
   usernames: string[];
+  total: number;
 };
 
 export type CompileResult = {

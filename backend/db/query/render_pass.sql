@@ -18,7 +18,7 @@ WHERE shader_id = $1;
 UPDATE shader_inputs
 SET url = COALESCE(NULLIF($2::TEXT,''), url),
     type = COALESCE(NULLIF($3::TEXT,''), type),
-    idx = COALESCE(NULLIF($4::SMALLINT,''), idx),
+    idx = COALESCE($4, idx),
     name = COALESCE(NULLIF($5::TEXT,''), name)
 WHERE id = $1 RETURNING *;
 
@@ -52,8 +52,11 @@ UPDATE shader_outputs
 SET code = COALESCE(NULLIF($2::TEXT,''), code),
     name = COALESCE(NULLIF($3::TEXT,''), name),
     type = COALESCE(NULLIF($4::TEXT,''), type),
-    idx = COALESCE(NULLIF($5::SMALLINT,''), idx)
+    idx = COALESCE($5, idx)
 WHERE id = $1 RETURNING *;
+
+-- name: GetShaderCount :one
+SELECT COUNT(*) FROM shaders;
 
 -- name: GetShaderDetailed :one
 SELECT 
@@ -100,4 +103,5 @@ SELECT
         )) FROM shader_outputs so WHERE so.shader_id = s.id) AS outputs
 FROM shaders s
 WHERE s.access_level = $3
+ORDER BY s.updated_at DESC
 LIMIT $1 OFFSET $2;

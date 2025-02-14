@@ -3,11 +3,43 @@ import {
   IRendererInitPararms,
   RenderData,
   Result,
+  ShaderData,
   ShaderOutput,
 } from "@/types/shader";
 import { createEmptyResult } from "../util";
 import { webgl2Utils, WebGL2Utils } from "./Util";
 
+export const getPreviewImgFile = async (
+  shaderData: ShaderData,
+): Promise<File | null> => {
+  return new Promise(async (resolve) => {
+    const renderer = createRenderer();
+    const canvas = document.createElement("canvas");
+    renderer.initialize({
+      canvas: canvas,
+      shaderInputs: shaderData.shader_inputs,
+      shaderOutputs: shaderData.shader_outputs,
+    });
+
+    renderer.onResize(320, 180);
+    for (let i = 0; i < 2; i++) {
+      renderer.render({ checkResize: false, dt: 0.0007 });
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        resolve(null);
+        return;
+      }
+      const file = new File([blob], "preview.png", {
+        type: "image/png",
+      });
+      resolve(file);
+    });
+    renderer.shutdown();
+  });
+};
 export class AvgFpsCounter {
   private times: number[] = [];
   private size: number;
@@ -460,11 +492,12 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
     return true;
   };
   const renderInternal = (outFBO: WebGLFramebuffer | null) => {
-    if (state.finalImagePass === null) {
-      console.error("no final image pass present");
-      return;
+    const finalImagePass = state.outputs[state.outputs.length - 1];
+    if (!finalImagePass) {
+      throw new Error("Invalid state");
     }
-    for (const output of state.outputs) {
+    for (let i = 0; i < state.outputs.length - 1; i++) {
+      const output = state.outputs[i];
       if (output === null) {
         continue;
       }
@@ -502,14 +535,13 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
       gl.drawArrays(gl.TRIANGLES, 0, 3);
     }
 
-    const imagePass = state.finalImagePass;
-    gl.useProgram(imagePass.program);
-    bindUniforms(imagePass.uniformLocs);
+    gl.useProgram(finalImagePass.program);
+    bindUniforms(finalImagePass.uniformLocs);
     gl.bindFramebuffer(gl.FRAMEBUFFER, outFBO);
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
     gl.clear(gl.COLOR_BUFFER_BIT);
 
-    const uniforms = imagePass.uniformLocs;
+    const uniforms = finalImagePass.uniformLocs;
     // TODO: consolidate into func
     for (let i = 0; i < 3; i++) {
       if (uniforms.iChannels[i]) {
@@ -581,11 +613,11 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
   };
 
   const state: {
-    finalImagePass: RRenderPass | null;
+    // finalImagePass: RRenderPass | null;
     iChannels: (BufferIChannel | Texture | null)[];
     outputs: (RRenderPass | null)[];
   } = {
-    finalImagePass: null,
+    // finalImagePass: null,
     iChannels: [],
     outputs: [],
   };
@@ -613,7 +645,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
   };
 
   const addBufferIChannel = (idx: number) => {
-    const buffer: BufferIChannel = { idx };
+    const buffer = new BufferIChannel(idx);
     state.iChannels.push(buffer);
   };
 
@@ -796,10 +828,10 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
 
     setShaderDirty(idx: number) {
       if (idx < 0 || idx >= state.outputs.length) {
-        throw new Error("Invalid pass index");
+        throw new Error("Invalid pass index, out of range");
       }
       if (!state.outputs[idx]) {
-        throw new Error("Invalid pass index");
+        throw new Error("Invalid pass index no output with this index");
       }
       state.outputs[idx].dirty = true;
     },
@@ -868,10 +900,15 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
           return;
         }
 
-        const doubleBuffer = state.iChannels.some((ichannel) => {
-          if (!(ichannel instanceof BufferIChannel)) return false;
-          return task.passIdx === ichannel.idx;
-        });
+        let doubleBuffer = false;
+        for (const ichannel of state.iChannels) {
+          if (ichannel instanceof BufferIChannel) {
+            if (ichannel.idx === task.passIdx) {
+              doubleBuffer = true;
+              break;
+            }
+          }
+        }
 
         const pass = new RRenderPass(
           gl,
@@ -880,11 +917,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
           canvas.height,
           doubleBuffer,
         );
-        if (task.isFinalImage) {
-          state.finalImagePass = pass;
-        } else {
-          state.outputs[task.passIdx] = pass;
-        }
+        state.outputs[task.passIdx] = pass;
       }
       validPipelines = true;
       initialized = true;

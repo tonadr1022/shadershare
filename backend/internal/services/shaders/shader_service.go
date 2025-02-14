@@ -80,9 +80,17 @@ func (s shaderService) GetShadersDetailedWithUsernames(ctx context.Context, sort
 	for i, shader := range shaders {
 		result.Usernames[i] = usernamesMap[shader.Shader.UserID]
 	}
+	result.Total, err = s.repo.GetShaderCount(ctx)
+	if err != nil {
+		return nil, err
+	}
 	return result, nil
 }
 
 func (s shaderService) GetShadersListDetailed(ctx context.Context, sort string, limit int, offset int, accessLevel domain.AccessLevel) ([]domain.ShaderDetailed, error) {
 	return s.repo.GetShadersListDetailed(ctx, sort, limit, offset, accessLevel)
+}
+
+func (s shaderService) GetShaderCount(ctx context.Context) (int64, error) {
+	return s.repo.GetShaderCount(ctx)
 }

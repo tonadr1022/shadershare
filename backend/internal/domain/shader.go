@@ -24,7 +24,7 @@ type (
 		ShaderID string    `json:"shader_id"`
 		Url      string    `json:"url"`
 		Type     string    `json:"type"`
-		Idx      int       `json:"pass_index"`
+		Idx      int       `json:"idx"`
 		Name     string    `json:"name"`
 	}
 
@@ -34,14 +34,14 @@ type (
 		Code     string    `json:"code"`
 		Name     string    `json:"name"`
 		Type     string    `json:"type"`
-		Idx      int       `json:"pass_index"`
+		Idx      int       `json:"idx"`
 	}
 
 	UpdateShaderInputPayload struct {
 		ID   uuid.UUID `json:"id" binding:"required"`
 		Url  *string   `json:"url,omitempty"`
 		Type *string   `json:"type,omitempty"`
-		Idx  *int      `json:"pass_index,omitempty"`
+		Idx  *int      `json:"idx,omitempty"`
 		Name *string   `json:"name,omitempty"`
 	}
 
@@ -49,7 +49,7 @@ type (
 		ShaderID uuid.UUID `json:"shader_id" binding:"required"`
 		Url      *string   `json:"url,omitempty"`
 		Type     string    `json:"type" binding:"required"`
-		Idx      int       `json:"pass_index" binding:"required"`
+		Idx      int       `json:"idx" binding:"required"`
 		Name     string    `json:"name" binding:"required"`
 	}
 
@@ -58,7 +58,7 @@ type (
 		Code *string   `json:"code,omitempty"`
 		Name *string   `json:"name,omitempty"`
 		Type *string   `json:"type,omitempty"`
-		Idx  *int      `json:"pass_index,omitempty"`
+		Idx  *int      `json:"idx,omitempty"`
 	}
 
 	CreateShaderOutputPayload struct {
@@ -66,7 +66,7 @@ type (
 		Code     string    `json:"code" binding:"required"`
 		Name     string    `json:"name" binding:"required"`
 		Type     string    `json:"type" binding:"required"`
-		Idx      int       `json:"pass_index" binding:"required"`
+		Idx      int       `json:"idx" binding:"required"`
 	}
 	UpdateShaderPayload struct {
 		ID            uuid.UUID                   `json:"id" binding:"required"`
@@ -77,12 +77,6 @@ type (
 		AccessLevel   *AccessLevel                `json:"access_level,omitempty"`
 		ShaderInputs  []UpdateShaderInputPayload  `json:"shader_inputs,omitempty"`
 		ShaderOutputs []UpdateShaderOutputPayload `json:"shader_outputs,omitempty"`
-	}
-
-	CreateRenderPassPayload struct {
-		Code      string `json:"code" binding:"required"`
-		PassIndex int    `json:"pass_index" binding:"required"`
-		Name      string `json:"name" binding:"required"`
 	}
 
 	CreateShaderPayload struct {
@@ -103,6 +97,7 @@ type (
 	ShadersDetailedWithUsernames struct {
 		Shaders   []ShaderDetailed `json:"shaders"`
 		Usernames []string         `json:"usernames"`
+		Total     int64            `json:"total"`
 	}
 
 	ShaderRepository interface {
@@ -116,9 +111,11 @@ type (
 		CreateShaderOutput(ctx context.Context, output CreateShaderOutputPayload) (*ShaderOutput, error)
 		DeleteShaderInput(ctx context.Context, inputID uuid.UUID) error
 		DeleteShaderOutput(ctx context.Context, outputID uuid.UUID) error
+		GetShaderCount(ctx context.Context) (int64, error)
 	}
 
 	ShaderService interface {
+		GetShaderCount(ctx context.Context) (int64, error)
 		GetShaderList(ctx context.Context, sort string, limit int, offset int, accesLevel AccessLevel) ([]Shader, error)
 		CreateShader(ctx context.Context, userID uuid.UUID, shaderPayload CreateShaderPayload) (*ShaderDetailed, error)
 		GetShadersListDetailed(ctx context.Context, sort string, limit int, offset int, accessLevel AccessLevel) ([]ShaderDetailed, error)

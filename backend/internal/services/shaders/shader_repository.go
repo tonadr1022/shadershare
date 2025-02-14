@@ -118,6 +118,7 @@ func (r shaderRepository) CreateShader(ctx context.Context, userID uuid.UUID, sh
 		Title:       shaderPayload.Title,
 		Description: pgtype.Text{String: shaderPayload.Description, Valid: true},
 		UserID:      userID,
+		AccessLevel: int16(shaderPayload.AccessLevel),
 	}
 	if shaderPayload.PreviewImgURL != "" {
 		params.PreviewImgUrl = pgtype.Text{String: shaderPayload.PreviewImgURL, Valid: true}
@@ -179,49 +180,18 @@ func NewShaderRepository(db *pgxpool.Pool, queries *db.Queries) domain.ShaderRep
 	}
 }
 
-// const getRenderPassesByShaderIDsQuery = `-- name: GetRenderPassesByShaderIDs :many
-// SELECT id, shader_id, code, pass_index, name, created_at FROM render_passes WHERE shader_id = ANY ($1)
-// `
-//
-// func getRenderPassesByShaderIDs(conn db.DBTX, ctx context.Context, shaderID []uuid.UUID) ([]db.RenderPass, error) {
-// 	rows, err := conn.Query(ctx, getRenderPassesByShaderIDsQuery, shaderID)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	defer rows.Close()
-// 	var items []db.RenderPass
-// 	for rows.Next() {
-// 		var i db.RenderPass
-// 		if err := rows.Scan(
-// 			&i.ID,
-// 			&i.ShaderID,
-// 			&i.Code,
-// 			&i.PassIndex,
-// 			&i.Name,
-// 			&i.CreatedAt,
-// 		); err != nil {
-// 			return nil, err
-// 		}
-// 		items = append(items, i)
-// 	}
-// 	if err := rows.Err(); err != nil {
-// 		return nil, err
-// 	}
-// 	return items, nil
-// }
-
 func (r shaderRepository) GetShadersListDetailed(ctx context.Context, sort string, limit int, offset int, accessLevel domain.AccessLevel) ([]domain.ShaderDetailed, error) {
 	detailedShaders, err := r.queries.GetShaderDetailedList(ctx, db.GetShaderDetailedListParams{Limit: int32(limit), Offset: int32(offset), AccessLevel: int16(accessLevel)})
 	if err != nil {
 		return nil, err
 	}
 	result := make([]domain.ShaderDetailed, len(detailedShaders))
-	for _, dbShader := range detailedShaders {
+	for i, dbShader := range detailedShaders {
 		shader, err := r.convertGetShaderDetailedListRow(&dbShader)
 		if err != nil {
 			return nil, err
 		}
-		result = append(result, *shader)
+		result[i] = *shader
 	}
 	return result, nil
 }
@@ -294,7 +264,7 @@ func (r shaderRepository) UpdateShader(ctx context.Context, userID uuid.UUID, sh
 			params.Column3 = *shaderInput.Type
 		}
 		if shaderInput.Idx != nil {
-			params.Column4 = int16(*shaderInput.Idx)
+			params.Idx = int16(*shaderInput.Idx)
 		}
 		if shaderInput.Name != nil {
 			params.Column5 = *shaderInput.Name
@@ -316,7 +286,7 @@ func (r shaderRepository) UpdateShader(ctx context.Context, userID uuid.UUID, sh
 			params.Column4 = *shaderOutput.Type
 		}
 		if shaderOutput.Idx != nil {
-			params.Column5 = int16(*shaderOutput.Idx)
+			params.Idx = int16(*shaderOutput.Idx)
 		}
 		r.queries.UpdateShaderOutput(ctx, params)
 	}
@@ -411,4 +381,8 @@ func (r shaderRepository) GetShader(ctx context.Context, shaderID uuid.UUID) (*d
 		return nil, err
 	}
 	return converted, nil
+}
+
+func (r shaderRepository) GetShaderCount(ctx context.Context) (int64, error) {
+	return r.queries.GetShaderCount(ctx)
 }
