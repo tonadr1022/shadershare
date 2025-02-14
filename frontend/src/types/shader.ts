@@ -1,16 +1,18 @@
 export type ShaderInput = {
   id?: string;
   url?: string;
+  // TODO: make type
   type: string;
   name: string;
   idx: number;
 };
 
+export type ShaderOutputType = "common" | "image" | "buffer";
 export type ShaderOutput = {
   id?: string;
   code: string;
   name: string;
-  type: string;
+  type: ShaderOutputType;
   idx: number;
 };
 

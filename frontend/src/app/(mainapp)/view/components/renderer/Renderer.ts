@@ -195,6 +195,7 @@ class RenderTarget {
   fbo: WebGLFramebuffer;
   textures: WebGLTexture[];
   currentTextureIndex: number;
+  doubleBuffer: boolean;
   getPrevTex() {
     return this.textures[1 - this.currentTextureIndex];
   }
@@ -213,8 +214,9 @@ class RenderTarget {
     gl: WebGL2RenderingContext,
     width: number,
     height: number,
-    doubleBuffer: boolean = true,
+    doubleBuffer: boolean,
   ) {
+    this.doubleBuffer = doubleBuffer;
     this.textures = [];
     this.currentTextureIndex = 0;
     const cnt = doubleBuffer ? 2 : 1;
@@ -260,14 +262,22 @@ class RenderTarget {
   }
 
   swapTextures(gl: WebGL2RenderingContext) {
-    this.currentTextureIndex = 1 - this.currentTextureIndex;
-    this.#bindAndSetTex(gl);
+    if (this.doubleBuffer) {
+      this.currentTextureIndex = 1 - this.currentTextureIndex;
+      this.#bindAndSetTex(gl);
+    }
   }
 }
 
 enum IChannelType {
   Image,
   Buffer,
+}
+class BufferIChannel {
+  idx: number;
+  constructor(idx: number) {
+    this.idx = idx;
+  }
 }
 
 enum FilterMode {
@@ -365,13 +375,14 @@ class RRenderPass {
     program: WebGLProgram,
     width: number,
     height: number,
+    doubleBuffer: boolean,
   ) {
     if (program == 0) {
       throw new Error("Invalid program");
     }
     this.program = program;
     this.uniformLocs = new FragShaderUniforms(program, gl);
-    this.renderTarget = new RenderTarget(gl, width, height);
+    this.renderTarget = new RenderTarget(gl, width, height, doubleBuffer);
   }
 }
 
@@ -399,7 +410,7 @@ const webGL2Renderer = () => {
     gl.uniform1i(location, index);
   };
 
-  const renderPasses: RRenderPass[] = [];
+  // const renderPasses: RRenderPass[] = [];
 
   let util: WebGL2Utils;
 
@@ -449,44 +460,81 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
     return true;
   };
   const renderInternal = (outFBO: WebGLFramebuffer | null) => {
-    for (let i = 0; i < renderPasses.length - 1; i++) {
-      const renderPass = renderPasses[i];
-      gl.useProgram(renderPass.program);
-      const uniforms = renderPass.uniformLocs;
+    if (state.finalImagePass === null) {
+      console.error("no final image pass present");
+      return;
+    }
+    for (const output of state.outputs) {
+      if (output === null) {
+        continue;
+      }
+      gl.useProgram(output.program);
+      const uniforms = output.uniformLocs;
       bindUniforms(uniforms);
-      gl.bindFramebuffer(gl.FRAMEBUFFER, renderPass.renderTarget.fbo);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, output.renderTarget.fbo);
       gl.framebufferTexture2D(
         gl.FRAMEBUFFER,
         gl.COLOR_ATTACHMENT0,
         gl.TEXTURE_2D,
-        renderPass.renderTarget.getCurrTex(),
+        output.renderTarget.getCurrTex(),
         0,
       );
       gl.clearColor(0.0, 0.0, 0.0, 1.0);
       gl.clear(gl.COLOR_BUFFER_BIT);
-      if (uniforms.iChannels[0]) {
-        bindTexture(
-          uniforms.iChannels[0]!,
-          renderPasses[i].renderTarget.getPrevTex(),
-          0,
-        );
+      // TODO: define max ichannels and make sure ichannels array is long enough
+      for (let i = 0; i < 3; i++) {
+        if (uniforms.iChannels[i]) {
+          if (i >= state.iChannels.length) {
+            throw new Error("invalid state");
+          }
+          const iChannel = state.iChannels[i];
+          if (iChannel instanceof Texture) {
+            bindTexture(uniforms.iChannels[i]!, iChannel.texture, i);
+          } else if (iChannel instanceof BufferIChannel) {
+            bindTexture(
+              uniforms.iChannels[i]!,
+              output.renderTarget.getPrevTex(),
+              i,
+            );
+          }
+        }
       }
       gl.drawArrays(gl.TRIANGLES, 0, 3);
     }
-    const imagePass = renderPasses[renderPasses.length - 1];
+
+    const imagePass = state.finalImagePass;
     gl.useProgram(imagePass.program);
     bindUniforms(imagePass.uniformLocs);
     gl.bindFramebuffer(gl.FRAMEBUFFER, outFBO);
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
     gl.clear(gl.COLOR_BUFFER_BIT);
-    bindTexture(
-      imagePass.uniformLocs.iChannels[0]!,
-      renderPasses[0].renderTarget.getCurrTex(),
-      0,
-    );
+
+    const uniforms = imagePass.uniformLocs;
+    // TODO: consolidate into func
+    for (let i = 0; i < 3; i++) {
+      if (uniforms.iChannels[i]) {
+        if (i >= state.iChannels.length) {
+          throw new Error("invalid state");
+        }
+        const iChannel = state.iChannels[i];
+        if (iChannel instanceof Texture) {
+          bindTexture(uniforms.iChannels[i]!, iChannel.texture, i);
+        } else if (iChannel instanceof BufferIChannel) {
+          bindTexture(
+            uniforms.iChannels[i]!,
+            state.outputs[i]!.renderTarget.getPrevTex(),
+            i,
+          );
+        }
+      }
+    }
     gl.drawArrays(gl.TRIANGLES, 0, 3);
-    for (let i = 0; i < renderPasses.length - 1; i++) {
-      renderPasses[i].renderTarget.swapTextures(gl);
+
+    for (const output of state.outputs) {
+      if (output === null) {
+        continue;
+      }
+      output.renderTarget.swapTextures(gl);
     }
   };
 
@@ -533,13 +581,13 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
   };
 
   const state: {
-    commonBuffer: string;
     finalImagePass: RRenderPass | null;
-    iChannels: (RRenderPass | Texture)[];
+    iChannels: (BufferIChannel | Texture | null)[];
+    outputs: (RRenderPass | null)[];
   } = {
-    commonBuffer: "",
     finalImagePass: null,
     iChannels: [],
+    outputs: [],
   };
 
   // TODO: 3d textures?
@@ -564,25 +612,35 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
     state.iChannels.push(texture);
   };
 
-  const addBufferIChannel = () => {
-    const iChannel = new RRenderPass(gl, 0, canvas.width, canvas.height);
-    state.iChannels.push(iChannel);
+  const addBufferIChannel = (idx: number) => {
+    const buffer: BufferIChannel = { idx };
+    state.iChannels.push(buffer);
   };
 
   const resizeBuffers = () => {
     // for each buffer, need to make new textures, copy the old data over
-    for (const renderPass of renderPasses) {
-      if (renderPass.type == IChannelType.Image) continue;
+    for (const iChannel of state.iChannels) {
+      if (!(iChannel instanceof BufferIChannel)) {
+        continue;
+      }
+      const output = state.outputs[iChannel.idx];
+      if (!output) {
+        throw new Error(
+          "Invalid state: iChannel refers to output that doesn't exist",
+        );
+      }
+
+      output.renderTarget.cleanup(gl);
+      output.renderTarget = new RenderTarget(
+        gl,
+        canvas.width,
+        canvas.height,
+        true,
+      );
 
       // make new render targets
       // draw unit quad to them with minsize of new and old size
       // destroy old
-      renderPass.renderTarget.cleanup(gl);
-      renderPass.renderTarget = new RenderTarget(
-        gl,
-        canvas.width,
-        canvas.height,
-      );
     }
   };
   const onResize = (width: number, height: number) => {
@@ -656,11 +714,22 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
       shaderTime = 0;
       lastRealTime = 0;
       wasPaused = true;
-      for (const renderPass of renderPasses) {
-        renderPass.renderTarget = new RenderTarget(
+      for (const iChannel of state.iChannels) {
+        if (!(iChannel instanceof BufferIChannel)) {
+          continue;
+        }
+        const output = state.outputs[iChannel.idx];
+        if (!output) {
+          throw new Error(
+            "Invalid state: iChannel refers to output that doesn't exist",
+          );
+        }
+        output.renderTarget.cleanup(gl);
+        output.renderTarget = new RenderTarget(
           gl,
           canvas.width,
           canvas.height,
+          true,
         );
       }
     },
@@ -678,15 +747,23 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
 
     // TODO: compilation stats and character counts and line counts
     setShaders: (
-      shaders: string[],
+      shaderOutputs: ShaderOutput[],
     ): { error: boolean; errMsgs: (ErrMsg[] | null)[] } => {
-      if (shaders.length != renderPasses.length) {
-        throw new Error("Invalid");
-      }
       const programOrErrStrs: (string | WebGLProgram)[] = [];
       let anyError = false;
-      for (let i = 0; i < shaders.length; i++) {
-        const fragmentCode = `${fragmentHeader}${shaders[i]}`;
+      let commonOutput = "";
+      for (const output of shaderOutputs) {
+        if (output.type == "common") {
+          commonOutput = output.code;
+          break;
+        }
+      }
+
+      for (let i = 0; i < shaderOutputs.length; i++) {
+        const output = shaderOutputs[i];
+        // TODO: common buffer needs to be accounted for in fragment header. need a special line that
+        // is searched for
+        const fragmentCode = `${commonOutput}${fragmentHeader}${output.code}`;
         const compileRes = util.createShaderProgram(vertexCode, fragmentCode);
         if (compileRes.error) {
           anyError = true;
@@ -697,14 +774,14 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
       }
 
       if (!anyError) {
-        for (let i = 0; i < renderPasses.length; i++) {
-          const pass = renderPasses[i];
-
-          if (pass.program) {
-            gl.deleteProgram(pass.program);
+        for (let i = 0; i < state.outputs.length; i++) {
+          const output = state.outputs[i];
+          if (output === null) continue;
+          if (output.program) {
+            gl.deleteProgram(output.program);
           }
-          pass.uniformLocs = new FragShaderUniforms(programOrErrStrs[i], gl);
-          pass.program = programOrErrStrs[i];
+          output.uniformLocs = new FragShaderUniforms(programOrErrStrs[i], gl);
+          output.program = programOrErrStrs[i];
         }
         validPipelines = true;
       }
@@ -717,29 +794,14 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
       };
     },
 
-    setShader: (passIdx: number, fragmentText: string) => {
-      if (passIdx >= renderPasses.length) {
-        throw new Error("Invalid pass index");
-      }
-      const fragmentCode = `${fragmentHeader}${fragmentText}`;
-      const compileRes = util.createShaderProgram(vertexCode, fragmentCode);
-      if (compileRes.error) {
-        return createEmptyResult(compileRes.message!);
-      }
-      const pass = renderPasses[passIdx];
-      if (pass.program) {
-        gl.deleteProgram(pass.program);
-      }
-      pass.uniformLocs = new FragShaderUniforms(compileRes.data!, gl);
-      pass.program = compileRes.data!;
-      return createEmptyResult();
-    },
-
     setShaderDirty(idx: number) {
-      if (idx < 0 || idx >= renderPasses.length) {
+      if (idx < 0 || idx >= state.outputs.length) {
         throw new Error("Invalid pass index");
       }
-      renderPasses[idx].dirty = true;
+      if (!state.outputs[idx]) {
+        throw new Error("Invalid pass index");
+      }
+      state.outputs[idx].dirty = true;
     },
     // TODO: initialize should return shader compile errors
     initialize: (params: IRendererInitPararms) => {
@@ -771,35 +833,24 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
         if (input.type == "image") {
           addImageIChannel(input.url!);
         } else {
-          addBufferIChannel();
+          addBufferIChannel(input.idx);
         }
       }
 
       // get the common output if exists
-      let commonOutput: ShaderOutput | null = null;
-      for (let i = 0; i < shaderOutputs.length; i++) {
-        if (shaderOutputs[i].type == "common") {
-          commonOutput = shaderOutputs[i];
-          break;
-        }
-      }
-      if (commonOutput) {
-        state.commonBuffer = commonOutput.code;
-      }
+      // let commonOutput: ShaderOutput | null = null;
+      // for (let i = 0; i < shaderOutputs.length; i++) {
+      //   if (shaderOutputs[i].type == "common") {
+      //     commonOutput = shaderOutputs[i];
+      //     break;
+      //   }
+      // }
 
       const compileTasks = [];
 
       for (let i = 0; i < shaderOutputs.length; i++) {
         const output = shaderOutputs[i];
         const isFinalImage = output.type == "image";
-        if (isFinalImage) {
-          state.finalImagePass = new RRenderPass(
-            gl,
-            0,
-            canvas.width,
-            canvas.height,
-          );
-        }
         compileTasks.push({
           code: output.code,
           isFinalImage,
@@ -810,18 +861,30 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
       compileTasks.sort((a, b) => a.passIdx - b.passIdx);
       // TODO: parallelize shader compilation
       for (const task of compileTasks) {
+        // TODO: common buffer
         const res = compileShader(task.code);
         if (res.error) {
           console.error("error compiling shader", res.message);
           return;
         }
+
+        const doubleBuffer = state.iChannels.some((ichannel) => {
+          if (!(ichannel instanceof BufferIChannel)) return false;
+          return task.passIdx === ichannel.idx;
+        });
+
         const pass = new RRenderPass(
           gl,
           res.data!,
           canvas.width,
           canvas.height,
+          doubleBuffer,
         );
-        renderPasses.push(pass);
+        if (task.isFinalImage) {
+          state.finalImagePass = pass;
+        } else {
+          state.outputs[task.passIdx] = pass;
+        }
       }
       validPipelines = true;
       initialized = true;

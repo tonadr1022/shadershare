@@ -47,7 +47,9 @@ export const RendererProvider: React.FC<RendererProviderProps> = ({
     if (initialized.current) return;
     initialized.current = true;
     setRenderer(createRenderer());
-    codeDirtyRef.current = shaderDataRef.current.render_passes.map(() => false);
+    codeDirtyRef.current = shaderDataRef.current.shader_outputs.map(
+      () => false,
+    );
     return () => {
       renderer?.shutdown();
     };

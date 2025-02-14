@@ -212,7 +212,7 @@ export const MultiBufferEditor = React.memo(() => {
               break;
             case "compile":
               const res = renderer.setShaders(
-                shaderDataRef.current.render_passes.map((pass) => pass.code),
+                shaderDataRef.current.shader_outputs,
               );
               setErrMsgs(res.errMsgs);
               break;
@@ -232,7 +232,7 @@ export const MultiBufferEditor = React.memo(() => {
       renderer.setShaderDirty(idx);
       codeDirtyRef.current[idx] = true;
 
-      shaderDataRef.current.render_passes[idx].code = newText;
+      shaderDataRef.current.shader_outputs[idx].code = newText;
       // setShaderData((prevData) => ({
       //   ...prevData,
       //   render_passes: prevData.render_passes.map((renderPass, i) =>
@@ -246,9 +246,7 @@ export const MultiBufferEditor = React.memo(() => {
   const onCompile = useCallback(
     (shaderData: ShaderData) => {
       if (!renderer) return;
-      const res = renderer.setShaders(
-        shaderData.render_passes.map((pass) => pass.code),
-      );
+      const res = renderer.setShaders(shaderData.shader_outputs);
       setErrMsgs(res.errMsgs);
     },
     [renderer],
@@ -270,21 +268,21 @@ export const MultiBufferEditor = React.memo(() => {
     <div className=" flex flex-col w-full h-full">
       <Tabs defaultValue="0" className="m-0 p-0">
         <TabsList>
-          {shaderDataRef.current.render_passes.map((renderPass, idx) => (
+          {shaderDataRef.current.shader_outputs.map((output, idx) => (
             <TabsTrigger
               value={idx.toString()}
               onClick={() => setRenderPassEditIdx(idx)}
-              key={renderPass.name}
+              key={output.name}
             >
               Pass {idx}
             </TabsTrigger>
           ))}
         </TabsList>
-        {shaderDataRef.current.render_passes.map((renderPass, idx) => (
+        {shaderDataRef.current.shader_outputs.map((output, idx) => (
           <TabsContent
             forceMount={true}
             value={idx.toString()}
-            key={renderPass.name}
+            key={output.name}
             className={cn(
               renderPassEditIdx === idx ? "" : "hidden",
               "bg-background m-0",
@@ -294,7 +292,7 @@ export const MultiBufferEditor = React.memo(() => {
               errMsgs={errMsgs[idx]}
               idx={idx}
               visible={renderPassEditIdx === idx}
-              text={renderPass.code}
+              text={output.code}
               onTextChange={onTextUpdate}
             />
           </TabsContent>
