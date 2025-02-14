@@ -9,15 +9,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-type RenderPass struct {
-	ID        uuid.UUID
-	ShaderID  uuid.UUID
-	Code      string
-	PassIndex int32
-	Name      string
-	CreatedAt pgtype.Timestamptz
-}
-
 type Shader struct {
 	ID            uuid.UUID
 	Title         string
@@ -27,6 +18,24 @@ type Shader struct {
 	PreviewImgUrl pgtype.Text
 	CreatedAt     pgtype.Timestamptz
 	UpdatedAt     pgtype.Timestamptz
+}
+
+type ShaderInput struct {
+	ID       uuid.UUID
+	ShaderID uuid.UUID
+	Url      pgtype.Text
+	Type     string
+	Idx      int16
+	Name     string
+}
+
+type ShaderOutput struct {
+	ID       uuid.UUID
+	ShaderID uuid.UUID
+	Code     string
+	Name     string
+	Type     string
+	Idx      int16
 }
 
 type User struct {

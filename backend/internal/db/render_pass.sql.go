@@ -9,82 +9,220 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const createRenderPass = `-- name: CreateRenderPass :one
-INSERT INTO render_passes (
-    shader_id, code, pass_index,name
+const createShaderInput = `-- name: CreateShaderInput :one
+INSERT INTO shader_inputs (
+    shader_id, url, type, idx, name
 ) VALUES (
-    $1, $2, $3, $4
-) RETURNING id, shader_id, code, pass_index, name, created_at
+    $1, $2, $3, $4, $5
+) RETURNING id, shader_id, url, type, idx, name
 `
 
-type CreateRenderPassParams struct {
-	ShaderID  uuid.UUID
-	Code      string
-	PassIndex int32
-	Name      string
+type CreateShaderInputParams struct {
+	ShaderID uuid.UUID
+	Url      pgtype.Text
+	Type     string
+	Idx      int16
+	Name     string
 }
 
-func (q *Queries) CreateRenderPass(ctx context.Context, arg CreateRenderPassParams) (RenderPass, error) {
-	row := q.db.QueryRow(ctx, createRenderPass,
+func (q *Queries) CreateShaderInput(ctx context.Context, arg CreateShaderInputParams) (ShaderInput, error) {
+	row := q.db.QueryRow(ctx, createShaderInput,
 		arg.ShaderID,
-		arg.Code,
-		arg.PassIndex,
+		arg.Url,
+		arg.Type,
+		arg.Idx,
 		arg.Name,
 	)
-	var i RenderPass
+	var i ShaderInput
 	err := row.Scan(
 		&i.ID,
 		&i.ShaderID,
-		&i.Code,
-		&i.PassIndex,
+		&i.Url,
+		&i.Type,
+		&i.Idx,
 		&i.Name,
-		&i.CreatedAt,
 	)
 	return i, err
 }
 
-const getRenderPass = `-- name: GetRenderPass :one
-SELECT id, shader_id, code, pass_index, name, created_at FROM render_passes
+const createShaderOutput = `-- name: CreateShaderOutput :one
+INSERT INTO shader_outputs (
+    shader_id, code, name, type, idx
+) VALUES (
+    $1, $2, $3, $4, $5
+) RETURNING id, shader_id, code, name, type, idx
+`
+
+type CreateShaderOutputParams struct {
+	ShaderID uuid.UUID
+	Code     string
+	Name     string
+	Type     string
+	Idx      int16
+}
+
+func (q *Queries) CreateShaderOutput(ctx context.Context, arg CreateShaderOutputParams) (ShaderOutput, error) {
+	row := q.db.QueryRow(ctx, createShaderOutput,
+		arg.ShaderID,
+		arg.Code,
+		arg.Name,
+		arg.Type,
+		arg.Idx,
+	)
+	var i ShaderOutput
+	err := row.Scan(
+		&i.ID,
+		&i.ShaderID,
+		&i.Code,
+		&i.Name,
+		&i.Type,
+		&i.Idx,
+	)
+	return i, err
+}
+
+const deleteShaderInput = `-- name: DeleteShaderInput :exec
+DELETE FROM shader_inputs
 WHERE id = $1
 `
 
-func (q *Queries) GetRenderPass(ctx context.Context, id uuid.UUID) (RenderPass, error) {
-	row := q.db.QueryRow(ctx, getRenderPass, id)
-	var i RenderPass
+func (q *Queries) DeleteShaderInput(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteShaderInput, id)
+	return err
+}
+
+const deleteShaderOutput = `-- name: DeleteShaderOutput :exec
+DELETE FROM shader_outputs
+WHERE id = $1
+`
+
+func (q *Queries) DeleteShaderOutput(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteShaderOutput, id)
+	return err
+}
+
+const getShaderDetailed = `-- name: GetShaderDetailed :one
+SELECT 
+  s.id, s.title, s.description, s.user_id, s.access_level, s.preview_img_url, s.created_at, s.updated_at,
+  (SELECT JSON_AGG(JSON_BUILD_OBJECT(
+        'id', si.id, 
+        'shader_id', si.shader_id,
+        'url', si.url,
+        'type', si.type, 
+        'idx', si.idx,
+        'name', si.name
+        )) FROM shader_inputs si WHERE si.shader_id = s.id) AS inputs,
+  (SELECT JSON_AGG(JSON_BUILD_OBJECT(
+        'id', so.id,
+        'shader_id', so.shader_id,
+        'code', so.code,
+        'name', so.name,
+        'type', so.type,
+        'idx', so.idx
+        )) FROM shader_outputs so WHERE so.shader_id = s.id) AS outputs
+FROM 
+  shaders s
+WHERE 
+  s.id = $1
+`
+
+type GetShaderDetailedRow struct {
+	ID            uuid.UUID
+	Title         string
+	Description   pgtype.Text
+	UserID        uuid.UUID
+	AccessLevel   int16
+	PreviewImgUrl pgtype.Text
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+	Inputs        []byte
+	Outputs       []byte
+}
+
+func (q *Queries) GetShaderDetailed(ctx context.Context, id uuid.UUID) (GetShaderDetailedRow, error) {
+	row := q.db.QueryRow(ctx, getShaderDetailed, id)
+	var i GetShaderDetailedRow
 	err := row.Scan(
 		&i.ID,
-		&i.ShaderID,
-		&i.Code,
-		&i.PassIndex,
-		&i.Name,
+		&i.Title,
+		&i.Description,
+		&i.UserID,
+		&i.AccessLevel,
+		&i.PreviewImgUrl,
 		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Inputs,
+		&i.Outputs,
 	)
 	return i, err
 }
 
-const getRenderPassesByShaderID = `-- name: GetRenderPassesByShaderID :many
-SELECT id, shader_id, code, pass_index, name, created_at FROM render_passes
-WHERE shader_id = $1
+const getShaderDetailedList = `-- name: GetShaderDetailedList :many
+SELECT 
+  s.id, s.title, s.description, s.user_id, s.access_level, s.preview_img_url, s.created_at, s.updated_at,
+  (SELECT JSON_AGG(JSON_BUILD_OBJECT(
+        'id', si.id, 
+        'shader_id', si.shader_id,
+        'url', si.url,
+        'type', si.type, 
+        'idx', si.idx,
+        'name', si.name
+        )) FROM shader_inputs si WHERE si.shader_id = s.id) AS inputs,
+  (SELECT JSON_AGG(JSON_BUILD_OBJECT(
+        'id', so.id,
+        'shader_id', so.shader_id,
+        'code', so.code,
+        'name', so.name,
+        'type', so.type,
+        'idx', so.idx
+        )) FROM shader_outputs so WHERE so.shader_id = s.id) AS outputs
+FROM shaders s
+WHERE s.access_level = $3
+LIMIT $1 OFFSET $2
 `
 
-func (q *Queries) GetRenderPassesByShaderID(ctx context.Context, shaderID uuid.UUID) ([]RenderPass, error) {
-	rows, err := q.db.Query(ctx, getRenderPassesByShaderID, shaderID)
+type GetShaderDetailedListParams struct {
+	Limit       int32
+	Offset      int32
+	AccessLevel int16
+}
+
+type GetShaderDetailedListRow struct {
+	ID            uuid.UUID
+	Title         string
+	Description   pgtype.Text
+	UserID        uuid.UUID
+	AccessLevel   int16
+	PreviewImgUrl pgtype.Text
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+	Inputs        []byte
+	Outputs       []byte
+}
+
+func (q *Queries) GetShaderDetailedList(ctx context.Context, arg GetShaderDetailedListParams) ([]GetShaderDetailedListRow, error) {
+	rows, err := q.db.Query(ctx, getShaderDetailedList, arg.Limit, arg.Offset, arg.AccessLevel)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []RenderPass
+	var items []GetShaderDetailedListRow
 	for rows.Next() {
-		var i RenderPass
+		var i GetShaderDetailedListRow
 		if err := rows.Scan(
 			&i.ID,
-			&i.ShaderID,
-			&i.Code,
-			&i.PassIndex,
-			&i.Name,
+			&i.Title,
+			&i.Description,
+			&i.UserID,
+			&i.AccessLevel,
+			&i.PreviewImgUrl,
 			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Inputs,
+			&i.Outputs,
 		); err != nil {
 			return nil, err
 		}
@@ -96,97 +234,178 @@ func (q *Queries) GetRenderPassesByShaderID(ctx context.Context, shaderID uuid.U
 	return items, nil
 }
 
-const getRenderPassesByShaderIDs = `-- name: GetRenderPassesByShaderIDs :many
-SELECT id, shader_id, code, pass_index, name, created_at FROM render_passes WHERE shader_id = ANY ($1)
+const getShaderInput = `-- name: GetShaderInput :one
+SELECT id, shader_id, url, type, idx, name FROM shader_inputs
+WHERE id = $1
 `
 
-func (q *Queries) GetRenderPassesByShaderIDs(ctx context.Context, shaderID uuid.UUID) ([]RenderPass, error) {
-	rows, err := q.db.Query(ctx, getRenderPassesByShaderIDs, shaderID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []RenderPass
-	for rows.Next() {
-		var i RenderPass
-		if err := rows.Scan(
-			&i.ID,
-			&i.ShaderID,
-			&i.Code,
-			&i.PassIndex,
-			&i.Name,
-			&i.CreatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
+func (q *Queries) GetShaderInput(ctx context.Context, id uuid.UUID) (ShaderInput, error) {
+	row := q.db.QueryRow(ctx, getShaderInput, id)
+	var i ShaderInput
+	err := row.Scan(
+		&i.ID,
+		&i.ShaderID,
+		&i.Url,
+		&i.Type,
+		&i.Idx,
+		&i.Name,
+	)
+	return i, err
 }
 
-const listRenderPasses = `-- name: ListRenderPasses :many
-SELECT id, shader_id, code, pass_index, name, created_at FROM render_passes
-ORDER BY id LIMIT $1 OFFSET $2
+const getShaderOutput = `-- name: GetShaderOutput :one
+SELECT id, shader_id, code, name, type, idx FROM shader_outputs
+WHERE id = $1
 `
 
-type ListRenderPassesParams struct {
-	Limit  int32
-	Offset int32
-}
-
-func (q *Queries) ListRenderPasses(ctx context.Context, arg ListRenderPassesParams) ([]RenderPass, error) {
-	rows, err := q.db.Query(ctx, listRenderPasses, arg.Limit, arg.Offset)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []RenderPass
-	for rows.Next() {
-		var i RenderPass
-		if err := rows.Scan(
-			&i.ID,
-			&i.ShaderID,
-			&i.Code,
-			&i.PassIndex,
-			&i.Name,
-			&i.CreatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const updateRenderPass = `-- name: UpdateRenderPass :one
-UPDATE render_passes
-SET code = COALESCE(NULLIF($2::TEXT,''), code),
-    name = COALESCE(NULLIF($3::TEXT,''), name)
-WHERE id = $1 RETURNING id, shader_id, code, pass_index, name, created_at
-`
-
-type UpdateRenderPassParams struct {
-	ID      uuid.UUID
-	Column2 string
-	Column3 string
-}
-
-func (q *Queries) UpdateRenderPass(ctx context.Context, arg UpdateRenderPassParams) (RenderPass, error) {
-	row := q.db.QueryRow(ctx, updateRenderPass, arg.ID, arg.Column2, arg.Column3)
-	var i RenderPass
+func (q *Queries) GetShaderOutput(ctx context.Context, id uuid.UUID) (ShaderOutput, error) {
+	row := q.db.QueryRow(ctx, getShaderOutput, id)
+	var i ShaderOutput
 	err := row.Scan(
 		&i.ID,
 		&i.ShaderID,
 		&i.Code,
-		&i.PassIndex,
 		&i.Name,
-		&i.CreatedAt,
+		&i.Type,
+		&i.Idx,
+	)
+	return i, err
+}
+
+const listShaderInputs = `-- name: ListShaderInputs :many
+SELECT id, shader_id, url, type, idx, name FROM shader_inputs
+WHERE shader_id = $1
+`
+
+func (q *Queries) ListShaderInputs(ctx context.Context, shaderID uuid.UUID) ([]ShaderInput, error) {
+	rows, err := q.db.Query(ctx, listShaderInputs, shaderID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ShaderInput
+	for rows.Next() {
+		var i ShaderInput
+		if err := rows.Scan(
+			&i.ID,
+			&i.ShaderID,
+			&i.Url,
+			&i.Type,
+			&i.Idx,
+			&i.Name,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listShaderOutputs = `-- name: ListShaderOutputs :many
+SELECT id, shader_id, code, name, type, idx FROM shader_outputs
+WHERE shader_id = $1
+`
+
+func (q *Queries) ListShaderOutputs(ctx context.Context, shaderID uuid.UUID) ([]ShaderOutput, error) {
+	rows, err := q.db.Query(ctx, listShaderOutputs, shaderID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ShaderOutput
+	for rows.Next() {
+		var i ShaderOutput
+		if err := rows.Scan(
+			&i.ID,
+			&i.ShaderID,
+			&i.Code,
+			&i.Name,
+			&i.Type,
+			&i.Idx,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const updateShaderInput = `-- name: UpdateShaderInput :one
+UPDATE shader_inputs
+SET url = COALESCE(NULLIF($2::TEXT,''), url),
+    type = COALESCE(NULLIF($3::TEXT,''), type),
+    idx = COALESCE(NULLIF($4::SMALLINT,''), idx),
+    name = COALESCE(NULLIF($5::TEXT,''), name)
+WHERE id = $1 RETURNING id, shader_id, url, type, idx, name
+`
+
+type UpdateShaderInputParams struct {
+	ID      uuid.UUID
+	Column2 string
+	Column3 string
+	Column4 int16
+	Column5 string
+}
+
+func (q *Queries) UpdateShaderInput(ctx context.Context, arg UpdateShaderInputParams) (ShaderInput, error) {
+	row := q.db.QueryRow(ctx, updateShaderInput,
+		arg.ID,
+		arg.Column2,
+		arg.Column3,
+		arg.Column4,
+		arg.Column5,
+	)
+	var i ShaderInput
+	err := row.Scan(
+		&i.ID,
+		&i.ShaderID,
+		&i.Url,
+		&i.Type,
+		&i.Idx,
+		&i.Name,
+	)
+	return i, err
+}
+
+const updateShaderOutput = `-- name: UpdateShaderOutput :one
+UPDATE shader_outputs
+SET code = COALESCE(NULLIF($2::TEXT,''), code),
+    name = COALESCE(NULLIF($3::TEXT,''), name),
+    type = COALESCE(NULLIF($4::TEXT,''), type),
+    idx = COALESCE(NULLIF($5::SMALLINT,''), idx)
+WHERE id = $1 RETURNING id, shader_id, code, name, type, idx
+`
+
+type UpdateShaderOutputParams struct {
+	ID      uuid.UUID
+	Column2 string
+	Column3 string
+	Column4 string
+	Column5 int16
+}
+
+func (q *Queries) UpdateShaderOutput(ctx context.Context, arg UpdateShaderOutputParams) (ShaderOutput, error) {
+	row := q.db.QueryRow(ctx, updateShaderOutput,
+		arg.ID,
+		arg.Column2,
+		arg.Column3,
+		arg.Column4,
+		arg.Column5,
+	)
+	var i ShaderOutput
+	err := row.Scan(
+		&i.ID,
+		&i.ShaderID,
+		&i.Code,
+		&i.Name,
+		&i.Type,
+		&i.Idx,
 	)
 	return i, err
 }

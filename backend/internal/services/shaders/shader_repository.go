@@ -2,6 +2,8 @@ package shaders
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"shadershare/internal/db"
 	"shadershare/internal/domain"
 	"shadershare/internal/e"
@@ -17,7 +19,95 @@ type shaderRepository struct {
 	db      *pgxpool.Pool
 }
 
-func (r shaderRepository) CreateShader(ctx context.Context, userID uuid.UUID, shaderPayload domain.CreateShaderPayload) (*domain.ShaderWithRenderPasses, error) {
+func (r shaderRepository) DeleteShader(ctx context.Context, userID uuid.UUID, shaderID uuid.UUID) error {
+	err := r.queries.DeleteShader(ctx, db.DeleteShaderParams{ID: shaderID, UserID: userID})
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return e.ErrNotFound
+		}
+		return err
+	}
+	return nil
+}
+
+func (r shaderRepository) CreateShaderInput(ctx context.Context, shaderInput domain.CreateShaderInputPayload) (*domain.ShaderInput, error) {
+	params := db.CreateShaderInputParams{
+		ShaderID: shaderInput.ShaderID,
+		Type:     shaderInput.Type,
+		Idx:      int16(shaderInput.Idx),
+		Name:     shaderInput.Name,
+	}
+	if shaderInput.Url != nil {
+		params.Url = pgtype.Text{String: *shaderInput.Url, Valid: true}
+	}
+	dbShaderInput, err := r.queries.CreateShaderInput(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+	result := r.shaderInputFromDB(dbShaderInput)
+	return &result, nil
+}
+
+func (r shaderRepository) CreateShaderOutput(ctx context.Context, shaderOutputPayload domain.CreateShaderOutputPayload) (*domain.ShaderOutput, error) {
+	params := db.CreateShaderOutputParams{
+		ShaderID: shaderOutputPayload.ShaderID,
+		Code:     shaderOutputPayload.Code,
+		Name:     shaderOutputPayload.Name,
+		Type:     shaderOutputPayload.Type,
+		Idx:      int16(shaderOutputPayload.Idx),
+	}
+	dbShaderOutput, err := r.queries.CreateShaderOutput(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+	result := r.shaderOutputFromDB(dbShaderOutput)
+	return &result, nil
+}
+
+// TODO: user verification?
+func (r shaderRepository) DeleteShaderOutput(ctx context.Context, shaderOutputID uuid.UUID) error {
+	err := r.queries.DeleteShaderOutput(ctx, shaderOutputID)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return e.ErrNotFound
+		}
+	}
+	return nil
+}
+
+func (r shaderRepository) DeleteShaderInput(ctx context.Context, shaderInputID uuid.UUID) error {
+	err := r.queries.DeleteShaderInput(ctx, shaderInputID)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return e.ErrNotFound
+		}
+		return err
+	}
+	return nil
+}
+
+func (r shaderRepository) shaderInputFromDB(dbShaderInput db.ShaderInput) domain.ShaderInput {
+	// TODO: invalid strings?
+	return domain.ShaderInput{
+		ID:   dbShaderInput.ID,
+		Idx:  int(dbShaderInput.Idx),
+		Name: dbShaderInput.Name,
+		Type: dbShaderInput.Type,
+		Url:  dbShaderInput.Url.String,
+	}
+}
+
+func (r shaderRepository) shaderOutputFromDB(dbShaderOutput db.ShaderOutput) domain.ShaderOutput {
+	return domain.ShaderOutput{
+		ID:   dbShaderOutput.ID,
+		Idx:  int(dbShaderOutput.Idx),
+		Name: dbShaderOutput.Name,
+		Type: dbShaderOutput.Type,
+		Code: dbShaderOutput.Code,
+	}
+}
+
+func (r shaderRepository) CreateShader(ctx context.Context, userID uuid.UUID, shaderPayload domain.CreateShaderPayload) (*domain.ShaderDetailed, error) {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
 		return nil, err
@@ -39,26 +129,46 @@ func (r shaderRepository) CreateShader(ctx context.Context, userID uuid.UUID, sh
 		}
 		return nil, err
 	}
+	// make shader inputs
+	resultInputs := make([]domain.ShaderInput, len(shaderPayload.ShaderInputs))
+	for _, shaderInput := range shaderPayload.ShaderInputs {
+		params := db.CreateShaderInputParams{
+			ShaderID: shader.ID,
+			Type:     shaderInput.Type,
+			Idx:      int16(shaderInput.Idx),
+			Name:     shaderInput.Name,
+		}
+		if shaderInput.Url != nil {
+			params.Url = pgtype.Text{String: *shaderInput.Url, Valid: true}
+		}
 
-	// make render passes for the shader
-	outRenderPasses := make([]domain.RenderPass, len(shaderPayload.RenderPasses))
-	for i, renderPass := range shaderPayload.RenderPasses {
-		rp, err := r.queries.CreateRenderPass(ctx, db.CreateRenderPassParams{
-			ShaderID:  shader.ID,
-			Code:      renderPass.Code,
-			PassIndex: int32(renderPass.PassIndex),
-			Name:      renderPass.Name,
-		})
+		input, err := r.queries.CreateShaderInput(ctx, params)
 		if err != nil {
 			return nil, err
 		}
-		outRenderPasses[i] = r.RenderPassFromDB(rp)
+		resultInputs = append(resultInputs, r.shaderInputFromDB(input))
+	}
+	resultOutputs := make([]domain.ShaderOutput, len(shaderPayload.ShaderOutputs))
+	// make shader outputs
+	for _, shaderOutput := range shaderPayload.ShaderOutputs {
+		params := db.CreateShaderOutputParams{
+			ShaderID: shader.ID,
+			Code:     shaderOutput.Code,
+			Name:     shaderOutput.Name,
+			Type:     shaderOutput.Type,
+			Idx:      int16(shaderOutput.Idx),
+		}
+		output, err := r.queries.CreateShaderOutput(ctx, params)
+		if err != nil {
+			return nil, err
+		}
+		resultOutputs = append(resultOutputs, r.shaderOutputFromDB(output))
 	}
 	err = tx.Commit(ctx)
 	if err != nil {
 		return nil, err
 	}
-	shaderWithRenderPasses := &domain.ShaderWithRenderPasses{Shader: r.ShaderFromDB(shader), RenderPasses: outRenderPasses}
+	shaderWithRenderPasses := &domain.ShaderDetailed{Shader: r.ShaderFromDB(shader), ShaderOutputs: resultOutputs, ShaderInputs: resultInputs}
 	return shaderWithRenderPasses, nil
 }
 
@@ -69,76 +179,51 @@ func NewShaderRepository(db *pgxpool.Pool, queries *db.Queries) domain.ShaderRep
 	}
 }
 
-const getRenderPassesByShaderIDsQuery = `-- name: GetRenderPassesByShaderIDs :many
-SELECT id, shader_id, code, pass_index, name, created_at FROM render_passes WHERE shader_id = ANY ($1)
-`
+// const getRenderPassesByShaderIDsQuery = `-- name: GetRenderPassesByShaderIDs :many
+// SELECT id, shader_id, code, pass_index, name, created_at FROM render_passes WHERE shader_id = ANY ($1)
+// `
+//
+// func getRenderPassesByShaderIDs(conn db.DBTX, ctx context.Context, shaderID []uuid.UUID) ([]db.RenderPass, error) {
+// 	rows, err := conn.Query(ctx, getRenderPassesByShaderIDsQuery, shaderID)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	defer rows.Close()
+// 	var items []db.RenderPass
+// 	for rows.Next() {
+// 		var i db.RenderPass
+// 		if err := rows.Scan(
+// 			&i.ID,
+// 			&i.ShaderID,
+// 			&i.Code,
+// 			&i.PassIndex,
+// 			&i.Name,
+// 			&i.CreatedAt,
+// 		); err != nil {
+// 			return nil, err
+// 		}
+// 		items = append(items, i)
+// 	}
+// 	if err := rows.Err(); err != nil {
+// 		return nil, err
+// 	}
+// 	return items, nil
+// }
 
-func getRenderPassesByShaderIDs(conn db.DBTX, ctx context.Context, shaderID []uuid.UUID) ([]db.RenderPass, error) {
-	rows, err := conn.Query(ctx, getRenderPassesByShaderIDsQuery, shaderID)
+func (r shaderRepository) GetShadersListDetailed(ctx context.Context, sort string, limit int, offset int, accessLevel domain.AccessLevel) ([]domain.ShaderDetailed, error) {
+	detailedShaders, err := r.queries.GetShaderDetailedList(ctx, db.GetShaderDetailedListParams{Limit: int32(limit), Offset: int32(offset), AccessLevel: int16(accessLevel)})
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	var items []db.RenderPass
-	for rows.Next() {
-		var i db.RenderPass
-		if err := rows.Scan(
-			&i.ID,
-			&i.ShaderID,
-			&i.Code,
-			&i.PassIndex,
-			&i.Name,
-			&i.CreatedAt,
-		); err != nil {
+	result := make([]domain.ShaderDetailed, len(detailedShaders))
+	for _, dbShader := range detailedShaders {
+		shader, err := r.convertGetShaderDetailedListRow(&dbShader)
+		if err != nil {
 			return nil, err
 		}
-		items = append(items, i)
+		result = append(result, *shader)
 	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-func (r shaderRepository) GetShadersListWithRenderPasses(ctx context.Context, sort string, limit int, offset int, accessLevel domain.AccessLevel) ([]domain.ShaderWithRenderPasses, error) {
-	dbShaders, err := r.queries.ListShaders(ctx, db.ListShadersParams{Limit: int32(limit), Offset: int32(offset), AccessLevel: int16(accessLevel)})
-	if err != nil {
-		return nil, err
-	}
-
-	if len(dbShaders) == 0 {
-		return nil, nil
-	}
-
-	// Extract shader IDs for batch querying
-	shaderIDs := make([]uuid.UUID, len(dbShaders))
-	for i, dbShader := range dbShaders {
-		shaderIDs[i] = dbShader.ID
-	}
-
-	// Fetch all render passes in a single query
-	renderPasses, err := getRenderPassesByShaderIDs(r.db, ctx, shaderIDs)
-	if err != nil {
-		return nil, err
-	}
-
-	// Organize render passes by shader ID using a map
-	renderPassMap := make(map[uuid.UUID][]domain.RenderPass)
-	for _, dbRenderPass := range renderPasses {
-		renderPassMap[dbRenderPass.ShaderID] = append(renderPassMap[dbRenderPass.ShaderID], r.RenderPassFromDB(dbRenderPass))
-	}
-
-	// Build response
-	apiShaders := make([]domain.ShaderWithRenderPasses, len(dbShaders))
-	for i, dbShader := range dbShaders {
-		shader := r.ShaderFromDB(dbShader)
-		apiShaders[i] = domain.ShaderWithRenderPasses{
-			Shader:       shader,
-			RenderPasses: renderPassMap[dbShader.ID], // Efficient lookup
-		}
-	}
-
-	return apiShaders, nil
+	return result, nil
 }
 
 func (r shaderRepository) GetShaderList(ctx context.Context, sort string, limit int, offset int, accessLevel domain.AccessLevel) ([]domain.Shader, error) {
@@ -151,15 +236,6 @@ func (r shaderRepository) GetShaderList(ctx context.Context, sort string, limit 
 		apiShaders[i] = r.ShaderFromDB(dbShader)
 	}
 	return apiShaders, nil
-}
-
-func (r shaderRepository) RenderPassFromDB(dbRenderPass db.RenderPass) domain.RenderPass {
-	return domain.RenderPass{
-		ID:        dbRenderPass.ID,
-		ShaderID:  dbRenderPass.ShaderID.String(),
-		Code:      dbRenderPass.Code,
-		PassIndex: int(dbRenderPass.PassIndex),
-	}
 }
 
 func (r shaderRepository) ShaderFromDB(dbShader db.Shader) domain.Shader {
@@ -207,17 +283,42 @@ func (r shaderRepository) UpdateShader(ctx context.Context, userID uuid.UUID, sh
 		}
 		return nil, err
 	}
-	for _, renderPass := range updatePayload.RenderPasses {
-		params := db.UpdateRenderPassParams{
-			ID: renderPass.ID,
+	for _, shaderInput := range updatePayload.ShaderInputs {
+		params := db.UpdateShaderInputParams{
+			ID: shaderInput.ID,
 		}
-		if renderPass.Code != nil {
-			params.Column2 = *renderPass.Code
+		if shaderInput.Url != nil {
+			params.Column2 = *shaderInput.Url
 		}
-		if renderPass.Name != nil {
-			params.Column3 = *renderPass.Name
+		if shaderInput.Type != nil {
+			params.Column3 = *shaderInput.Type
 		}
-		r.queries.UpdateRenderPass(ctx, params)
+		if shaderInput.Idx != nil {
+			params.Column4 = int16(*shaderInput.Idx)
+		}
+		if shaderInput.Name != nil {
+			params.Column5 = *shaderInput.Name
+		}
+		r.queries.UpdateShaderInput(ctx, params)
+	}
+
+	for _, shaderOutput := range updatePayload.ShaderOutputs {
+		params := db.UpdateShaderOutputParams{
+			ID: shaderOutput.ID,
+		}
+		if shaderOutput.Code != nil {
+			params.Column2 = *shaderOutput.Code
+		}
+		if shaderOutput.Name != nil {
+			params.Column3 = *shaderOutput.Name
+		}
+		if shaderOutput.Type != nil {
+			params.Column4 = *shaderOutput.Type
+		}
+		if shaderOutput.Idx != nil {
+			params.Column5 = int16(*shaderOutput.Idx)
+		}
+		r.queries.UpdateShaderOutput(ctx, params)
 	}
 
 	shader := r.ShaderFromDB(dbshader)
@@ -236,22 +337,78 @@ func (r shaderRepository) GetUserShaderList(ctx context.Context, userID uuid.UUI
 	return apiShaders, nil
 }
 
-func (r shaderRepository) GetShader(ctx context.Context, shaderID uuid.UUID) (*domain.ShaderWithRenderPasses, error) {
-	dbShader, err := r.queries.GetShader(ctx, shaderID)
+func (r shaderRepository) convertGetShaderDetailedListRow(row *db.GetShaderDetailedListRow) (*domain.ShaderDetailed, error) {
+	shaderDetailed := &domain.ShaderDetailed{
+		Shader: domain.Shader{
+			ID:            row.ID,
+			Title:         row.Title,
+			Description:   row.Description.String,
+			UserID:        row.UserID,
+			AccessLevel:   domain.AccessLevel(row.AccessLevel),
+			PreviewImgURL: row.PreviewImgUrl.String,
+			CreatedAt:     row.CreatedAt.Time,
+			UpdatedAt:     row.UpdatedAt.Time,
+		},
+		ShaderInputs:  []domain.ShaderInput{},
+		ShaderOutputs: []domain.ShaderOutput{},
+	}
+
+	if len(row.Inputs) > 0 {
+		if err := json.Unmarshal(row.Inputs, &shaderDetailed.ShaderInputs); err != nil {
+			return shaderDetailed, fmt.Errorf("failed to decode inputs: %w", err)
+		}
+	}
+
+	if len(row.Outputs) > 0 {
+		if err := json.Unmarshal(row.Outputs, &shaderDetailed.ShaderOutputs); err != nil {
+			return shaderDetailed, fmt.Errorf("failed to decode outputs: %w", err)
+		}
+	}
+
+	return shaderDetailed, nil
+}
+
+func (r shaderRepository) convertGetShaderDetailedRow(row *db.GetShaderDetailedRow) (*domain.ShaderDetailed, error) {
+	shaderDetailed := &domain.ShaderDetailed{
+		Shader: domain.Shader{
+			ID:            row.ID,
+			Title:         row.Title,
+			Description:   row.Description.String,
+			UserID:        row.UserID,
+			AccessLevel:   domain.AccessLevel(row.AccessLevel),
+			PreviewImgURL: row.PreviewImgUrl.String,
+			CreatedAt:     row.CreatedAt.Time,
+			UpdatedAt:     row.UpdatedAt.Time,
+		},
+		ShaderInputs:  []domain.ShaderInput{},
+		ShaderOutputs: []domain.ShaderOutput{},
+	}
+
+	if len(row.Inputs) > 0 {
+		if err := json.Unmarshal(row.Inputs, &shaderDetailed.ShaderInputs); err != nil {
+			return shaderDetailed, fmt.Errorf("failed to decode inputs: %w", err)
+		}
+	}
+
+	if len(row.Outputs) > 0 {
+		if err := json.Unmarshal(row.Outputs, &shaderDetailed.ShaderOutputs); err != nil {
+			return shaderDetailed, fmt.Errorf("failed to decode outputs: %w", err)
+		}
+	}
+
+	return shaderDetailed, nil
+}
+
+func (r shaderRepository) GetShader(ctx context.Context, shaderID uuid.UUID) (*domain.ShaderDetailed, error) {
+	shaderDetailed, err := r.queries.GetShaderDetailed(ctx, shaderID)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, e.ErrNotFound
 		}
-		return nil, err
 	}
-	renderPasses, err := r.queries.GetRenderPassesByShaderID(ctx, shaderID)
+	converted, err := r.convertGetShaderDetailedRow(&shaderDetailed)
 	if err != nil {
 		return nil, err
 	}
-	apiRenderPasses := make([]domain.RenderPass, len(renderPasses))
-	for i, dbRenderPass := range renderPasses {
-		apiRenderPasses[i] = r.RenderPassFromDB(dbRenderPass)
-	}
-	shader := r.ShaderFromDB(dbShader)
-	return &domain.ShaderWithRenderPasses{Shader: shader, RenderPasses: apiRenderPasses}, nil
+	return converted, nil
 }

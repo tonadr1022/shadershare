@@ -3,9 +3,27 @@ import {
   IRendererInitPararms,
   RenderData,
   Result,
+  ShaderOutput,
 } from "@/types/shader";
 import { createEmptyResult } from "../util";
 import { webgl2Utils, WebGL2Utils } from "./Util";
+
+export class AvgFpsCounter {
+  private times: number[] = [];
+  private size: number;
+  constructor(size: number = 60) {
+    this.size = size;
+  }
+  addTime(dt: number) {
+    this.times.push(dt);
+    if (this.times.length > this.size) {
+      this.times.shift();
+    }
+  }
+  getAvg() {
+    return this.times.reduce((a, b) => a + b, 0) / this.times.length;
+  }
+}
 
 export const getScreenshotObjectURL = (canvas: HTMLCanvasElement) => {
   return new Promise<string>((resolve, reject) => {
@@ -70,6 +88,7 @@ const checkGLError = (gl: WebGL2RenderingContext) => {
     }
   }
 };
+
 const vertexCode = `#version 300 es
 #ifdef GL_ES
 precision highp float;
@@ -81,6 +100,7 @@ void main() {
     vec2 out_uv = vec2((gl_VertexID << 1) & 2, gl_VertexID & 2);
     gl_Position = vec4(out_uv * 4.0f - 1.0f, 0.1f, 1.0f);
 }`;
+
 const fragmentHeader = `#version 300 es
 #ifdef GL_ES
 precision highp float;
@@ -189,20 +209,22 @@ class RenderTarget {
     }
   }
 
-  constructor(gl: WebGL2RenderingContext, width: number, height: number) {
+  constructor(
+    gl: WebGL2RenderingContext,
+    width: number,
+    height: number,
+    doubleBuffer: boolean = true,
+  ) {
     this.textures = [];
     this.currentTextureIndex = 0;
-    for (let i = 0; i < 2; i++) {
+    const cnt = doubleBuffer ? 2 : 1;
+    for (let i = 0; i < cnt; i++) {
       const texture = gl.createTexture();
       gl.bindTexture(gl.TEXTURE_2D, texture);
       const internalFormat = gl.RGBA32F;
       const border = 0;
       const format = gl.RGBA;
       const type = gl.FLOAT;
-      const data = new Float32Array(width * height * 4);
-      for (let i = 0; i < data.length; i++) {
-        data[i] = 0;
-      }
       gl.texImage2D(
         gl.TEXTURE_2D,
         0,
@@ -212,7 +234,7 @@ class RenderTarget {
         border,
         format,
         type,
-        data,
+        null,
       );
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
@@ -243,44 +265,113 @@ class RenderTarget {
   }
 }
 
-type RenderPassType = "image" | "buffer";
+enum IChannelType {
+  Image,
+  Buffer,
+}
+
+enum FilterMode {
+  NEAREST = 0x2600,
+  LINEAR = 0x2601,
+}
+
+enum WrapMode {
+  CLAMP_TO_EDGE = 0x812f,
+  REPEAT = 0x2901,
+}
+enum TextureType {
+  D2 = 0x0de1,
+  D3 = 0x806f,
+  CUBE = 0x8513,
+}
+
+class Texture {
+  filterMode: FilterMode = FilterMode.NEAREST;
+  wrapMode: WrapMode = WrapMode.CLAMP_TO_EDGE;
+  texture: WebGLTexture = 0;
+  type: TextureType = TextureType.D2;
+
+  create(gl: WebGL2RenderingContext, type: TextureType) {
+    if (this.texture !== 0) {
+      throw new Error("Texture already initialized");
+    }
+    this.texture = gl.createTexture();
+    this.type = type;
+    this.bind(gl);
+    this.setFilterMode(gl, this.filterMode);
+    this.setWrapMode(gl, this.wrapMode);
+  }
+
+  setData(
+    gl: WebGL2RenderingContext,
+    data: ArrayBufferView | null,
+    height: number,
+    width: number,
+  ) {
+    this.bind(gl);
+    gl.texImage2D(
+      this.type,
+      0,
+      gl.RGBA,
+      width,
+      height,
+      0,
+      gl.RGBA,
+      gl.UNSIGNED_BYTE,
+      data,
+    );
+  }
+
+  setFilterMode(gl: WebGL2RenderingContext, mode: FilterMode) {
+    this.filterMode = mode;
+    gl.texParameteri(this.type, gl.TEXTURE_MIN_FILTER, mode);
+    gl.texParameteri(this.type, gl.TEXTURE_MAG_FILTER, mode);
+  }
+
+  setWrapMode(gl: WebGL2RenderingContext, mode: WrapMode) {
+    this.wrapMode = mode;
+    gl.texParameteri(this.type, gl.TEXTURE_WRAP_S, mode);
+    gl.texParameteri(this.type, gl.TEXTURE_WRAP_T, mode);
+  }
+
+  assertValid() {
+    if (this.texture === 0) {
+      throw new Error("Texture not initialized");
+    }
+  }
+
+  bind(gl: WebGL2RenderingContext) {
+    this.assertValid();
+    gl.bindTexture(this.type, this.texture);
+  }
+  unbind(gl: WebGL2RenderingContext) {
+    gl.bindTexture(this.type, null);
+  }
+
+  destroy(gl: WebGL2RenderingContext) {
+    this.assertValid();
+    gl.deleteTexture(this.texture);
+  }
+}
+
 class RRenderPass {
   dirty: boolean = true;
   program: WebGLProgram;
   uniformLocs: FragShaderUniforms;
+  type: IChannelType = IChannelType.Buffer;
   renderTarget: RenderTarget;
-  type: RenderPassType;
   constructor(
     gl: WebGL2RenderingContext,
     program: WebGLProgram,
     width: number,
     height: number,
-    type: RenderPassType,
   ) {
     if (program == 0) {
       throw new Error("Invalid program");
     }
-    this.type = type;
     this.program = program;
     this.uniformLocs = new FragShaderUniforms(program, gl);
     this.renderTarget = new RenderTarget(gl, width, height);
-  }
-}
-
-export class AvgFpsCounter {
-  private times: number[] = [];
-  private size: number;
-  constructor(size: number = 60) {
-    this.size = size;
-  }
-  addTime(dt: number) {
-    this.times.push(dt);
-    if (this.times.length > this.size) {
-      this.times.shift();
-    }
-  }
-  getAvg() {
-    return this.times.reduce((a, b) => a + b, 0) / this.times.length;
   }
 }
 
@@ -440,10 +531,48 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
     }
     return compileRes;
   };
+
+  const state: {
+    commonBuffer: string;
+    finalImagePass: RRenderPass | null;
+    iChannels: (RRenderPass | Texture)[];
+  } = {
+    commonBuffer: "",
+    finalImagePass: null,
+    iChannels: [],
+  };
+
+  // TODO: 3d textures?
+  const addImageIChannel = (url: string) => {
+    const texture = new Texture();
+    texture.create(gl, TextureType.D2);
+    const image = new Image();
+    image.src = url;
+    image.addEventListener("load", () => {
+      texture.bind(gl);
+      gl.texImage2D(
+        gl.TEXTURE_2D,
+        0,
+        gl.RGBA,
+        gl.RGBA,
+        gl.UNSIGNED_BYTE,
+        image,
+      );
+      // TODO: only generate mipmap if setting is mipmap
+      gl.generateMipmap(gl.TEXTURE_2D);
+    });
+    state.iChannels.push(texture);
+  };
+
+  const addBufferIChannel = () => {
+    const iChannel = new RRenderPass(gl, 0, canvas.width, canvas.height);
+    state.iChannels.push(iChannel);
+  };
+
   const resizeBuffers = () => {
     // for each buffer, need to make new textures, copy the old data over
     for (const renderPass of renderPasses) {
-      if (renderPass.type == "image") continue;
+      if (renderPass.type == IChannelType.Image) continue;
 
       // make new render targets
       // draw unit quad to them with minsize of new and old size
@@ -485,6 +614,8 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
   let shaderTime = 0;
   let lastRealTime = 0;
   return {
+    addImageIChannel,
+    addBufferIChannel,
     setShaderTime: (t: number) => {
       shaderTime = t;
     },
@@ -633,32 +764,72 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
         return;
       }
 
-      const { renderData } = params;
+      const { shaderInputs, shaderOutputs } = params;
 
-      // TODO: use other compile func to get err msgs
-      // TODO: handle invalid shader for first initialization
-      for (let i = 0; i < renderData.length; i++) {
-        const type: RenderPassType =
-          i < renderData.length - 1 ? "buffer" : "image";
-        const shader = compileShader(renderData[i].code);
-        // TODO: cleanup broken unused!
-        if (shader.error) {
-          console.error("error compiling shader", shader.message);
+      for (let i = 0; i < shaderInputs.length; i++) {
+        const input = shaderInputs[i];
+        if (input.type == "image") {
+          addImageIChannel(input.url!);
+        } else {
+          addBufferIChannel();
+        }
+      }
+
+      // get the common output if exists
+      let commonOutput: ShaderOutput | null = null;
+      for (let i = 0; i < shaderOutputs.length; i++) {
+        if (shaderOutputs[i].type == "common") {
+          commonOutput = shaderOutputs[i];
+          break;
+        }
+      }
+      if (commonOutput) {
+        state.commonBuffer = commonOutput.code;
+      }
+
+      const compileTasks = [];
+
+      for (let i = 0; i < shaderOutputs.length; i++) {
+        const output = shaderOutputs[i];
+        const isFinalImage = output.type == "image";
+        if (isFinalImage) {
+          state.finalImagePass = new RRenderPass(
+            gl,
+            0,
+            canvas.width,
+            canvas.height,
+          );
+        }
+        compileTasks.push({
+          code: output.code,
+          isFinalImage,
+          passIdx: output.idx,
+        });
+      }
+
+      compileTasks.sort((a, b) => a.passIdx - b.passIdx);
+      // TODO: parallelize shader compilation
+      for (const task of compileTasks) {
+        const res = compileShader(task.code);
+        if (res.error) {
+          console.error("error compiling shader", res.message);
           return;
         }
-        renderPasses.push(
-          new RRenderPass(gl, shader.data!, canvas.width, canvas.height, type),
+        const pass = new RRenderPass(
+          gl,
+          res.data!,
+          canvas.width,
+          canvas.height,
         );
+        renderPasses.push(pass);
       }
       validPipelines = true;
-      console.log("inisializing renderer");
-
       initialized = true;
     },
 
-    onResize: onResize,
-    render: render,
-    fps: () => {
+    onResize,
+    render,
+    getFps: () => {
       const avgFrameTime = fpsCounter.getAvg();
       if (avgFrameTime == 0) return 0;
       return 1.0 / avgFrameTime;

@@ -29,3 +29,7 @@ SET title = COALESCE(NULLIF($3::TEXT,''), title),
     access_level = COALESCE($6, access_level)
 WHERE id = $1 AND user_id = $2
 RETURNING *;
+
+-- name: DeleteShader :exec
+DELETE FROM shaders
+WHERE id = $1 AND user_id = $2;

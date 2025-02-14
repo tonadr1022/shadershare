@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 
 interface Props {
-  renderer: { fps: () => number } | null;
+  renderer: { getFps: () => number } | null;
   paused: boolean;
 }
 
@@ -14,7 +14,7 @@ const Fps = ({ renderer, paused }: Props) => {
     }
     const updateFps = () => {
       if (!paused) {
-        setFps(renderer.fps().toFixed(2));
+        setFps(renderer.getFps().toFixed(2));
       }
     };
     const interval = setInterval(updateFps, 500);

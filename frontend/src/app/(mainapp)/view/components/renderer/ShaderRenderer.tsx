@@ -76,7 +76,8 @@ const ShaderRenderer = () => {
 
     renderer.initialize({
       canvas: canvas,
-      renderData: shaderDataRef.current.render_passes,
+      shaderInputs: shaderDataRef.current.shader_inputs,
+      shaderOutputs: shaderDataRef.current.shader_outputs,
     });
     render();
 

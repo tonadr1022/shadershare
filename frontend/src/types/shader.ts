@@ -1,8 +1,17 @@
-export type RenderPass = {
-  code: string;
-  pass_index: number;
-  name: string;
+export type ShaderInput = {
   id?: string;
+  url?: string;
+  type: string;
+  name: string;
+  idx: number;
+};
+
+export type ShaderOutput = {
+  id?: string;
+  code: string;
+  name: string;
+  type: string;
+  idx: number;
 };
 
 export enum AccessLevel {
@@ -21,7 +30,8 @@ export type ShaderData = {
     preview_img_url: string | undefined;
     user_id: string;
   };
-  render_passes: RenderPass[];
+  shader_inputs: ShaderInput[];
+  shader_outputs: ShaderOutput[];
 };
 
 export type ShaderDataWithUsernameResponse = {
@@ -54,7 +64,8 @@ export type ErrMsg = {
 
 export type IRendererInitPararms = {
   canvas: HTMLCanvasElement;
-  renderData: RenderPass[];
+  shaderInputs: ShaderInput[];
+  shaderOutputs: ShaderOutput[];
 };
 
 export type ShaderUpdateCreatePayload = {
@@ -64,5 +75,6 @@ export type ShaderUpdateCreatePayload = {
   access_level?: AccessLevel;
   preview_img_url?: string;
   description?: string;
-  render_passes?: RenderPass[];
+  shader_inputs?: ShaderInput[];
+  shader_outputs?: ShaderOutput[];
 };

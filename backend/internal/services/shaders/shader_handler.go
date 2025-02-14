@@ -139,6 +139,7 @@ func (h ShaderHandler) createShader(c *gin.Context) {
 	c.JSON(http.StatusOK, shader)
 }
 
+// TODO: handle basic, not detailed
 func (h ShaderHandler) getShaderList(c *gin.Context) {
 	sort := c.DefaultQuery("sort", "popularity")
 	var err error
@@ -158,9 +159,9 @@ func (h ShaderHandler) getShaderList(c *gin.Context) {
 	var shaders interface{}
 	// TODO: refactor service?
 	if len(includes) == 0 {
-		shaders, err = h.service.GetShadersListWithRenderPasses(c, sort, limit, offset, domain.AccessLevelPublic)
+		shaders, err = h.service.GetShadersListDetailed(c, sort, limit, offset, domain.AccessLevelPublic)
 	} else if slices.Contains(includes, "usernames") {
-		shaders, err = h.service.GetShaderListWithUsernames(c, sort, limit, offset, domain.AccessLevelPublic)
+		shaders, err = h.service.GetShadersDetailedWithUsernames(c, sort, limit, offset, domain.AccessLevelPublic)
 	}
 	if err != nil {
 		util.SetInternalServiceErrorResponse(c)

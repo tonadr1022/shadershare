@@ -52,6 +52,21 @@ func (q *Queries) CreateShader(ctx context.Context, arg CreateShaderParams) (Sha
 	return i, err
 }
 
+const deleteShader = `-- name: DeleteShader :exec
+DELETE FROM shaders
+WHERE id = $1 AND user_id = $2
+`
+
+type DeleteShaderParams struct {
+	ID     uuid.UUID
+	UserID uuid.UUID
+}
+
+func (q *Queries) DeleteShader(ctx context.Context, arg DeleteShaderParams) error {
+	_, err := q.db.Exec(ctx, deleteShader, arg.ID, arg.UserID)
+	return err
+}
+
 const getShader = `-- name: GetShader :one
 SELECT id, title, description, user_id, access_level, preview_img_url, created_at, updated_at FROM shaders
 WHERE id = $1 LIMIT 1

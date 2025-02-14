@@ -40,18 +40,31 @@ CREATE TABLE IF NOT EXISTS shaders (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS render_passes (
+CREATE TABLE IF NOT EXISTS shader_inputs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     shader_id UUID NOT NULL,
-    code TEXT NOT NULL,
-    pass_index INT NOT NULL,
+    url TEXT,
+    type TEXT NOT NULL,
+    idx SMALLINT NOT NULL,
     name TEXT NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
 
     FOREIGN KEY (shader_id) REFERENCES shaders(id) ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS idx_render_passes_shader_id ON render_passes (shader_id);
+CREATE INDEX IF NOT EXISTS idx_shader_inputs_shader_id ON shader_inputs (shader_id);
+
+CREATE TABLE IF NOT EXISTS shader_outputs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    shader_id UUID NOT NULL,
+    code TEXT NOT NULL,
+    name TEXT NOT NULL,
+    type TEXT NOT NULL,
+    idx SMALLINT NOT NULL,
+
+    FOREIGN KEY (shader_id) REFERENCES shaders(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_shader_outputs_shader_id ON shader_outputs (shader_id);
 
 CREATE TRIGGER trigger_update_shaders_timestamp
 BEFORE UPDATE ON shaders

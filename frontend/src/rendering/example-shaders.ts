@@ -2,12 +2,21 @@ import { initialFragmentShaderText } from "@/app/(mainapp)/view/components/rende
 import { ShaderData } from "@/types/shader";
 
 export const SimpleMultipass: ShaderData = {
-  title: "MultipassSimple",
-  description: "",
-  render_passes: [
+  shader: {
+    id: "",
+    created_at: "",
+    preview_img_url: "",
+    access_level: 0,
+    user_id: "",
+    title: "SimpleMultipass",
+    description: "",
+  },
+  shader_inputs: [{ name: "Buffer A", type: "buffer", idx: 0 }],
+  shader_outputs: [
     {
       name: "Buffer A",
-      pass_index: 0,
+      type: "buffer",
+      idx: 0,
       code: `void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
     vec2 uv = fragCoord/iResolution.xy;
     vec3 col = 0.5 + 0.5*cos(iTime+uv.xyx+vec3(0,2,4));
@@ -17,7 +26,8 @@ export const SimpleMultipass: ShaderData = {
     },
     {
       name: "Image",
-      pass_index: 1,
+      type: "image",
+      idx: 1,
       code: `void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
     fragColor = vec4(texture(iChannel0,fragCoord).xyz,1.0); 
 }`,
@@ -26,13 +36,22 @@ export const SimpleMultipass: ShaderData = {
 };
 
 export const MultipassExample: ShaderData = {
-  title: "Multipass",
-  description:
-    "A simple multipass example. src: https://www.shadertoy.com/view/4ddSz4",
-  render_passes: [
+  shader: {
+    id: "",
+    created_at: "",
+    preview_img_url: "",
+    access_level: 0,
+    user_id: "",
+    title: "Multipass",
+    description:
+      "A simple multipass example. src: https://www.shadertoy.com/view/4ddSz4",
+  },
+  shader_inputs: [{ name: "Buffer A", type: "buffer", idx: 0 }],
+  shader_outputs: [
     {
+      idx: 0,
       name: "Buffer A",
-      pass_index: 0,
+      type: "buffer",
       code: `vec4 readMemory(vec2 coords) {
     return texture(iChannel0, (coords + 0.5)/iChannelResolution[0].xy);
 }
@@ -95,7 +114,8 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
     },
     {
       name: "Image",
-      pass_index: 1,
+      idx: 1,
+      type: "image",
       code: `vec4 readMemory(vec2 coords) {
     return texture(iChannel0, (coords + 0.5)/iChannelResolution[0].xy);
 }
@@ -120,25 +140,49 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
 };
 
 export const DefaultNewShader: ShaderData = {
-  title: "",
-  description: "",
-  render_passes: [
+  shader: {
+    id: "",
+    created_at: "",
+    title: "",
+    user_id: "",
+    access_level: 0,
+    preview_img_url: "",
+    description: "",
+  },
+  shader_outputs: [
     {
       name: "Image",
-      pass_index: 0,
       code: initialFragmentShaderText,
+      type: "image",
+      idx: 0,
     },
   ],
+  shader_inputs: [],
 };
 
 export const MultiPassRed: ShaderData = {
-  title: "MultiPassRed",
-  description: "",
-  render_passes: [
+  shader: {
+    id: "",
+    created_at: "",
+    title: "MultiPassRed",
+    user_id: "",
+    access_level: 0,
+    preview_img_url: "",
+    description: "",
+  },
+  shader_inputs: [
     {
       name: "Buffer A",
-      pass_index: 0,
-      code: ` vec4 readMemory(vec2 coords) {
+      type: "buffer",
+      idx: 0,
+    },
+  ],
+  shader_outputs: [
+    {
+      name: "Buffer A",
+      type: "buffer",
+      idx: 0,
+      code: `vec4 readMemory(vec2 coords) {
     return texture(iChannel0, (coords + 0.5)/iChannelResolution[0].xy);
 }
 void mainImage(out vec4 fragColor, in vec2 fragCoord) {
@@ -158,7 +202,8 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     },
     {
       name: "Image",
-      pass_index: 1,
+      type: "image",
+      idx: 1,
       code: `vec4 readMemory(vec2 coords) {
     return texture(iChannel0, (coords + 0.5)/iChannelResolution[0].xy);
 }
