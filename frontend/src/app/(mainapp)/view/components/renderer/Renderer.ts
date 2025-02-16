@@ -624,12 +624,16 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
 
   // TODO: 3d textures?
   const addImageIChannel = (url: string) => {
+    // TODO: wait on rendering until images are loaded fully
     const texture = new Texture();
     texture.create(gl, TextureType.D2);
     const image = new Image();
     image.src = url;
+    image.crossOrigin = "anonymous";
     image.addEventListener("load", () => {
       texture.bind(gl);
+      // TODO: flip parameter
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
       gl.texImage2D(
         gl.TEXTURE_2D,
         0,
@@ -862,7 +866,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
 
       for (let i = 0; i < shaderInputs.length; i++) {
         const input = shaderInputs[i];
-        if (input.type == "image") {
+        if (input.type == "texture") {
           addImageIChannel(input.url!);
         } else {
           addBufferIChannel(input.idx);

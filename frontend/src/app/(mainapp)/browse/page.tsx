@@ -9,6 +9,41 @@ import AddTestShaders from "../view/components/editor/AddTestShaders";
 import { Button } from "@/components/ui/button";
 
 const BrowsePage = () => {
+  function generatePagination(currentPage, totalPages) {
+    const pagination = [];
+
+    pagination.push(1);
+
+    let start = Math.max(2, currentPage - 2);
+    let end = Math.min(totalPages - 1, currentPage + 2);
+
+    if (end - start < 4) {
+      if (start === 2) {
+        end = Math.min(totalPages - 1, start + 4);
+      } else if (end === totalPages - 1) {
+        start = Math.max(2, end - 4);
+      }
+    }
+
+    if (start > 2) {
+      pagination.push(-1);
+    }
+
+    for (let i = start; i <= end; i++) {
+      pagination.push(i);
+    }
+
+    if (end < totalPages - 1) {
+      pagination.push(-2);
+    }
+
+    if (totalPages > 1) {
+      pagination.push(totalPages);
+    }
+
+    return pagination;
+  }
+
   // get page from url
   const searchParams = useSearchParams();
   const page = parseInt(searchParams.get("page") || "1");
@@ -23,12 +58,24 @@ const BrowsePage = () => {
     queryFn: () => getShadersWithUsernames((page - 1) * 10, 10),
   });
   const router = useRouter();
-  const pageNumbers = [];
-  if (data) {
-    for (let i = 0; i < data?.total / 10 || 0; i++) {
-      pageNumbers.push(i + 1);
-    }
-  }
+  const pageNumbers = generatePagination(
+    page,
+    Math.ceil((data?.total || 0) / 10),
+  );
+  // show prev always
+  // show page 1 always
+  // show at most 5 middle pages
+  // show last page  always
+  // show next always
+
+  // const lastPage = Math.ceil(data?.total / 10) || 0;
+  // if (data) {
+  //   const firstPage = Math.max(1, page - 2);
+  //   for (let i = firstPage; i < Math.min(lastPage - 1, page + 2); i++) {
+  //     console.log(i);
+  //     pageNumbers.push(i + 1);
+  //   }
+  // }
 
   // TODO: only show page buttons close to current page
   console.log(data);
@@ -69,19 +116,29 @@ const BrowsePage = () => {
           >
             Prev
           </Button>
-          {pageNumbers.map((num) => (
-            <Button
-              key={num}
-              variant="default"
-              disabled={num === page}
-              onClick={() => router.push(`/browse?page=${num}`)}
-            >
-              {num}
-            </Button>
-          ))}
+          {pageNumbers.map((num) => {
+            if (num < 0) {
+              return (
+                <p key={num} className="text-center w-6">
+                  {" "}
+                  ...{" "}
+                </p>
+              );
+            }
+            return (
+              <Button
+                key={num}
+                variant="default"
+                disabled={num === page}
+                onClick={() => router.push(`/browse?page=${num}`)}
+              >
+                {num}
+              </Button>
+            );
+          })}
           <Button
             variant="default"
-            disabled={page === pageNumbers.length}
+            disabled={page === Math.ceil((data?.total || 0) / 10)}
             onClick={() => router.push(`/browse?page=${page + 1}`)}
           >
             Next

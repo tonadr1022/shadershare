@@ -160,6 +160,37 @@ export const DefaultNewShader: ShaderData = {
   shader_inputs: [],
 };
 
+export const TextureExample: ShaderData = {
+  shader: {
+    id: "",
+    created_at: "",
+    title: "TextureExample",
+    user_id: "",
+    access_level: 1,
+    preview_img_url: "",
+    description: "",
+  },
+  shader_outputs: [
+    {
+      name: "Image",
+      code: `void mainImage(out vec4 fragColor, in vec2 fragCoord) {
+    vec2 uv = fragCoord/iResolution.xy;
+    vec3 col = texture(iChannel0, uv).xyz;
+    fragColor = vec4(col,1.0);
+}`,
+      type: "image",
+      idx: 0,
+    },
+  ],
+  shader_inputs: [
+    {
+      name: "Texture",
+      type: "texture",
+      idx: 0,
+      url: "https://ucc9407cf13094d90d87ee940665.dl.dropboxusercontent.com/cd/0/inline/CkPfASN3qOwhGziPW-RVkpys-2hmibvRd3SudKNzKT3ngbhPZzBVZ-eCRaGXX011QctsH--O1fGkSGND5Y7DZ9l8ar_g3j9Kd7OcD_c7hAXXd2jx7LU0IlsqA8xK879kGUKM_1_WSoeB-svlYy2W9V6y/file#",
+    },
+  ],
+};
 export const MultiPassRed: ShaderData = {
   shader: {
     id: "",
@@ -217,6 +248,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
 };
 
 export const Examples: ShaderData[] = [
+  TextureExample,
   MultipassExample,
   MultiPassRed,
   SimpleMultipass,
