@@ -184,10 +184,26 @@ export const TextureExample: ShaderData = {
   ],
   shader_inputs: [
     {
-      name: "Texture",
+      name: "NyanCatTex",
       type: "texture",
       idx: 0,
-      url: "https://ucc9407cf13094d90d87ee940665.dl.dropboxusercontent.com/cd/0/inline/CkPfASN3qOwhGziPW-RVkpys-2hmibvRd3SudKNzKT3ngbhPZzBVZ-eCRaGXX011QctsH--O1fGkSGND5Y7DZ9l8ar_g3j9Kd7OcD_c7hAXXd2jx7LU0IlsqA8xK879kGUKM_1_WSoeB-svlYy2W9V6y/file#",
+      url: "https://i.imgur.com/NxbM74e.gif",
+      properties: {
+        wrap: "repeat",
+        filter: "linear",
+        vflip: true,
+      },
+    },
+    {
+      name: "pixeltest",
+      type: "texture",
+      idx: 1,
+      url: "https://i.imgur.com/48jgQKl.png",
+      properties: {
+        wrap: "repeat",
+        filter: "linear",
+        vflip: true,
+      },
     },
   ],
 };

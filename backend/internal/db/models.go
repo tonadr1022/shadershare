@@ -21,12 +21,13 @@ type Shader struct {
 }
 
 type ShaderInput struct {
-	ID       uuid.UUID
-	ShaderID uuid.UUID
-	Url      pgtype.Text
-	Type     string
-	Idx      int16
-	Name     string
+	ID         uuid.UUID
+	ShaderID   uuid.UUID
+	Url        pgtype.Text
+	Type       string
+	Idx        int16
+	Name       string
+	Properties []byte
 }
 
 type ShaderOutput struct {

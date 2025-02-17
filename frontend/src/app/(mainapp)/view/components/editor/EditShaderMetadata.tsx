@@ -50,7 +50,8 @@ type Props = {
 };
 
 const EditShaderMetadata = ({ initialData }: Props) => {
-  const { shaderDataRef, codeDirtyRef, renderer } = useRendererCtx();
+  const { shaderDataRef, codeDirtyRef, renderer, shaderDataDirty } =
+    useRendererCtx();
   const router = useRouter();
 
   let accessLevel = AccessLevel.PRIVATE;
@@ -123,8 +124,12 @@ const EditShaderMetadata = ({ initialData }: Props) => {
       // TODO: check images etc
       const shaderDirty = codeDirtyRef.current.some((dirty) => dirty);
 
+      // TODO: partial update
+      payload.shader_inputs = shaderDataRef.current.shader_inputs;
+
       let previewFile: File | null = null;
-      const needNewPreview = (shaderDirty && isUpdate) || !isUpdate;
+      const needNewPreview =
+        ((shaderDirty || shaderDataDirty) && isUpdate) || !isUpdate;
       if (shaderDirty && isUpdate) {
         payload.preview_img_url = initialData.shader.preview_img_url;
       }
@@ -146,6 +151,7 @@ const EditShaderMetadata = ({ initialData }: Props) => {
       }
     },
     [
+      shaderDataDirty,
       renderer,
       codeDirtyRef,
       shaderDataRef,

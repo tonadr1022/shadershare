@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS shader_inputs (
     type TEXT NOT NULL,
     idx SMALLINT NOT NULL,
     name TEXT NOT NULL,
-
+    properties JSONB,
     FOREIGN KEY (shader_id) REFERENCES shaders(id) ON DELETE CASCADE
 );
 

@@ -20,12 +20,13 @@ type (
 	}
 
 	ShaderInput struct {
-		ID       uuid.UUID `json:"id"`
-		ShaderID string    `json:"shader_id"`
-		Url      string    `json:"url"`
-		Type     string    `json:"type"`
-		Idx      int       `json:"idx"`
-		Name     string    `json:"name"`
+		ID         uuid.UUID              `json:"id"`
+		ShaderID   string                 `json:"shader_id"`
+		Url        string                 `json:"url"`
+		Type       string                 `json:"type"`
+		Idx        int                    `json:"idx"`
+		Name       string                 `json:"name"`
+		Properties map[string]interface{} `json:"properties"`
 	}
 
 	ShaderOutput struct {
@@ -38,19 +39,21 @@ type (
 	}
 
 	UpdateShaderInputPayload struct {
-		ID   uuid.UUID `json:"id" binding:"required"`
-		Url  *string   `json:"url,omitempty"`
-		Type *string   `json:"type,omitempty"`
-		Idx  *int      `json:"idx,omitempty"`
-		Name *string   `json:"name,omitempty"`
+		ID         uuid.UUID               `json:"id" binding:"required"`
+		Url        *string                 `json:"url,omitempty"`
+		Type       *string                 `json:"type,omitempty"`
+		Idx        *int                    `json:"idx,omitempty"`
+		Name       *string                 `json:"name,omitempty"`
+		Properties *map[string]interface{} `json:"properties,omitempty"`
 	}
 
 	CreateShaderInputPayload struct {
-		ShaderID uuid.UUID `json:"shader_id" binding:"required"`
-		Url      *string   `json:"url,omitempty"`
-		Type     string    `json:"type" binding:"required"`
-		Idx      int       `json:"idx" binding:"required"`
-		Name     string    `json:"name" binding:"required"`
+		ShaderID   uuid.UUID               `json:"shader_id" binding:"required"`
+		Url        *string                 `json:"url,omitempty"`
+		Type       string                  `json:"type" binding:"required"`
+		Idx        int                     `json:"idx" binding:"required"`
+		Name       string                  `json:"name" binding:"required"`
+		Properties *map[string]interface{} `json:"properties,omitempty"`
 	}
 
 	UpdateShaderOutputPayload struct {

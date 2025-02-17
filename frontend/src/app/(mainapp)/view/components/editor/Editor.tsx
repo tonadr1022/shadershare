@@ -23,33 +23,17 @@ import {
 } from "@codemirror/view";
 import { useRendererCtx } from "@/context/RendererContext";
 import { ErrorWidget } from "./ErrorWidget";
-import { ErrMsg, ShaderData } from "@/types/shader";
+import { ErrMsg } from "@/types/shader";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import ShaderExamplesDropdown from "./ShaderExamplesDropdown";
 import { useResolvedTheme } from "@/hooks/hooks";
+import ShaderInputEdit from "./ShaderInputEdit";
 
 // type EditorOptions = {
 //   fontSize: number;
 //   keyBinding: "vim";
 //   tabSize: 4;
 //   relativeLineNumber: true;
-// };
-
-// const editorReducer = (state: ShaderData, action: any): ShaderData => {
-//   switch (action.type) {
-//     case "SET_RENDER_PASS_CODE":
-//       return {
-//         ...state,
-//         render_passes: state.render_passes.map((renderPass, idx) =>
-//           idx === action.payload.pass_idx
-//             ? { ...renderPass, code: action.payload.code }
-//             : renderPass,
-//         ),
-//       };
-//     default:
-//       return state;
-//   }
 // };
 
 const clearErrorsEffect = StateEffect.define<void>();
@@ -195,6 +179,7 @@ Editor2.displayName = "Editor2";
 export const MultiBufferEditor = React.memo(() => {
   const [renderPassEditIdx, setRenderPassEditIdx] = useState(0);
   const [errMsgs, setErrMsgs] = useState<(ErrMsg[] | null)[]>([]);
+  const [, setInOutTabIdx] = useState(1);
 
   const { codeDirtyRef, setPaused, renderer, shaderDataRef } = useRendererCtx();
 
@@ -233,74 +218,62 @@ export const MultiBufferEditor = React.memo(() => {
       codeDirtyRef.current[idx] = true;
 
       shaderDataRef.current.shader_outputs[idx].code = newText;
-      // setShaderData((prevData) => ({
-      //   ...prevData,
-      //   render_passes: prevData.render_passes.map((renderPass, i) =>
-      //     i === idx ? { ...renderPass, code: newText } : renderPass,
-      //   ),
-      // }));
     },
     [renderer, shaderDataRef, codeDirtyRef],
   );
 
-  const onCompile = useCallback(
-    (shaderData: ShaderData) => {
-      if (!renderer) return;
-      const res = renderer.setShaders(shaderData.shader_outputs);
-      setErrMsgs(res.errMsgs);
-    },
-    [renderer],
-  );
-
-  const onExampleSelect = useCallback(
-    (shader: ShaderData) => {
-      if (!renderer) return;
-      // TODO: uplaod these and make a new tab for them
-      shaderDataRef.current = shader;
-      // setShaderData(shader);
-      onCompile(shader);
-      renderer.restart();
-    },
-    [renderer, onCompile, shaderDataRef],
-  );
-
   return (
     <div className=" flex flex-col w-full h-full">
-      <Tabs defaultValue="0" className="m-0 p-0">
+      <Tabs
+        defaultValue="1"
+        className="flex flex-col w-full h-full bg-background"
+      >
         <TabsList>
-          {shaderDataRef.current.shader_outputs.map((output, idx) => (
-            <TabsTrigger
-              value={idx.toString()}
-              onClick={() => setRenderPassEditIdx(idx)}
-              key={output.name}
-            >
-              Pass {idx}
-            </TabsTrigger>
-          ))}
+          <TabsTrigger value="0" onClick={() => setInOutTabIdx(0)}>
+            Inputs
+          </TabsTrigger>
+          <TabsTrigger value="1" onClick={() => setInOutTabIdx(1)}>
+            Outputs
+          </TabsTrigger>
         </TabsList>
-        {shaderDataRef.current.shader_outputs.map((output, idx) => (
-          <TabsContent
-            forceMount={true}
-            value={idx.toString()}
-            key={output.name}
-            className={cn(
-              renderPassEditIdx === idx ? "" : "hidden",
-              "bg-background m-0",
-            )}
-          >
-            <Editor2
-              errMsgs={errMsgs[idx]}
-              idx={idx}
-              visible={renderPassEditIdx === idx}
-              text={output.code}
-              onTextChange={onTextUpdate}
-            />
-          </TabsContent>
-        ))}
+        <TabsContent value="0">
+          <ShaderInputEdit />
+        </TabsContent>
+        <TabsContent value="1">
+          <Tabs defaultValue="0" className="m-0 p-0">
+            <TabsList>
+              {shaderDataRef.current.shader_outputs.map((output, idx) => (
+                <TabsTrigger
+                  value={idx.toString()}
+                  onClick={() => setRenderPassEditIdx(idx)}
+                  key={output.name}
+                >
+                  Pass {idx}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+            {shaderDataRef.current.shader_outputs.map((output, idx) => (
+              <TabsContent
+                forceMount={true}
+                value={idx.toString()}
+                key={output.name}
+                className={cn(
+                  renderPassEditIdx === idx ? "" : "hidden",
+                  "bg-background m-0",
+                )}
+              >
+                <Editor2
+                  errMsgs={errMsgs[idx]}
+                  idx={idx}
+                  visible={renderPassEditIdx === idx}
+                  text={output.code}
+                  onTextChange={onTextUpdate}
+                />
+              </TabsContent>
+            ))}
+          </Tabs>
+        </TabsContent>
       </Tabs>
-      <div className="flex flex-row">
-        <ShaderExamplesDropdown onSelect={onExampleSelect} />
-      </div>
     </div>
   );
 });

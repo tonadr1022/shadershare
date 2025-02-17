@@ -37,9 +37,19 @@ func (r shaderRepository) CreateShaderInput(ctx context.Context, shaderInput dom
 		Idx:      int16(shaderInput.Idx),
 		Name:     shaderInput.Name,
 	}
+
 	if shaderInput.Url != nil {
 		params.Url = pgtype.Text{String: *shaderInput.Url, Valid: true}
 	}
+
+	if shaderInput.Properties != nil {
+		jsonB, err := json.Marshal(*shaderInput.Properties)
+		if err != nil {
+			return nil, err
+		}
+		params.Properties = jsonB
+	}
+
 	dbShaderInput, err := r.queries.CreateShaderInput(ctx, params)
 	if err != nil {
 		return nil, err
@@ -133,11 +143,16 @@ func (r shaderRepository) CreateShader(ctx context.Context, userID uuid.UUID, sh
 	// make shader inputs
 	resultInputs := make([]domain.ShaderInput, len(shaderPayload.ShaderInputs))
 	for _, shaderInput := range shaderPayload.ShaderInputs {
+		props, err := json.Marshal(shaderInput.Properties)
+		if err != nil {
+			return nil, err
+		}
 		params := db.CreateShaderInputParams{
-			ShaderID: shader.ID,
-			Type:     shaderInput.Type,
-			Idx:      int16(shaderInput.Idx),
-			Name:     shaderInput.Name,
+			ShaderID:   shader.ID,
+			Type:       shaderInput.Type,
+			Idx:        int16(shaderInput.Idx),
+			Name:       shaderInput.Name,
+			Properties: props,
 		}
 		if shaderInput.Url != nil {
 			params.Url = pgtype.Text{String: *shaderInput.Url, Valid: true}
@@ -257,6 +272,14 @@ func (r shaderRepository) UpdateShader(ctx context.Context, userID uuid.UUID, sh
 		params := db.UpdateShaderInputParams{
 			ID: shaderInput.ID,
 		}
+		if shaderInput.Properties != nil {
+			jsonB, err := json.Marshal(*shaderInput.Properties)
+			if err != nil {
+				return nil, err
+			}
+			params.Properties = jsonB
+		}
+
 		if shaderInput.Url != nil {
 			params.Column2 = *shaderInput.Url
 		}

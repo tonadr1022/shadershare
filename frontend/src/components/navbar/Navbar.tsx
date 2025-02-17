@@ -22,7 +22,6 @@ const navbarItems = [
 
 export default function Navbar() {
   const { data: user, isPending } = useGetMe();
-  console.log(user && user.email);
 
   // TODO: bar when small screen
   return (

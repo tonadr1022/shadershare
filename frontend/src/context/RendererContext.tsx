@@ -20,6 +20,8 @@ interface RendererContextType {
   renderer: IRenderer | null;
   shaderDataRef: React.RefObject<ShaderData>;
   codeDirtyRef: React.RefObject<boolean[]>;
+  shaderDataDirty: boolean;
+  setShaderDataDirty: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 const RendererContext = createContext<RendererContextType | undefined>(
@@ -37,6 +39,7 @@ export const RendererProvider: React.FC<RendererProviderProps> = ({
 }) => {
   const [paused, setPaused] = useState<boolean>(false);
   const [renderer, setRenderer] = useState<IRenderer | null>(null);
+  const [shaderDataDirty, setShaderDataDirty] = useState<boolean>(false);
   const initialized = useRef(false);
   const shaderDataRef = React.useRef<ShaderData>(
     initialShaderData || DefaultNewShader,
@@ -58,6 +61,8 @@ export const RendererProvider: React.FC<RendererProviderProps> = ({
   return (
     <RendererContext.Provider
       value={{
+        shaderDataDirty,
+        setShaderDataDirty,
         codeDirtyRef,
         paused,
         setPaused,

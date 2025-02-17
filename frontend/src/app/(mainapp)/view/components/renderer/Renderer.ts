@@ -1,10 +1,15 @@
 import {
+  DefaultTextureProps,
   ErrMsg,
+  FilterMode,
   IRendererInitPararms,
   RenderData,
   Result,
   ShaderData,
+  ShaderInputType,
   ShaderOutput,
+  TextureProps,
+  TextureWrap,
 } from "@/types/shader";
 import { createEmptyResult } from "../util";
 import { webgl2Utils, WebGL2Utils } from "./Util";
@@ -15,7 +20,7 @@ export const getPreviewImgFile = async (
   return new Promise(async (resolve) => {
     const renderer = createRenderer();
     const canvas = document.createElement("canvas");
-    renderer.initialize({
+    await renderer.initialize({
       canvas: canvas,
       shaderInputs: shaderData.shader_inputs,
       shaderOutputs: shaderData.shader_outputs,
@@ -301,10 +306,6 @@ class RenderTarget {
   }
 }
 
-enum IChannelType {
-  Image,
-  Buffer,
-}
 class BufferIChannel {
   idx: number;
   constructor(idx: number) {
@@ -312,15 +313,6 @@ class BufferIChannel {
   }
 }
 
-enum FilterMode {
-  NEAREST = 0x2600,
-  LINEAR = 0x2601,
-}
-
-enum WrapMode {
-  CLAMP_TO_EDGE = 0x812f,
-  REPEAT = 0x2901,
-}
 enum TextureType {
   D2 = 0x0de1,
   D3 = 0x806f,
@@ -328,8 +320,8 @@ enum TextureType {
 }
 
 class Texture {
-  filterMode: FilterMode = FilterMode.NEAREST;
-  wrapMode: WrapMode = WrapMode.CLAMP_TO_EDGE;
+  filterMode: FilterMode = "nearest";
+  wrapMode: TextureWrap = "clamp";
   texture: WebGLTexture = 0;
   type: TextureType = TextureType.D2;
 
@@ -366,14 +358,36 @@ class Texture {
 
   setFilterMode(gl: WebGL2RenderingContext, mode: FilterMode) {
     this.filterMode = mode;
-    gl.texParameteri(this.type, gl.TEXTURE_MIN_FILTER, mode);
-    gl.texParameteri(this.type, gl.TEXTURE_MAG_FILTER, mode);
+    let glMode: number;
+    switch (mode) {
+      case "nearest":
+        glMode = gl.NEAREST;
+        break;
+      case "linear":
+        glMode = gl.LINEAR;
+        break;
+      default:
+        throw new Error("Invalid filter mode");
+    }
+    gl.texParameteri(this.type, gl.TEXTURE_MIN_FILTER, glMode);
+    gl.texParameteri(this.type, gl.TEXTURE_MAG_FILTER, glMode);
   }
 
-  setWrapMode(gl: WebGL2RenderingContext, mode: WrapMode) {
+  setWrapMode(gl: WebGL2RenderingContext, mode: TextureWrap) {
     this.wrapMode = mode;
-    gl.texParameteri(this.type, gl.TEXTURE_WRAP_S, mode);
-    gl.texParameteri(this.type, gl.TEXTURE_WRAP_T, mode);
+    let glMode: number;
+    switch (mode) {
+      case "clamp":
+        glMode = gl.CLAMP_TO_EDGE;
+        break;
+      case "repeat":
+        glMode = gl.REPEAT;
+        break;
+      default:
+        throw new Error("Invalid wrap mode");
+    }
+    gl.texParameteri(this.type, gl.TEXTURE_WRAP_S, glMode);
+    gl.texParameteri(this.type, gl.TEXTURE_WRAP_T, glMode);
   }
 
   assertValid() {
@@ -400,7 +414,7 @@ class RRenderPass {
   dirty: boolean = true;
   program: WebGLProgram;
   uniformLocs: FragShaderUniforms;
-  type: IChannelType = IChannelType.Buffer;
+  type: ShaderInputType = "buffer";
   renderTarget: RenderTarget;
   constructor(
     gl: WebGL2RenderingContext,
@@ -623,29 +637,81 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
   };
 
   // TODO: 3d textures?
-  const addImageIChannel = (url: string) => {
-    // TODO: wait on rendering until images are loaded fully
-    const texture = new Texture();
-    texture.create(gl, TextureType.D2);
-    const image = new Image();
-    image.src = url;
-    image.crossOrigin = "anonymous";
-    image.addEventListener("load", () => {
-      texture.bind(gl);
-      // TODO: flip parameter
-      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
-      gl.texImage2D(
-        gl.TEXTURE_2D,
-        0,
-        gl.RGBA,
-        gl.RGBA,
-        gl.UNSIGNED_BYTE,
-        image,
-      );
-      // TODO: only generate mipmap if setting is mipmap
-      gl.generateMipmap(gl.TEXTURE_2D);
+  const addImageIChannel = (
+    url: string,
+    props?: TextureProps,
+  ): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      // TODO: wait on rendering until images are loaded fully
+      const texture = new Texture();
+      texture.create(gl, TextureType.D2);
+      const image = new Image();
+      image.src = url;
+      image.crossOrigin = "";
+      image.addEventListener("load", () => {
+        try {
+          const properties = props || DefaultTextureProps;
+          texture.bind(gl);
+          gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+          gl.texImage2D(
+            gl.TEXTURE_2D,
+            0,
+            gl.RGBA,
+            gl.RGBA,
+            gl.UNSIGNED_BYTE,
+            image,
+          );
+          texture.setWrapMode(gl, properties.wrap);
+          texture.setFilterMode(gl, properties.filter);
+          // TODO: only mipmap if needed
+          gl.generateMipmap(gl.TEXTURE_2D);
+          resolve();
+        } catch (err) {
+          reject(err);
+        }
+      });
+
+      image.addEventListener("error", (e) => {
+        reject(new Error(`Failed to load image from ${url}: ${e.message}`));
+      });
+
+      state.iChannels.push(texture);
     });
-    state.iChannels.push(texture);
+  };
+  const setTextureData = (idx: number, url: string): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      if (idx < 0 || idx >= state.iChannels.length) {
+        reject(new Error("Invalid pass index, out of range"));
+        return;
+      }
+      const texture = state.iChannels[idx];
+      if (texture instanceof Texture) {
+        const image = new Image();
+        image.src = url;
+        image.crossOrigin = "";
+        image.addEventListener("load", () => {
+          texture.bind(gl);
+          gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+          gl.texImage2D(
+            gl.TEXTURE_2D,
+            0,
+            gl.RGBA,
+            gl.RGBA,
+            gl.UNSIGNED_BYTE,
+            image,
+          );
+          // TODO: if mipmap make them
+          resolve();
+        });
+
+        image.addEventListener("error", (e) => {
+          reject(new Error(`Failed to load image from ${url}: ${e.message}`));
+        });
+      } else {
+        reject(new Error("Invalid pass index, out of range"));
+        return;
+      }
+    });
   };
 
   const addBufferIChannel = (idx: number) => {
@@ -708,6 +774,28 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
   let shaderTime = 0;
   let lastRealTime = 0;
   return {
+    setTextureWrap: (idx: number, mode: TextureWrap) => {
+      if (idx < 0 || idx >= state.iChannels.length) {
+        throw new Error("Invalid pass index, out of range");
+      }
+      const iChannel = state.iChannels[idx];
+      if (iChannel instanceof Texture) {
+        iChannel.bind(gl);
+        iChannel.setWrapMode(gl, mode);
+      }
+    },
+    setTextureFilter: (idx: number, mode: FilterMode) => {
+      if (idx < 0 || idx >= state.iChannels.length) {
+        throw new Error("Invalid pass index, out of range");
+      }
+      const iChannel = state.iChannels[idx];
+      if (iChannel instanceof Texture) {
+        iChannel.bind(gl);
+        iChannel.setFilterMode(gl, mode);
+      }
+    },
+    setTextureData,
+
     addImageIChannel,
     addBufferIChannel,
     setShaderTime: (t: number) => {
@@ -840,7 +928,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
       state.outputs[idx].dirty = true;
     },
     // TODO: initialize should return shader compile errors
-    initialize: (params: IRendererInitPararms) => {
+    initialize: async (params: IRendererInitPararms) => {
       if (initialized) return;
       canvas = params.canvas;
       if (!canvas) {
@@ -864,13 +952,23 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
 
       const { shaderInputs, shaderOutputs } = params;
 
+      const imageLoadPromises: Promise<void>[] = [];
       for (let i = 0; i < shaderInputs.length; i++) {
         const input = shaderInputs[i];
-        if (input.type == "texture") {
-          addImageIChannel(input.url!);
+        if (input.type === "texture") {
+          imageLoadPromises.push(
+            addImageIChannel(input.url!, input.properties),
+          );
         } else {
           addBufferIChannel(input.idx);
         }
+      }
+
+      try {
+        await Promise.all(imageLoadPromises);
+      } catch (e) {
+        console.error("error loading images", e);
+        return;
       }
 
       // get the common output if exists

@@ -74,11 +74,15 @@ const ShaderRenderer = () => {
       animationFrameId = requestAnimationFrame(render);
     };
 
-    renderer.initialize({
-      canvas: canvas,
-      shaderInputs: shaderDataRef.current.shader_inputs,
-      shaderOutputs: shaderDataRef.current.shader_outputs,
-    });
+    const initializeRenderer = async () => {
+      await renderer.initialize({
+        canvas: canvas,
+        shaderInputs: shaderDataRef.current.shader_inputs,
+        shaderOutputs: shaderDataRef.current.shader_outputs,
+      });
+    };
+    initializeRenderer();
+
     render();
 
     return () => {

@@ -1,13 +1,30 @@
+export type TextureWrap = "repeat" | "clamp";
+export type FilterMode = "nearest" | "linear";
+export type ShaderInputType = "texture" | "buffer";
+export type ShaderOutputType = "common" | "image" | "buffer";
+
+export type TextureProps = {
+  wrap: TextureWrap;
+  filter: FilterMode;
+  vflip: boolean;
+};
+
+export const DefaultTextureProps: TextureProps = {
+  wrap: "repeat",
+  filter: "linear",
+  vflip: false,
+};
+
 export type ShaderInput = {
   id?: string;
   url?: string;
   // TODO: make type
-  type: string;
+  type: ShaderInputType;
   name: string;
   idx: number;
+  properties?: TextureProps | undefined;
 };
 
-export type ShaderOutputType = "common" | "image" | "buffer";
 export type ShaderOutput = {
   id?: string;
   code: string;
