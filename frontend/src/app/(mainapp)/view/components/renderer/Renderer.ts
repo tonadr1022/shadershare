@@ -11,7 +11,7 @@ import {
   TextureProps,
   TextureWrap,
 } from "@/types/shader";
-import { createEmptyResult } from "../util";
+import { createErrorResult, createSuccessResult } from "../util";
 import { webgl2Utils, WebGL2Utils } from "./Util";
 
 export const getPreviewImgFile = async (
@@ -168,6 +168,10 @@ void main() {
     mainImage(fC, gl_FragCoord.xy);
 }
 `;
+const getLineCnt = (text: string) => {
+  return text.split(/\r\n|\r|\n/).length;
+};
+const fragHeaderLineCnt = getLineCnt(fragmentHeader);
 
 class FragShaderUniforms {
   iResolution: WebGLUniformLocation | null = null;
@@ -432,12 +436,9 @@ class RRenderPass {
   }
 }
 
-const getLineCnt = (text: string) => {
-  return text.split(/\r\n|\r|\n/).length;
-};
 const webGL2Renderer = () => {
   console.log("create wbgl2 renderer");
-  const fragmentHeaderLineCnt = fragmentHeader.split(/\r\n|\r|\n/).length;
+  // const fragmentHeaderLineCnt = fragmentHeader.split(/\r\n|\r|\n/).length;
   let canvas: HTMLCanvasElement;
   let gl: WebGL2RenderingContext;
   let currFrame = 0;
@@ -619,20 +620,32 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
     currFrame++;
   };
 
+  type CompileShaderResult = {
+    program: WebGLProgram;
+    headerLineCnt: number;
+  };
   const compileShader = (
     commonBufferText: string,
     fragmentText: string,
-  ): Result<WebGLProgram> => {
+  ): Result<CompileShaderResult> => {
     // TODO: dynamically create the header based on what is actually used in the shader
-    const totalHeader = `${fragmentHeader}
+    const completeHeader = `${fragmentHeader}
 ${commonBufferText}
 `;
-    const fragmentCode = `${totalHeader}${fragmentText}`;
+    const fragmentCode = `${completeHeader}${fragmentText}`;
     const compileRes = util.createShaderProgram(vertexCode, fragmentCode);
+    const headerLineCnt = getLineCnt(completeHeader);
     if (compileRes.error) {
-      return createEmptyResult(compileRes.message);
+      return createErrorResult(compileRes.message, {
+        program: 0,
+        headerLineCnt,
+      });
     }
-    return compileRes;
+
+    return createSuccessResult<CompileShaderResult>({
+      program: compileRes.data!,
+      headerLineCnt,
+    });
   };
 
   const state: {
@@ -764,7 +777,12 @@ ${commonBufferText}
     resizeBuffers();
   };
 
-  const getErrorMessages = (text: string): ErrMsg[] => {
+  const getErrorMessages = (
+    text: string,
+    completeHeaderLineCnt: number,
+    processCommonBuffer: boolean,
+    commonBufferErrMsgs: ErrMsg[],
+  ): ErrMsg[] => {
     const lines = text.split(/\r\n|\r|\n/);
     const res: ErrMsg[] = [];
     for (const lineText of lines) {
@@ -773,9 +791,20 @@ ${commonBufferText}
       }
       const match = lineText.match(/ERROR: \d+:(\d+): (.*)/);
       if (match) {
-        const line = parseInt(match[1], 10) - fragmentHeaderLineCnt + 1;
+        let line = parseInt(match[1], 10);
+        line -= completeHeaderLineCnt;
+        const isCommonBufferErr = line < 0;
+        if (isCommonBufferErr) {
+          line += completeHeaderLineCnt - fragHeaderLineCnt;
+        } else {
+          line++;
+        }
         const message = match[2];
-        res.push({ line: line, message });
+        if (isCommonBufferErr && processCommonBuffer) {
+          commonBufferErrMsgs.push({ line, message });
+        } else {
+          res.push({ line, message });
+        }
       }
     }
     return res;
@@ -884,25 +913,25 @@ ${commonBufferText}
     ): { error: boolean; errMsgs: (ErrMsg[] | null)[] } => {
       const programOrErrStrs: (string | WebGLProgram)[] = [];
       let anyError = false;
-      let commonOutput = "";
-      for (const output of shaderOutputs) {
-        if (output.type == "common") {
-          commonOutput = output.code;
-          break;
-        }
-      }
+      const commonBufferIdx = shaderOutputs.findIndex(
+        (output) => output.type === "common",
+      );
+      const commonOutput = shaderOutputs[commonBufferIdx]?.code || "";
 
+      const lineCnts = shaderOutputs.map(() => 0);
       for (let i = 0; i < shaderOutputs.length; i++) {
         const output = shaderOutputs[i];
-        // TODO: common buffer needs to be accounted for in fragment header. need a special line that
-        // is searched for
-        const fragmentCode = `${commonOutput}${fragmentHeader}${output.code}`;
-        const compileRes = util.createShaderProgram(vertexCode, fragmentCode);
-        if (compileRes.error) {
+        if (output.type === "common") {
+          continue;
+        }
+        const res = compileShader(commonOutput, output.code);
+        lineCnts[i] = res.data!.headerLineCnt;
+        if (res.error) {
           anyError = true;
-          programOrErrStrs.push(compileRes.message!);
+          programOrErrStrs.push(res.message!);
         } else {
-          programOrErrStrs.push(compileRes.data!);
+          const program = res.data!.program;
+          programOrErrStrs.push(program);
         }
       }
 
@@ -918,12 +947,29 @@ ${commonBufferText}
         }
         validPipelines = true;
       }
+      const errMsgs: ErrMsg[][] = [];
+      const commonBufferErrs: ErrMsg[] = [];
+      let commonBufferErrProcessed = false;
+      for (let i = 0; i < programOrErrStrs.length; i++) {
+        if (typeof programOrErrStrs[i] === "string") {
+          errMsgs.push(
+            getErrorMessages(
+              programOrErrStrs[i] as string,
+              lineCnts[i],
+              !commonBufferErrProcessed,
+              commonBufferErrs,
+            ),
+          );
+          commonBufferErrProcessed = true;
+        } else {
+          errMsgs.push([]);
+        }
+      }
+      errMsgs[commonBufferIdx] = commonBufferErrs;
 
       return {
         error: anyError,
-        errMsgs: programOrErrStrs.map((r) =>
-          typeof r === "string" ? getErrorMessages(r) : null,
-        ),
+        errMsgs: errMsgs,
       };
     },
 
@@ -1026,7 +1072,7 @@ ${commonBufferText}
 
         const pass = new RRenderPass(
           gl,
-          res.data!,
+          res.data!.program,
           canvas.width,
           canvas.height,
           doubleBuffer,

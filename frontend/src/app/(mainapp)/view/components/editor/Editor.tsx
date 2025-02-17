@@ -233,9 +233,11 @@ export const MultiBufferEditor = React.memo(() => {
   const onTextUpdate = useCallback(
     (newText: string, idx: number) => {
       if (!renderer) return;
-      renderer.setShaderDirty(idx);
+      const output = shaderDataRef.current.shader_outputs[idx];
+      if (output.type !== "common") {
+        renderer.setShaderDirty(idx);
+      }
       codeDirtyRef.current[idx] = true;
-
       shaderDataRef.current.shader_outputs[idx].code = newText;
     },
     [renderer, shaderDataRef, codeDirtyRef],
