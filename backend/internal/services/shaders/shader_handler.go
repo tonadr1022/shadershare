@@ -36,7 +36,7 @@ func RegisterHandlers(r *gin.RouterGroup, service domain.ShaderService) {
 	r.GET("/shaders/:id", h.getShader)
 	r.POST("/shaders", middleware.Auth(), h.createShader)
 	r.PUT("/shaders/:id", middleware.Auth(), h.updateShader)
-	// TODO: design better using query params?
+	r.POST("/shaders/output", middleware.Auth(), h.createShaderOutput)
 }
 
 func (h ShaderHandler) updateShader(c *gin.Context) {
@@ -188,4 +188,25 @@ func (h ShaderHandler) getShader(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, shader)
+}
+
+func (h ShaderHandler) createShaderOutput(c *gin.Context) {
+	_, ok := middleware.CurrentUser(c)
+	if !ok {
+		util.SetErrorResponse(c, http.StatusInternalServerError, "Internal Server Error")
+		return
+	}
+
+	var payload domain.CreateShaderOutputPayload
+	if ok := util.ValidateAndSetErrors(c, &payload); !ok {
+		return
+	}
+
+	shaderOutput, err := h.service.CreateShaderOutput(c, payload)
+	if err != nil {
+		util.SetInternalServiceErrorResponse(c)
+		return
+	}
+
+	c.JSON(http.StatusOK, shaderOutput)
 }

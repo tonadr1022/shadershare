@@ -60,6 +60,7 @@ const AddShaderInputDialog = () => {
       throw new Error("invalid type");
     }
 
+    shaderDataRef.current.shader_inputs.push(newInput);
     toast.success("Input added" + data.name);
   });
 

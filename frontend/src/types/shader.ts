@@ -27,6 +27,7 @@ export type ShaderInput = {
 
 export type ShaderOutput = {
   id?: string;
+  shader_id?: string;
   code: string;
   name: string;
   type: ShaderOutputType;

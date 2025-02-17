@@ -184,10 +184,10 @@ export const TextureExample: ShaderData = {
   ],
   shader_inputs: [
     {
-      name: "NyanCatTex",
+      name: "pixeltest",
       type: "texture",
-      idx: 0,
-      url: "https://i.imgur.com/NxbM74e.gif",
+      idx: 1,
+      url: "https://i.imgur.com/48jgQKl.png",
       properties: {
         wrap: "repeat",
         filter: "linear",
@@ -195,10 +195,10 @@ export const TextureExample: ShaderData = {
       },
     },
     {
-      name: "pixeltest",
+      name: "NyanCatTex",
       type: "texture",
-      idx: 1,
-      url: "https://i.imgur.com/48jgQKl.png",
+      idx: 0,
+      url: "https://i.imgur.com/NxbM74e.gif",
       properties: {
         wrap: "repeat",
         filter: "linear",

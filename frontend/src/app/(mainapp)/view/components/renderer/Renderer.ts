@@ -432,6 +432,9 @@ class RRenderPass {
   }
 }
 
+const getLineCnt = (text: string) => {
+  return text.split(/\r\n|\r|\n/).length;
+};
 const webGL2Renderer = () => {
   console.log("create wbgl2 renderer");
   const fragmentHeaderLineCnt = fragmentHeader.split(/\r\n|\r|\n/).length;
@@ -616,9 +619,15 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
     currFrame++;
   };
 
-  const compileShader = (fragmentText: string): Result<WebGLProgram> => {
+  const compileShader = (
+    commonBufferText: string,
+    fragmentText: string,
+  ): Result<WebGLProgram> => {
     // TODO: dynamically create the header based on what is actually used in the shader
-    const fragmentCode = `${fragmentHeader}${fragmentText}`;
+    const totalHeader = `${fragmentHeader}
+${commonBufferText}
+`;
+    const fragmentCode = `${totalHeader}${fragmentText}`;
     const compileRes = util.createShaderProgram(vertexCode, fragmentCode);
     if (compileRes.error) {
       return createEmptyResult(compileRes.message);
@@ -971,19 +980,22 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
         return;
       }
 
-      // get the common output if exists
-      // let commonOutput: ShaderOutput | null = null;
-      // for (let i = 0; i < shaderOutputs.length; i++) {
-      //   if (shaderOutputs[i].type == "common") {
-      //     commonOutput = shaderOutputs[i];
-      //     break;
-      //   }
-      // }
+      //get the common output if exists
+      let commonOutput: ShaderOutput | null = null;
+      for (let i = 0; i < shaderOutputs.length; i++) {
+        if (shaderOutputs[i].type == "common") {
+          commonOutput = shaderOutputs[i];
+          break;
+        }
+      }
 
       const compileTasks = [];
 
       for (let i = 0; i < shaderOutputs.length; i++) {
         const output = shaderOutputs[i];
+        if (output.type == "common") {
+          continue;
+        }
         const isFinalImage = output.type == "image";
         compileTasks.push({
           code: output.code,
@@ -996,7 +1008,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
       // TODO: parallelize shader compilation
       for (const task of compileTasks) {
         // TODO: common buffer
-        const res = compileShader(task.code);
+        const res = compileShader(commonOutput?.code || "", task.code);
         if (res.error) {
           console.error("error compiling shader", res.message);
           return;

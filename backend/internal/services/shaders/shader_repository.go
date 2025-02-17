@@ -167,18 +167,12 @@ func (r shaderRepository) CreateShader(ctx context.Context, userID uuid.UUID, sh
 	resultOutputs := make([]domain.ShaderOutput, len(shaderPayload.ShaderOutputs))
 	// make shader outputs
 	for _, shaderOutput := range shaderPayload.ShaderOutputs {
-		params := db.CreateShaderOutputParams{
-			ShaderID: shader.ID,
-			Code:     shaderOutput.Code,
-			Name:     shaderOutput.Name,
-			Type:     shaderOutput.Type,
-			Idx:      int16(shaderOutput.Idx),
-		}
-		output, err := r.queries.CreateShaderOutput(ctx, params)
+		shaderOutput.ShaderID = shader.ID
+		output, err := r.CreateShaderOutput(ctx, shaderOutput)
 		if err != nil {
 			return nil, err
 		}
-		resultOutputs = append(resultOutputs, r.shaderOutputFromDB(output))
+		resultOutputs = append(resultOutputs, *output)
 	}
 	err = tx.Commit(ctx)
 	if err != nil {

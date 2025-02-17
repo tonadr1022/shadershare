@@ -53,6 +53,7 @@ export const RendererProvider: React.FC<RendererProviderProps> = ({
     codeDirtyRef.current = shaderDataRef.current.shader_outputs.map(
       () => false,
     );
+    shaderDataRef.current.shader_inputs.sort((a, b) => a.idx - b.idx);
     return () => {
       renderer?.shutdown();
     };

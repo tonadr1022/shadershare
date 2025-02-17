@@ -23,11 +23,23 @@ import {
 } from "@codemirror/view";
 import { useRendererCtx } from "@/context/RendererContext";
 import { ErrorWidget } from "./ErrorWidget";
-import { ErrMsg } from "@/types/shader";
+import { ErrMsg, ShaderOutput } from "@/types/shader";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useResolvedTheme } from "@/hooks/hooks";
 import ShaderInputEdit from "./ShaderInputEdit";
+import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useMutation } from "@tanstack/react-query";
+import { createShaderOutput } from "@/api/shader-api";
+import { toast } from "sonner";
 
 // type EditorOptions = {
 //   fontSize: number;
@@ -36,6 +48,14 @@ import ShaderInputEdit from "./ShaderInputEdit";
 //   relativeLineNumber: true;
 // };
 
+const bufferNames = [
+  "Common",
+  "Buffer A",
+  "Buffer B",
+  "Buffer C",
+  "Buffer D",
+  "Buffer E",
+];
 const clearErrorsEffect = StateEffect.define<void>();
 const errorEffect = StateEffect.define<ErrMsg>();
 const errorField = StateField.define<DecorationSet>({
@@ -179,7 +199,6 @@ Editor2.displayName = "Editor2";
 export const MultiBufferEditor = React.memo(() => {
   const [renderPassEditIdx, setRenderPassEditIdx] = useState(0);
   const [errMsgs, setErrMsgs] = useState<(ErrMsg[] | null)[]>([]);
-  const [, setInOutTabIdx] = useState(1);
 
   const { codeDirtyRef, setPaused, renderer, shaderDataRef } = useRendererCtx();
 
@@ -221,6 +240,43 @@ export const MultiBufferEditor = React.memo(() => {
     },
     [renderer, shaderDataRef, codeDirtyRef],
   );
+  const hasBuffer = useCallback(
+    (name: string) => {
+      for (const output of shaderDataRef.current.shader_outputs) {
+        if (output.name === name) {
+          return true;
+        }
+      }
+      return false;
+    },
+    [shaderDataRef],
+  );
+  const createShaderOutputMut = useMutation({
+    mutationFn: createShaderOutput,
+    onError: () => {
+      toast.error("Failed to create shader output");
+    },
+    onSuccess: (shaderOutput: ShaderOutput) => {
+      shaderDataRef.current.shader_outputs.push(shaderOutput);
+      codeDirtyRef.current.push(false);
+    },
+  });
+
+  // need to make a new shader output on the backend
+  const handleAddShaderOutput = useCallback(
+    async (name: string) => {
+      const type = name === "Common" ? "common" : "buffer";
+      const newOutput: ShaderOutput = {
+        shader_id: shaderDataRef.current.shader.id,
+        name,
+        type: type,
+        idx: shaderDataRef.current.shader_outputs.length,
+        code: "// hello world test",
+      };
+      createShaderOutputMut.mutate(newOutput);
+    },
+    [shaderDataRef, createShaderOutputMut],
+  );
 
   return (
     <div className=" flex flex-col w-full h-full">
@@ -229,29 +285,48 @@ export const MultiBufferEditor = React.memo(() => {
         className="flex flex-col w-full h-full bg-background"
       >
         <TabsList>
-          <TabsTrigger value="0" onClick={() => setInOutTabIdx(0)}>
-            Inputs
-          </TabsTrigger>
-          <TabsTrigger value="1" onClick={() => setInOutTabIdx(1)}>
-            Outputs
-          </TabsTrigger>
+          <TabsTrigger value="0">Inputs</TabsTrigger>
+          <TabsTrigger value="1">Outputs</TabsTrigger>
         </TabsList>
         <TabsContent value="0">
           <ShaderInputEdit />
         </TabsContent>
         <TabsContent value="1">
-          <Tabs defaultValue="0" className="m-0 p-0">
-            <TabsList>
-              {shaderDataRef.current.shader_outputs.map((output, idx) => (
-                <TabsTrigger
-                  value={idx.toString()}
-                  onClick={() => setRenderPassEditIdx(idx)}
-                  key={output.name}
-                >
-                  Pass {idx}
-                </TabsTrigger>
-              ))}
-            </TabsList>
+          <Tabs defaultValue="0" className="">
+            <div className="flex flex-row gap-4">
+              <TabsList>
+                {shaderDataRef.current.shader_outputs.map((output, idx) => (
+                  <TabsTrigger
+                    value={idx.toString()}
+                    onClick={() => setRenderPassEditIdx(idx)}
+                    key={output.name}
+                  >
+                    {output.name}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button className="h-9 inline-flex items-center justify-center ">
+                    <Plus className="" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuLabel>Add Shader Output</DropdownMenuLabel>
+                  {bufferNames.map((name) =>
+                    hasBuffer(name) ? null : (
+                      <DropdownMenuItem
+                        onClick={() => handleAddShaderOutput(name)}
+                        key={name}
+                      >
+                        {name}
+                      </DropdownMenuItem>
+                    ),
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
             {shaderDataRef.current.shader_outputs.map((output, idx) => (
               <TabsContent
                 forceMount={true}
