@@ -543,6 +543,30 @@ const webGL2Renderer = () => {
       state.outputs["Buffer E"],
     ];
   };
+
+  const bindIChannels = (uniforms: FragShaderUniforms) => {
+    for (let i = 0; i < state.iChannels.length; i++) {
+      const iChannel = state.iChannels[i];
+      if (!iChannel || !uniforms.iChannels[i]) {
+        continue;
+      }
+
+      if (iChannel instanceof Texture) {
+        bindTexture(uniforms.iChannels[i]!, iChannel.texture, i);
+      } else if (iChannel instanceof BufferIChannel) {
+        const output = state.outputs[iChannel.bufferName];
+        if (output === null) {
+          throw new Error("Invalid state");
+        }
+        bindTexture(
+          uniforms.iChannels[i]!,
+          output.renderTarget.getPrevTex(),
+          i,
+        );
+      }
+    }
+  };
+
   const renderInternal = (outFBO: WebGLFramebuffer | null) => {
     const finalImagePass = state.outputs.Image;
     if (!finalImagePass) {
@@ -550,28 +574,6 @@ const webGL2Renderer = () => {
     }
     const bufferOutputs = getBufferOutputs();
 
-    const bindIChannels = (
-      output: RRenderPass,
-      uniforms: FragShaderUniforms,
-    ) => {
-      // TODO: define max ichannels and make sure ichannels array is long enough
-      for (let i = 0; i < state.iChannels.length; i++) {
-        const iChannel = state.iChannels[i];
-        if (!iChannel || !uniforms.iChannels[i]) {
-          continue;
-        }
-
-        if (iChannel instanceof Texture) {
-          bindTexture(uniforms.iChannels[i]!, iChannel.texture, i);
-        } else if (iChannel instanceof BufferIChannel) {
-          bindTexture(
-            uniforms.iChannels[i]!,
-            output.renderTarget.getPrevTex(),
-            i,
-          );
-        }
-      }
-    };
     for (const output of bufferOutputs) {
       if (output === null) {
         continue;
@@ -589,7 +591,8 @@ const webGL2Renderer = () => {
       );
       gl.clearColor(0.0, 0.0, 0.0, 1.0);
       gl.clear(gl.COLOR_BUFFER_BIT);
-      bindIChannels(output, uniforms);
+      bindIChannels(uniforms);
+
       gl.drawArrays(gl.TRIANGLES, 0, 3);
     }
 
@@ -598,7 +601,7 @@ const webGL2Renderer = () => {
     gl.bindFramebuffer(gl.FRAMEBUFFER, outFBO);
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
     gl.clear(gl.COLOR_BUFFER_BIT);
-    bindIChannels(finalImagePass, finalImagePass.uniformLocs);
+    bindIChannels(finalImagePass.uniformLocs);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
 
     for (const output of bufferOutputs) {
