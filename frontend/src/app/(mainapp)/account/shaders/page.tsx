@@ -12,15 +12,13 @@ const ProfileShaders = () => {
   });
 
   return (
-    <div className="">
+    <div className="w-fit">
       {isPending ? (
         <div>Loading...</div>
       ) : isError ? (
         <div>Error loading shaders</div>
       ) : (
-        <div className="flex flex-col gap-2">
-          {data && <ShaderTable data={data} />}
-        </div>
+        <div className="">{data && <ShaderTable data={data} />}</div>
       )}
     </div>
   );

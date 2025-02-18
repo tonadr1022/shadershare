@@ -65,7 +65,7 @@ export type ShaderMetadata = {
   access_level: AccessLevel;
   created_at: string;
   updated_at: string;
-  preview_img_url: string | undefined;
+  preview_img_url: string;
 };
 
 export type ShaderData = {
