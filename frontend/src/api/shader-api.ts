@@ -3,6 +3,7 @@ import {
   ShaderData,
   ShaderDataWithUsernameResponse,
   ShaderInput,
+  ShaderMetadata,
   ShaderOutput,
   ShaderUpdateCreatePayload,
 } from "@/types/shader";
@@ -59,7 +60,7 @@ export const deleteShader = async (id: string) => {
   return res.data;
 };
 
-export const getUserShaders = async () => {
+export const getUserShaders = async (): Promise<ShaderMetadata[]> => {
   const res = await axiosInstance.get("/profile?show=shaders");
   return res.data;
 };

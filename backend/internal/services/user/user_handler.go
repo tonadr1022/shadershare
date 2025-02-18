@@ -82,10 +82,13 @@ func (h userHandler) profile(c *gin.Context) {
 		return
 	}
 	if category == "shaders" {
-		limit, err := com.DefaultQueryIntCheck(c, "limit", 20)
+		limit, err := com.IntQueryCheck(c, "limit")
 		if err != nil {
 			util.SetErrorResponse(c, http.StatusBadRequest, "Invalid limit")
 			return
+		}
+		if limit == 0 {
+			limit = 100000
 		}
 		offset, err := com.DefaultQueryIntCheck(c, "offset", 0)
 		if err != nil {

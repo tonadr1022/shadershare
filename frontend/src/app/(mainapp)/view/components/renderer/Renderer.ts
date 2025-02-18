@@ -457,7 +457,6 @@ class RRenderPass {
 
 const webGL2Renderer = () => {
   console.log("create wbgl2 renderer");
-  // const fragmentHeaderLineCnt = fragmentHeader.split(/\r\n|\r|\n/).length;
   let canvas: HTMLCanvasElement;
   let gl: WebGL2RenderingContext;
   let currFrame = 0;
@@ -467,7 +466,6 @@ const webGL2Renderer = () => {
   let currTime = 0;
   let timeDelta = 0;
   const fpsCounter = new AvgFpsCounter();
-  // const devicePixelRatio = window.devicePixelRatio;
 
   const bindTexture = (
     location: WebGLUniformLocation,
@@ -479,18 +477,8 @@ const webGL2Renderer = () => {
     gl.uniform1i(location, index);
   };
 
-  // const renderPasses: RRenderPass[] = [];
-
   let util: WebGL2Utils;
 
-  /*
-   *
-void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
-    vec2 uv = fragCoord/iResolution.xy;
-    vec3 col = 0.5 + 0.5*cos(iTime+uv.xyx+vec3(0,2,4));
-    fragColor = vec4(col,1.0); 
-}
-   */
   const bindUniforms = (uniforms: FragShaderUniforms) => {
     gl.uniform3f(
       uniforms.iResolution,
@@ -500,7 +488,6 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
     );
     gl.uniform1f(uniforms.iTime, shaderTime);
     gl.uniform1f(uniforms.iTimeDelta, timeDelta);
-    //  fragColor = vec4(fragCoord.xy/iChannelResolution[0].xy,0.,1.)
     gl.uniform1fv(uniforms.iChannelTimes, [
       currTime,
       currTime,
@@ -1162,6 +1149,7 @@ ${commonBufferText}
         );
         state.outputs[task.name] = pass;
       }
+      checkGLError(gl);
       validPipelines = true;
       initialized = true;
     },

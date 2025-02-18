@@ -1,53 +1,25 @@
 "use client";
 import { getUserShaders } from "@/api/shader-api";
-import { Button } from "@/components/ui/button";
-import { useDeleteShader } from "@/hooks/hooks";
-import { ShaderMetadata } from "@/types/shader";
 import { useQuery } from "@tanstack/react-query";
-import { Trash } from "lucide-react";
-import { useRouter } from "next/navigation";
 import React from "react";
+import ShaderTable from "../_components/ShaderTable";
 
 // TODO: table
 const ProfileShaders = () => {
-  // const data = await getUserShaders();
-  // console.log(data);
-
   const { data, isPending, isError } = useQuery({
     queryKey: ["shaders", "profile"],
     queryFn: getUserShaders,
   });
 
-  if (data) {
-    console.log(data);
-  }
-  const router = useRouter();
-  const deleteShaderMut = useDeleteShader();
   return (
-    <div className="w-full">
+    <div className="">
       {isPending ? (
         <div>Loading...</div>
       ) : isError ? (
         <div>Error loading shaders</div>
       ) : (
         <div className="flex flex-col gap-2">
-          {data?.map((shader: ShaderMetadata) => (
-            <div key={shader.id} className="flex flex-row w-full">
-              <div
-                className="flex flex-col flex-grow"
-                onClick={() => router.push(`/view/${shader.id}`)}
-              >
-                <h3>{shader.title}</h3>
-                <p>{shader.description}</p>
-              </div>
-              <Button
-                variant="destructive"
-                onClick={() => deleteShaderMut.mutate(shader.id)}
-              >
-                <Trash />
-              </Button>
-            </div>
-          ))}
+          {data && <ShaderTable data={data} />}
         </div>
       )}
     </div>

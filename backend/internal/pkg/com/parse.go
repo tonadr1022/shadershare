@@ -18,3 +18,16 @@ func DefaultQueryIntCheck(c *gin.Context, key string, defaultValue int) (int, er
 	}
 	return value, nil
 }
+
+func IntQueryCheck(c *gin.Context, key string) (int, error) {
+	valueStr := c.Query(key)
+	if valueStr == "" {
+		return 0, nil
+	}
+	value, err := strconv.Atoi(valueStr)
+	if err != nil {
+		util.SetErrorResponse(c, http.StatusBadRequest, fmt.Sprintf("Invalid %s", key))
+		return 0, err
+	}
+	return value, nil
+}
