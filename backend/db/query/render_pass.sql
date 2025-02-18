@@ -1,7 +1,7 @@
 
 -- name: CreateShaderInput :one 
 INSERT INTO shader_inputs (
-    shader_id, url, type, idx, name, properties
+    shader_id, url, type, name, idx, properties
 ) VALUES (
     $1, $2, $3, $4, $5, $6
 ) RETURNING *;
@@ -18,8 +18,8 @@ WHERE shader_id = $1;
 UPDATE shader_inputs
 SET url = COALESCE(NULLIF($2::TEXT,''), url),
     type = COALESCE(NULLIF($3::TEXT,''), type),
-    idx = COALESCE($4, idx),
-    name = COALESCE(NULLIF($5::TEXT,''), name),
+    name = COALESCE(NULLIF($4::TEXT,''), name),
+    idx = COALESCE($5, idx),
     properties = COALESCE($6, properties)
 WHERE id = $1 RETURNING *;
 
@@ -31,9 +31,9 @@ WHERE id = $1;
 
 -- name: CreateShaderOutput :one
 INSERT INTO shader_outputs (
-    shader_id, code, name, type, idx
+    shader_id, code, name, type
 ) VALUES (
-    $1, $2, $3, $4, $5
+    $1, $2, $3, $4
 ) RETURNING *;
 
 -- name: DeleteShaderOutput :exec
@@ -52,8 +52,7 @@ WHERE shader_id = $1;
 UPDATE shader_outputs
 SET code = COALESCE(NULLIF($2::TEXT,''), code),
     name = COALESCE(NULLIF($3::TEXT,''), name),
-    type = COALESCE(NULLIF($4::TEXT,''), type),
-    idx = COALESCE($5, idx)
+    type = COALESCE(NULLIF($4::TEXT,''), type)
 WHERE id = $1 RETURNING *;
 
 -- name: GetShaderCount :one
@@ -67,8 +66,8 @@ SELECT
         'shader_id', si.shader_id,
         'url', si.url,
         'type', si.type, 
-        'idx', si.idx,
         'name', si.name,
+        'idx', si.idx,
         'properties', si.properties
         )) FROM shader_inputs si WHERE si.shader_id = s.id) AS inputs,
   (SELECT JSON_AGG(JSON_BUILD_OBJECT(
@@ -76,8 +75,7 @@ SELECT
         'shader_id', so.shader_id,
         'code', so.code,
         'name', so.name,
-        'type', so.type,
-        'idx', so.idx
+        'type', so.type
         )) FROM shader_outputs so WHERE so.shader_id = s.id) AS outputs
 FROM 
   shaders s
@@ -92,8 +90,8 @@ SELECT
         'shader_id', si.shader_id,
         'url', si.url,
         'type', si.type, 
-        'idx', si.idx,
         'name', si.name,
+        'idx', si.idx,
         'properties', si.properties
         )) FROM shader_inputs si WHERE si.shader_id = s.id) AS inputs,
   (SELECT JSON_AGG(JSON_BUILD_OBJECT(
@@ -101,23 +99,9 @@ SELECT
         'shader_id', so.shader_id,
         'code', so.code,
         'name', so.name,
-        'type', so.type,
-        'idx', so.idx
+        'type', so.type
         )) FROM shader_outputs so WHERE so.shader_id = s.id) AS outputs
 FROM shaders s
 WHERE s.access_level = $3
-ORDER BY s.updated_at DESC
-LIMIT $1 OFFSET $2;
-
--- name: GetShaderDetailedList2 :many
-SELECT 
-    s.*,
-    ARRAY_AGG(DISTINCT si ORDER BY si.idx) AS inputs,
-    ARRAY_AGG(DISTINCT so ORDER BY so.idx) AS outputs
-FROM shaders s
-LEFT JOIN shader_inputs si ON si.shader_id = s.id
-LEFT JOIN shader_outputs so ON so.shader_id = s.id
-WHERE s.access_level = $3
-GROUP BY s.id
 ORDER BY s.updated_at DESC
 LIMIT $1 OFFSET $2;

@@ -34,8 +34,8 @@ func (r shaderRepository) CreateShaderInput(ctx context.Context, shaderInput dom
 	params := db.CreateShaderInputParams{
 		ShaderID: shaderInput.ShaderID,
 		Type:     shaderInput.Type,
-		Idx:      int16(shaderInput.Idx),
 		Name:     shaderInput.Name,
+		Idx:      int32(shaderInput.Idx),
 	}
 
 	if shaderInput.Url != nil {
@@ -64,7 +64,6 @@ func (r shaderRepository) CreateShaderOutput(ctx context.Context, shaderOutputPa
 		Code:     shaderOutputPayload.Code,
 		Name:     shaderOutputPayload.Name,
 		Type:     shaderOutputPayload.Type,
-		Idx:      int16(shaderOutputPayload.Idx),
 	}
 	dbShaderOutput, err := r.queries.CreateShaderOutput(ctx, params)
 	if err != nil {
@@ -98,22 +97,29 @@ func (r shaderRepository) DeleteShaderInput(ctx context.Context, shaderInputID u
 
 func (r shaderRepository) shaderInputFromDB(dbShaderInput db.ShaderInput) domain.ShaderInput {
 	// TODO: invalid strings?
+
+	var data map[string]interface{}
+	if err := json.Unmarshal(dbShaderInput.Properties, &data); err != nil {
+		fmt.Println("err")
+	}
 	return domain.ShaderInput{
-		ID:   dbShaderInput.ID,
-		Idx:  int(dbShaderInput.Idx),
-		Name: dbShaderInput.Name,
-		Type: dbShaderInput.Type,
-		Url:  dbShaderInput.Url.String,
+		ID:         dbShaderInput.ID,
+		ShaderID:   dbShaderInput.ShaderID,
+		Url:        dbShaderInput.Url.String,
+		Type:       dbShaderInput.Type,
+		Idx:        int(dbShaderInput.Idx),
+		Name:       dbShaderInput.Name,
+		Properties: data,
 	}
 }
 
 func (r shaderRepository) shaderOutputFromDB(dbShaderOutput db.ShaderOutput) domain.ShaderOutput {
 	return domain.ShaderOutput{
-		ID:   dbShaderOutput.ID,
-		Idx:  int(dbShaderOutput.Idx),
-		Name: dbShaderOutput.Name,
-		Type: dbShaderOutput.Type,
-		Code: dbShaderOutput.Code,
+		ID:       dbShaderOutput.ID,
+		ShaderID: dbShaderOutput.ShaderID,
+		Code:     dbShaderOutput.Code,
+		Name:     dbShaderOutput.Name,
+		Type:     dbShaderOutput.Type,
 	}
 }
 
@@ -150,8 +156,8 @@ func (r shaderRepository) CreateShader(ctx context.Context, userID uuid.UUID, sh
 		params := db.CreateShaderInputParams{
 			ShaderID:   shader.ID,
 			Type:       shaderInput.Type,
-			Idx:        int16(shaderInput.Idx),
 			Name:       shaderInput.Name,
+			Idx:        int32(shaderInput.Idx),
 			Properties: props,
 		}
 		if shaderInput.Url != nil {
@@ -280,11 +286,11 @@ func (r shaderRepository) UpdateShader(ctx context.Context, userID uuid.UUID, sh
 		if shaderInput.Type != nil {
 			params.Column3 = *shaderInput.Type
 		}
-		if shaderInput.Idx != nil {
-			params.Idx = int16(*shaderInput.Idx)
-		}
 		if shaderInput.Name != nil {
-			params.Column5 = *shaderInput.Name
+			params.Column4 = *shaderInput.Name
+		}
+		if shaderInput.Idx != nil {
+			params.Idx = int32(*shaderInput.Idx)
 		}
 		r.queries.UpdateShaderInput(ctx, params)
 	}
@@ -301,9 +307,6 @@ func (r shaderRepository) UpdateShader(ctx context.Context, userID uuid.UUID, sh
 		}
 		if shaderOutput.Type != nil {
 			params.Column4 = *shaderOutput.Type
-		}
-		if shaderOutput.Idx != nil {
-			params.Idx = int16(*shaderOutput.Idx)
 		}
 		r.queries.UpdateShaderOutput(ctx, params)
 	}

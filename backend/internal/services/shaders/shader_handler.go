@@ -37,6 +37,7 @@ func RegisterHandlers(r *gin.RouterGroup, service domain.ShaderService) {
 	r.POST("/shaders", middleware.Auth(), h.createShader)
 	r.PUT("/shaders/:id", middleware.Auth(), h.updateShader)
 	r.POST("/shaders/output", middleware.Auth(), h.createShaderOutput)
+	r.POST("/shaders/input", middleware.Auth(), h.createShaderInput)
 }
 
 func (h ShaderHandler) updateShader(c *gin.Context) {
@@ -209,4 +210,24 @@ func (h ShaderHandler) createShaderOutput(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, shaderOutput)
+}
+
+func (h ShaderHandler) createShaderInput(c *gin.Context) {
+	_, ok := middleware.CurrentUser(c)
+	if !ok {
+		util.SetErrorResponse(c, http.StatusInternalServerError, "Internal Server Error")
+		return
+	}
+
+	var payload domain.CreateShaderInputPayload
+	if ok := util.ValidateAndSetErrors(c, &payload); !ok {
+		return
+	}
+
+	shaderInput, err := h.service.CreateShaderInput(c, payload)
+	if err != nil {
+		util.SetInternalServiceErrorResponse(c)
+		return
+	}
+	c.JSON(http.StatusOK, shaderInput)
 }

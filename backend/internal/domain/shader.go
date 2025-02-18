@@ -21,7 +21,7 @@ type (
 
 	ShaderInput struct {
 		ID         uuid.UUID              `json:"id"`
-		ShaderID   string                 `json:"shader_id"`
+		ShaderID   uuid.UUID              `json:"shader_id"`
 		Url        string                 `json:"url"`
 		Type       string                 `json:"type"`
 		Idx        int                    `json:"idx"`
@@ -31,11 +31,10 @@ type (
 
 	ShaderOutput struct {
 		ID       uuid.UUID `json:"id"`
-		ShaderID string    `json:"shader_id"`
+		ShaderID uuid.UUID `json:"shader_id"`
 		Code     string    `json:"code"`
 		Name     string    `json:"name"`
 		Type     string    `json:"type"`
-		Idx      int       `json:"idx"`
 	}
 
 	UpdateShaderInputPayload struct {
@@ -61,7 +60,6 @@ type (
 		Code *string   `json:"code,omitempty"`
 		Name *string   `json:"name,omitempty"`
 		Type *string   `json:"type,omitempty"`
-		Idx  *int      `json:"idx,omitempty"`
 	}
 
 	CreateShaderOutputPayload struct {
@@ -69,7 +67,6 @@ type (
 		Code     string    `json:"code" binding:"required"`
 		Name     string    `json:"name" binding:"required"`
 		Type     string    `json:"type" binding:"required"`
-		Idx      int       `json:"idx" binding:"required"`
 	}
 	UpdateShaderPayload struct {
 		ID            uuid.UUID                   `json:"id" binding:"required"`

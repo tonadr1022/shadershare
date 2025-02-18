@@ -23,7 +23,7 @@ import {
 } from "@codemirror/view";
 import { useRendererCtx } from "@/context/RendererContext";
 import { ErrorWidget } from "./ErrorWidget";
-import { ErrMsg, ShaderOutput } from "@/types/shader";
+import { ErrMsg, ShaderOutput, ShaderOutputName } from "@/types/shader";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useResolvedTheme } from "@/hooks/hooks";
@@ -40,6 +40,7 @@ import {
 import { useMutation } from "@tanstack/react-query";
 import { createShaderOutput } from "@/api/shader-api";
 import { toast } from "sonner";
+import { defaultBufferFragmentCode } from "../renderer/Renderer";
 
 // type EditorOptions = {
 //   fontSize: number;
@@ -48,7 +49,7 @@ import { toast } from "sonner";
 //   relativeLineNumber: true;
 // };
 
-const bufferNames = [
+const shaderOutputNames: ShaderOutputName[] = [
   "Common",
   "Buffer A",
   "Buffer B",
@@ -56,6 +57,7 @@ const bufferNames = [
   "Buffer D",
   "Buffer E",
 ];
+
 const clearErrorsEffect = StateEffect.define<void>();
 const errorEffect = StateEffect.define<ErrMsg>();
 const errorField = StateField.define<DecorationSet>({
@@ -81,11 +83,11 @@ const errorField = StateField.define<DecorationSet>({
 });
 
 type Props2 = {
-  errMsgs: ErrMsg[] | null;
+  errMsgs?: ErrMsg[] | null;
   text: string;
   visible: boolean;
-  idx: number;
-  onTextChange: (text: string, idx: number) => void;
+  name: ShaderOutputName;
+  onTextChange: (text: string, name: ShaderOutputName) => void;
 };
 
 type KeyBind = {
@@ -121,7 +123,7 @@ export const Editor2 = React.memo((props: Props2) => {
     const errMsgs = props.errMsgs;
     editor.view.dispatch({ effects: clearErrorsEffect.of() });
     // if err msgs are passed, show them
-    if (errMsgs !== null && errMsgs.length) {
+    if (errMsgs !== null && errMsgs !== undefined && errMsgs.length) {
       const editor = editorRef.current;
       if (editor && editor.view) {
         editor.view.dispatch({
@@ -171,9 +173,9 @@ export const Editor2 = React.memo((props: Props2) => {
 
   const codeMirrorOnTextChange = useCallback(
     (text: string) => {
-      onTextChange(text, props.idx);
+      onTextChange(text, props.name);
     },
-    [onTextChange, props.idx],
+    [onTextChange, props.name],
   );
 
   const themeStr = useResolvedTheme();
@@ -198,9 +200,13 @@ Editor2.displayName = "Editor2";
 
 export const MultiBufferEditor = React.memo(() => {
   const [renderPassEditIdx, setRenderPassEditIdx] = useState(0);
-  const [errMsgs, setErrMsgs] = useState<(ErrMsg[] | null)[]>([]);
+  const [errMsgs, setErrMsgs] = useState<Map<
+    ShaderOutputName,
+    ErrMsg[] | null
+  > | null>(null);
 
   const { codeDirtyRef, setPaused, renderer, shaderDataRef } = useRendererCtx();
+  const [, forceUpdate] = useState(0);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -231,14 +237,18 @@ export const MultiBufferEditor = React.memo(() => {
   }, [renderer, setPaused, shaderDataRef]);
 
   const onTextUpdate = useCallback(
-    (newText: string, idx: number) => {
+    (newText: string, name: ShaderOutputName) => {
       if (!renderer) return;
-      const output = shaderDataRef.current.shader_outputs[idx];
-      if (output.type !== "common") {
-        renderer.setShaderDirty(idx);
+      const output = shaderDataRef.current.shader_outputs.find(
+        (output) => output.name === name,
+      )!;
+      // compare name string for type coherence
+      if (output.type !== "common" && output.name !== "Common") {
+        renderer.setShaderDirty(output.name);
       }
-      codeDirtyRef.current[idx] = true;
-      shaderDataRef.current.shader_outputs[idx].code = newText;
+      codeDirtyRef.current.set(name, true);
+      // TODO: make this into dictionary
+      output.code = newText;
     },
     [renderer, shaderDataRef, codeDirtyRef],
   );
@@ -253,31 +263,46 @@ export const MultiBufferEditor = React.memo(() => {
     },
     [shaderDataRef],
   );
+  const afterCreateShaderOutput = useCallback(
+    (shaderOutput: ShaderOutput) => {
+      shaderDataRef.current.shader_outputs.push(shaderOutput);
+      codeDirtyRef.current.set(shaderOutput.name, false);
+      shaderDataRef.current.shader_outputs.sort((a, b) =>
+        a.name.localeCompare(b.name),
+      );
+    },
+    [codeDirtyRef, shaderDataRef],
+  );
   const createShaderOutputMut = useMutation({
     mutationFn: createShaderOutput,
     onError: () => {
       toast.error("Failed to create shader output");
     },
     onSuccess: (shaderOutput: ShaderOutput) => {
-      shaderDataRef.current.shader_outputs.push(shaderOutput);
-      codeDirtyRef.current.push(false);
+      afterCreateShaderOutput(shaderOutput);
     },
   });
 
   // need to make a new shader output on the backend
   const handleAddShaderOutput = useCallback(
-    async (name: string) => {
+    async (name: ShaderOutputName) => {
       const type = name === "Common" ? "common" : "buffer";
+      const shaderID = shaderDataRef.current.shader.id || "";
       const newOutput: ShaderOutput = {
-        shader_id: shaderDataRef.current.shader.id,
         name,
         type: type,
-        idx: shaderDataRef.current.shader_outputs.length,
-        code: "// hello world test",
+        code: defaultBufferFragmentCode,
       };
-      createShaderOutputMut.mutate(newOutput);
+
+      if (shaderID !== "") {
+        newOutput.shader_id = shaderID;
+        createShaderOutputMut.mutate(newOutput);
+      } else {
+        afterCreateShaderOutput(newOutput);
+      }
+      forceUpdate((prev) => prev + 1);
     },
-    [shaderDataRef, createShaderOutputMut],
+    [afterCreateShaderOutput, shaderDataRef, createShaderOutputMut],
   );
 
   return (
@@ -294,12 +319,12 @@ export const MultiBufferEditor = React.memo(() => {
           <ShaderInputEdit />
         </TabsContent>
         <TabsContent value="1">
-          <Tabs defaultValue="0" className="">
+          <Tabs defaultValue="Image" className="">
             <div className="flex flex-row gap-4">
               <TabsList>
                 {shaderDataRef.current.shader_outputs.map((output, idx) => (
                   <TabsTrigger
-                    value={idx.toString()}
+                    value={output.name}
                     onClick={() => setRenderPassEditIdx(idx)}
                     key={output.name}
                   >
@@ -316,7 +341,7 @@ export const MultiBufferEditor = React.memo(() => {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
                   <DropdownMenuLabel>Add Shader Output</DropdownMenuLabel>
-                  {bufferNames.map((name) =>
+                  {shaderOutputNames.map((name) =>
                     hasBuffer(name) ? null : (
                       <DropdownMenuItem
                         onClick={() => handleAddShaderOutput(name)}
@@ -332,7 +357,7 @@ export const MultiBufferEditor = React.memo(() => {
             {shaderDataRef.current.shader_outputs.map((output, idx) => (
               <TabsContent
                 forceMount={true}
-                value={idx.toString()}
+                value={output.name}
                 key={output.name}
                 className={cn(
                   renderPassEditIdx === idx ? "" : "hidden",
@@ -340,8 +365,8 @@ export const MultiBufferEditor = React.memo(() => {
                 )}
               >
                 <Editor2
-                  errMsgs={errMsgs[idx]}
-                  idx={idx}
+                  errMsgs={!errMsgs ? null : errMsgs.get(output.name)}
+                  name={output.name}
                   visible={renderPassEditIdx === idx}
                   text={output.code}
                   onTextChange={onTextUpdate}

@@ -2,6 +2,7 @@
 import {
   ShaderData,
   ShaderDataWithUsernameResponse,
+  ShaderInput,
   ShaderOutput,
   ShaderUpdateCreatePayload,
 } from "@/types/shader";
@@ -72,6 +73,10 @@ export const getShadersWithUsernames = async (
   return res.data;
 };
 
+export const createShaderInput = async (data: ShaderInput) => {
+  const res = await axiosInstance.post("/shaders/input", data);
+  return res.data;
+};
 export const createShaderOutput = async (data: ShaderOutput) => {
   const res = await axiosInstance.post("/shaders/output", data);
   return res.data;

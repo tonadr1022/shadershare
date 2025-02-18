@@ -2,6 +2,24 @@ export type TextureWrap = "repeat" | "clamp";
 export type FilterMode = "nearest" | "linear";
 export type ShaderInputType = "texture" | "buffer";
 export type ShaderOutputType = "common" | "image" | "buffer";
+export type BufferName =
+  | "Buffer A"
+  | "Buffer B"
+  | "Buffer C"
+  | "Buffer D"
+  | "Buffer E"
+  | "Image";
+export type ShaderOutputName = BufferName | "Common";
+
+export const shaderOutputNames: ShaderOutputName[] = [
+  "Common",
+  "Buffer A",
+  "Buffer B",
+  "Buffer C",
+  "Buffer D",
+  "Buffer E",
+  "Image",
+];
 
 export type TextureProps = {
   wrap: TextureWrap;
@@ -17,6 +35,7 @@ export const DefaultTextureProps: TextureProps = {
 
 export type ShaderInput = {
   id?: string;
+  shader_id?: string;
   url?: string;
   // TODO: make type
   type: ShaderInputType;
@@ -29,9 +48,8 @@ export type ShaderOutput = {
   id?: string;
   shader_id?: string;
   code: string;
-  name: string;
+  name: ShaderOutputName;
   type: ShaderOutputType;
-  idx: number;
 };
 
 export enum AccessLevel {

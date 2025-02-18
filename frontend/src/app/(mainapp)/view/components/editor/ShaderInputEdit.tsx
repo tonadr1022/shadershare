@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React from "react";
 import EditIChannel from "./EditIChannel";
 import { useRendererCtx } from "@/context/RendererContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -27,7 +27,11 @@ const ShaderInputEdit = () => {
             );
           })}
         </TabsList>
-        <AddShaderInputDialog />
+        <AddShaderInputDialog
+          onSave={(idx) => {
+            setEditIdx(idx);
+          }}
+        />
       </div>
       {shaderDataRef.current.shader_inputs.map((input, idx) => {
         return (

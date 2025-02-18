@@ -6,7 +6,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -28,7 +27,11 @@ import {
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { useRendererCtx } from "@/context/RendererContext";
-import { ShaderInput, ShaderInputType } from "@/types/shader";
+import { BufferName, ShaderInput, ShaderInputType } from "@/types/shader";
+import { Plus } from "lucide-react";
+import { createShaderInput } from "@/api/shader-api";
+import { useMutation } from "@tanstack/react-query";
+import { useCallback } from "react";
 
 const formSchema = z.object({
   type: z.string(),
@@ -36,10 +39,11 @@ const formSchema = z.object({
     message: "Name must be at least 2 characters.",
   }),
 });
-const AddShaderInputDialog = () => {
-  const { shaderDataRef } = useRendererCtx();
-  // type, name
-  const handleAddInput = useCallback(() => {}, []);
+type Props = {
+  onSave: (idx: number) => void;
+};
+const AddShaderInputDialog = ({ onSave }: Props) => {
+  const { renderer, shaderDataRef } = useRendererCtx();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -47,28 +51,64 @@ const AddShaderInputDialog = () => {
       name: "New Input",
     },
   });
+  const afterCreateShaderInput = useCallback(
+    (data: ShaderInput) => {
+      console.log("new data", data);
+      if (!renderer) return;
+      if (data.type === "buffer") {
+        renderer.addBufferIChannel(data.name as BufferName, data.idx);
+      } else if (data.type === "texture") {
+        console.log(data.idx);
+        renderer.addImageIChannel(data.url!, data.idx, data.properties);
+      } else {
+        throw new Error("invalid shader input type");
+      }
+      shaderDataRef.current.shader_inputs.push(data);
+    },
+    [shaderDataRef, renderer],
+  );
 
+  const createShaderInputMut = useMutation({
+    mutationFn: createShaderInput,
+    onError: () => {
+      toast.error("Failed to create shader output");
+    },
+    onSuccess: (data) => {
+      afterCreateShaderInput(data);
+      onSave(data.idx);
+    },
+  });
   const onSubmit = form.handleSubmit((data) => {
+    if (!renderer) return;
     const newInput: ShaderInput = {
       type: data.type as ShaderInputType,
       name: data.name,
       idx: shaderDataRef.current.shader_inputs.length,
     };
-    if (data.type === "buffer") {
-    } else if (data.type === "texture") {
+    if (data.type === "texture") {
+      newInput.url = "https://dummyimage.com/64x64/ffffff/ffffff.png";
+      newInput.properties = {
+        wrap: "repeat",
+        filter: "linear",
+        vflip: true,
+      };
     } else {
       throw new Error("invalid type");
     }
-
-    shaderDataRef.current.shader_inputs.push(newInput);
-    toast.success("Input added" + data.name);
+    if (shaderDataRef.current.shader.id) {
+      newInput.shader_id = shaderDataRef.current.shader.id;
+      createShaderInputMut.mutate(newInput);
+    } else {
+      afterCreateShaderInput(newInput);
+      onSave(newInput.idx);
+    }
   });
 
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button onClick={handleAddInput} variant="default">
-          add input
+        <Button variant="default">
+          <Plus />
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425]px">

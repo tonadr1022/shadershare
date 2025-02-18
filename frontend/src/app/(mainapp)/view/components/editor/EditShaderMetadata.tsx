@@ -4,6 +4,7 @@ import { getPreviewImgFile } from "../renderer/Renderer";
 import {
   AccessLevel,
   ShaderData,
+  shaderOutputNames,
   ShaderUpdateCreatePayload,
 } from "@/types/shader";
 import { useRendererCtx } from "@/context/RendererContext";
@@ -83,8 +84,9 @@ const EditShaderMetadata = ({ initialData }: Props) => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["shaders"] });
       toast.success("Shader saved successfully");
-      // TODO: extract somewhere else
-      codeDirtyRef.current = codeDirtyRef.current.map(() => false);
+      for (const name of shaderOutputNames) {
+        codeDirtyRef.current.set(name, false);
+      }
     },
   });
 
@@ -112,7 +114,7 @@ const EditShaderMetadata = ({ initialData }: Props) => {
         payload.id = initialData.shader.id;
         payload.user_id = initialData.shader.user_id;
         const dirtyRenderPasses = shaderDataRef.current.shader_outputs.filter(
-          (_, idx) => codeDirtyRef.current[idx],
+          (output) => codeDirtyRef.current.get(output.name),
         );
         if (dirtyRenderPasses.length > 0) {
           payload.shader_outputs = dirtyRenderPasses;
@@ -122,14 +124,15 @@ const EditShaderMetadata = ({ initialData }: Props) => {
         payload.shader_inputs = shaderDataRef.current.shader_inputs;
       }
       // TODO: check images etc
-      const shaderDirty = codeDirtyRef.current.some((dirty) => dirty);
+      const shaderDirty =
+        shaderDataDirty ||
+        codeDirtyRef.current.values().some((val: boolean) => val);
 
       // TODO: partial update
       payload.shader_inputs = shaderDataRef.current.shader_inputs;
 
       let previewFile: File | null = null;
-      const needNewPreview =
-        ((shaderDirty || shaderDataDirty) && isUpdate) || !isUpdate;
+      const needNewPreview = (shaderDirty && isUpdate) || !isUpdate;
       if (shaderDirty && isUpdate) {
         payload.preview_img_url = initialData.shader.preview_img_url;
       }

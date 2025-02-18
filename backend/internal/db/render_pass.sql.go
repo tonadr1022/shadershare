@@ -14,18 +14,18 @@ import (
 
 const createShaderInput = `-- name: CreateShaderInput :one
 INSERT INTO shader_inputs (
-    shader_id, url, type, idx, name, properties
+    shader_id, url, type, name, idx, properties
 ) VALUES (
     $1, $2, $3, $4, $5, $6
-) RETURNING id, shader_id, url, type, idx, name, properties
+) RETURNING id, shader_id, url, type, name, idx, properties
 `
 
 type CreateShaderInputParams struct {
 	ShaderID   uuid.UUID
 	Url        pgtype.Text
 	Type       string
-	Idx        int16
 	Name       string
+	Idx        int32
 	Properties []byte
 }
 
@@ -34,8 +34,8 @@ func (q *Queries) CreateShaderInput(ctx context.Context, arg CreateShaderInputPa
 		arg.ShaderID,
 		arg.Url,
 		arg.Type,
-		arg.Idx,
 		arg.Name,
+		arg.Idx,
 		arg.Properties,
 	)
 	var i ShaderInput
@@ -44,8 +44,8 @@ func (q *Queries) CreateShaderInput(ctx context.Context, arg CreateShaderInputPa
 		&i.ShaderID,
 		&i.Url,
 		&i.Type,
-		&i.Idx,
 		&i.Name,
+		&i.Idx,
 		&i.Properties,
 	)
 	return i, err
@@ -53,10 +53,10 @@ func (q *Queries) CreateShaderInput(ctx context.Context, arg CreateShaderInputPa
 
 const createShaderOutput = `-- name: CreateShaderOutput :one
 INSERT INTO shader_outputs (
-    shader_id, code, name, type, idx
+    shader_id, code, name, type
 ) VALUES (
-    $1, $2, $3, $4, $5
-) RETURNING id, shader_id, code, name, type, idx
+    $1, $2, $3, $4
+) RETURNING id, shader_id, code, name, type
 `
 
 type CreateShaderOutputParams struct {
@@ -64,7 +64,6 @@ type CreateShaderOutputParams struct {
 	Code     string
 	Name     string
 	Type     string
-	Idx      int16
 }
 
 func (q *Queries) CreateShaderOutput(ctx context.Context, arg CreateShaderOutputParams) (ShaderOutput, error) {
@@ -73,7 +72,6 @@ func (q *Queries) CreateShaderOutput(ctx context.Context, arg CreateShaderOutput
 		arg.Code,
 		arg.Name,
 		arg.Type,
-		arg.Idx,
 	)
 	var i ShaderOutput
 	err := row.Scan(
@@ -82,7 +80,6 @@ func (q *Queries) CreateShaderOutput(ctx context.Context, arg CreateShaderOutput
 		&i.Code,
 		&i.Name,
 		&i.Type,
-		&i.Idx,
 	)
 	return i, err
 }
@@ -126,8 +123,8 @@ SELECT
         'shader_id', si.shader_id,
         'url', si.url,
         'type', si.type, 
-        'idx', si.idx,
         'name', si.name,
+        'idx', si.idx,
         'properties', si.properties
         )) FROM shader_inputs si WHERE si.shader_id = s.id) AS inputs,
   (SELECT JSON_AGG(JSON_BUILD_OBJECT(
@@ -135,8 +132,7 @@ SELECT
         'shader_id', so.shader_id,
         'code', so.code,
         'name', so.name,
-        'type', so.type,
-        'idx', so.idx
+        'type', so.type
         )) FROM shader_outputs so WHERE so.shader_id = s.id) AS outputs
 FROM 
   shaders s
@@ -183,8 +179,8 @@ SELECT
         'shader_id', si.shader_id,
         'url', si.url,
         'type', si.type, 
-        'idx', si.idx,
         'name', si.name,
+        'idx', si.idx,
         'properties', si.properties
         )) FROM shader_inputs si WHERE si.shader_id = s.id) AS inputs,
   (SELECT JSON_AGG(JSON_BUILD_OBJECT(
@@ -192,8 +188,7 @@ SELECT
         'shader_id', so.shader_id,
         'code', so.code,
         'name', so.name,
-        'type', so.type,
-        'idx', so.idx
+        'type', so.type
         )) FROM shader_outputs so WHERE so.shader_id = s.id) AS outputs
 FROM shaders s
 WHERE s.access_level = $3
@@ -251,72 +246,8 @@ func (q *Queries) GetShaderDetailedList(ctx context.Context, arg GetShaderDetail
 	return items, nil
 }
 
-const getShaderDetailedList2 = `-- name: GetShaderDetailedList2 :many
-SELECT 
-    s.id, s.title, s.description, s.user_id, s.access_level, s.preview_img_url, s.created_at, s.updated_at,
-    ARRAY_AGG(DISTINCT si ORDER BY si.idx) AS inputs,
-    ARRAY_AGG(DISTINCT so ORDER BY so.idx) AS outputs
-FROM shaders s
-LEFT JOIN shader_inputs si ON si.shader_id = s.id
-LEFT JOIN shader_outputs so ON so.shader_id = s.id
-WHERE s.access_level = $3
-GROUP BY s.id
-ORDER BY s.updated_at DESC
-LIMIT $1 OFFSET $2
-`
-
-type GetShaderDetailedList2Params struct {
-	Limit       int32
-	Offset      int32
-	AccessLevel int16
-}
-
-type GetShaderDetailedList2Row struct {
-	ID            uuid.UUID
-	Title         string
-	Description   pgtype.Text
-	UserID        uuid.UUID
-	AccessLevel   int16
-	PreviewImgUrl pgtype.Text
-	CreatedAt     pgtype.Timestamptz
-	UpdatedAt     pgtype.Timestamptz
-	Inputs        interface{}
-	Outputs       interface{}
-}
-
-func (q *Queries) GetShaderDetailedList2(ctx context.Context, arg GetShaderDetailedList2Params) ([]GetShaderDetailedList2Row, error) {
-	rows, err := q.db.Query(ctx, getShaderDetailedList2, arg.Limit, arg.Offset, arg.AccessLevel)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GetShaderDetailedList2Row
-	for rows.Next() {
-		var i GetShaderDetailedList2Row
-		if err := rows.Scan(
-			&i.ID,
-			&i.Title,
-			&i.Description,
-			&i.UserID,
-			&i.AccessLevel,
-			&i.PreviewImgUrl,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.Inputs,
-			&i.Outputs,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const getShaderInput = `-- name: GetShaderInput :one
-SELECT id, shader_id, url, type, idx, name, properties FROM shader_inputs
+SELECT id, shader_id, url, type, name, idx, properties FROM shader_inputs
 WHERE id = $1
 `
 
@@ -328,15 +259,15 @@ func (q *Queries) GetShaderInput(ctx context.Context, id uuid.UUID) (ShaderInput
 		&i.ShaderID,
 		&i.Url,
 		&i.Type,
-		&i.Idx,
 		&i.Name,
+		&i.Idx,
 		&i.Properties,
 	)
 	return i, err
 }
 
 const getShaderOutput = `-- name: GetShaderOutput :one
-SELECT id, shader_id, code, name, type, idx FROM shader_outputs
+SELECT id, shader_id, code, name, type FROM shader_outputs
 WHERE id = $1
 `
 
@@ -349,13 +280,12 @@ func (q *Queries) GetShaderOutput(ctx context.Context, id uuid.UUID) (ShaderOutp
 		&i.Code,
 		&i.Name,
 		&i.Type,
-		&i.Idx,
 	)
 	return i, err
 }
 
 const listShaderInputs = `-- name: ListShaderInputs :many
-SELECT id, shader_id, url, type, idx, name, properties FROM shader_inputs
+SELECT id, shader_id, url, type, name, idx, properties FROM shader_inputs
 WHERE shader_id = $1
 `
 
@@ -373,8 +303,8 @@ func (q *Queries) ListShaderInputs(ctx context.Context, shaderID uuid.UUID) ([]S
 			&i.ShaderID,
 			&i.Url,
 			&i.Type,
-			&i.Idx,
 			&i.Name,
+			&i.Idx,
 			&i.Properties,
 		); err != nil {
 			return nil, err
@@ -388,7 +318,7 @@ func (q *Queries) ListShaderInputs(ctx context.Context, shaderID uuid.UUID) ([]S
 }
 
 const listShaderOutputs = `-- name: ListShaderOutputs :many
-SELECT id, shader_id, code, name, type, idx FROM shader_outputs
+SELECT id, shader_id, code, name, type FROM shader_outputs
 WHERE shader_id = $1
 `
 
@@ -407,7 +337,6 @@ func (q *Queries) ListShaderOutputs(ctx context.Context, shaderID uuid.UUID) ([]
 			&i.Code,
 			&i.Name,
 			&i.Type,
-			&i.Idx,
 		); err != nil {
 			return nil, err
 		}
@@ -423,18 +352,18 @@ const updateShaderInput = `-- name: UpdateShaderInput :one
 UPDATE shader_inputs
 SET url = COALESCE(NULLIF($2::TEXT,''), url),
     type = COALESCE(NULLIF($3::TEXT,''), type),
-    idx = COALESCE($4, idx),
-    name = COALESCE(NULLIF($5::TEXT,''), name),
+    name = COALESCE(NULLIF($4::TEXT,''), name),
+    idx = COALESCE($5, idx),
     properties = COALESCE($6, properties)
-WHERE id = $1 RETURNING id, shader_id, url, type, idx, name, properties
+WHERE id = $1 RETURNING id, shader_id, url, type, name, idx, properties
 `
 
 type UpdateShaderInputParams struct {
 	ID         uuid.UUID
 	Column2    string
 	Column3    string
-	Idx        int16
-	Column5    string
+	Column4    string
+	Idx        int32
 	Properties []byte
 }
 
@@ -443,8 +372,8 @@ func (q *Queries) UpdateShaderInput(ctx context.Context, arg UpdateShaderInputPa
 		arg.ID,
 		arg.Column2,
 		arg.Column3,
+		arg.Column4,
 		arg.Idx,
-		arg.Column5,
 		arg.Properties,
 	)
 	var i ShaderInput
@@ -453,8 +382,8 @@ func (q *Queries) UpdateShaderInput(ctx context.Context, arg UpdateShaderInputPa
 		&i.ShaderID,
 		&i.Url,
 		&i.Type,
-		&i.Idx,
 		&i.Name,
+		&i.Idx,
 		&i.Properties,
 	)
 	return i, err
@@ -464,9 +393,8 @@ const updateShaderOutput = `-- name: UpdateShaderOutput :one
 UPDATE shader_outputs
 SET code = COALESCE(NULLIF($2::TEXT,''), code),
     name = COALESCE(NULLIF($3::TEXT,''), name),
-    type = COALESCE(NULLIF($4::TEXT,''), type),
-    idx = COALESCE($5, idx)
-WHERE id = $1 RETURNING id, shader_id, code, name, type, idx
+    type = COALESCE(NULLIF($4::TEXT,''), type)
+WHERE id = $1 RETURNING id, shader_id, code, name, type
 `
 
 type UpdateShaderOutputParams struct {
@@ -474,7 +402,6 @@ type UpdateShaderOutputParams struct {
 	Column2 string
 	Column3 string
 	Column4 string
-	Idx     int16
 }
 
 func (q *Queries) UpdateShaderOutput(ctx context.Context, arg UpdateShaderOutputParams) (ShaderOutput, error) {
@@ -483,7 +410,6 @@ func (q *Queries) UpdateShaderOutput(ctx context.Context, arg UpdateShaderOutput
 		arg.Column2,
 		arg.Column3,
 		arg.Column4,
-		arg.Idx,
 	)
 	var i ShaderOutput
 	err := row.Scan(
@@ -492,7 +418,6 @@ func (q *Queries) UpdateShaderOutput(ctx context.Context, arg UpdateShaderOutput
 		&i.Code,
 		&i.Name,
 		&i.Type,
-		&i.Idx,
 	)
 	return i, err
 }

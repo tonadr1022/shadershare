@@ -4,7 +4,11 @@ import {
   IRenderer,
 } from "@/app/(mainapp)/view/components/renderer/Renderer";
 import { DefaultNewShader } from "@/rendering/example-shaders";
-import { ShaderData } from "@/types/shader";
+import {
+  ShaderData,
+  ShaderOutputName,
+  shaderOutputNames,
+} from "@/types/shader";
 import React, {
   createContext,
   useState,
@@ -19,7 +23,7 @@ interface RendererContextType {
   setPaused: React.Dispatch<React.SetStateAction<boolean>>;
   renderer: IRenderer | null;
   shaderDataRef: React.RefObject<ShaderData>;
-  codeDirtyRef: React.RefObject<boolean[]>;
+  codeDirtyRef: React.RefObject<Map<ShaderOutputName, boolean>>;
   shaderDataDirty: boolean;
   setShaderDataDirty: React.Dispatch<React.SetStateAction<boolean>>;
 }
@@ -44,16 +48,20 @@ export const RendererProvider: React.FC<RendererProviderProps> = ({
   const shaderDataRef = React.useRef<ShaderData>(
     initialShaderData || DefaultNewShader,
   );
-  const codeDirtyRef = useRef<boolean[]>([]);
+  const codeDirtyRef = useRef<Map<ShaderOutputName, boolean>>(new Map());
 
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
     setRenderer(createRenderer());
-    codeDirtyRef.current = shaderDataRef.current.shader_outputs.map(
-      () => false,
-    );
+    for (const name of shaderOutputNames) {
+      codeDirtyRef.current.set(name, false);
+    }
+
     shaderDataRef.current.shader_inputs.sort((a, b) => a.idx - b.idx);
+    shaderDataRef.current.shader_outputs.sort((a, b) =>
+      a.name.localeCompare(b.name),
+    );
     return () => {
       renderer?.shutdown();
     };

@@ -25,8 +25,8 @@ type ShaderInput struct {
 	ShaderID   uuid.UUID
 	Url        pgtype.Text
 	Type       string
-	Idx        int16
 	Name       string
+	Idx        int32
 	Properties []byte
 }
 
@@ -36,7 +36,6 @@ type ShaderOutput struct {
 	Code     string
 	Name     string
 	Type     string
-	Idx      int16
 }
 
 type User struct {

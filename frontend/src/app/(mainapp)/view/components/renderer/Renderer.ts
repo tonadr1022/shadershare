@@ -10,6 +10,8 @@ import {
   ShaderOutput,
   TextureProps,
   TextureWrap,
+  BufferName,
+  ShaderOutputName,
 } from "@/types/shader";
 import { createErrorResult, createSuccessResult } from "../util";
 import { webgl2Utils, WebGL2Utils } from "./Util";
@@ -20,6 +22,7 @@ export const getPreviewImgFile = async (
   return new Promise(async (resolve) => {
     const renderer = createRenderer();
     const canvas = document.createElement("canvas");
+    shaderData.shader_inputs.sort((a, b) => a.idx - b.idx);
     await renderer.initialize({
       canvas: canvas,
       shaderInputs: shaderData.shader_inputs,
@@ -126,6 +129,9 @@ const checkGLError = (gl: WebGL2RenderingContext) => {
   }
 };
 
+export const defaultBufferFragmentCode = `void mainImage(out vec4 fragColor, in vec2 fragCoord) {
+    fragColor = vec4(0.0,0.0,1.0,1.0);
+}`;
 const vertexCode = `#version 300 es
 #ifdef GL_ES
 precision highp float;
@@ -311,9 +317,9 @@ class RenderTarget {
 }
 
 class BufferIChannel {
-  idx: number;
-  constructor(idx: number) {
-    this.idx = idx;
+  bufferName: BufferName;
+  constructor(bufferName: BufferName) {
+    this.bufferName = bufferName;
   }
 }
 
@@ -509,13 +515,35 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
     }
     return true;
   };
+  const getBufferOutputsWithNames = (): {
+    name: BufferName;
+    output: RRenderPass | null;
+  }[] => {
+    return [
+      { name: "Buffer A", output: state.outputs["Buffer A"] },
+      { name: "Buffer B", output: state.outputs["Buffer B"] },
+      { name: "Buffer C", output: state.outputs["Buffer C"] },
+      { name: "Buffer D", output: state.outputs["Buffer D"] },
+      { name: "Buffer E", output: state.outputs["Buffer E"] },
+    ];
+  };
+  const getBufferOutputs = () => {
+    return [
+      state.outputs["Buffer A"],
+      state.outputs["Buffer B"],
+      state.outputs["Buffer C"],
+      state.outputs["Buffer D"],
+      state.outputs["Buffer E"],
+    ];
+  };
   const renderInternal = (outFBO: WebGLFramebuffer | null) => {
-    const finalImagePass = state.outputs[state.outputs.length - 1];
+    const finalImagePass = state.outputs.Image;
     if (!finalImagePass) {
       throw new Error("Invalid state");
     }
-    for (let i = 0; i < state.outputs.length - 1; i++) {
-      const output = state.outputs[i];
+    const bufferOutputs = getBufferOutputs();
+
+    for (const output of bufferOutputs) {
       if (output === null) {
         continue;
       }
@@ -570,9 +598,13 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
         if (iChannel instanceof Texture) {
           bindTexture(uniforms.iChannels[i]!, iChannel.texture, i);
         } else if (iChannel instanceof BufferIChannel) {
+          const output = state.outputs[iChannel.bufferName];
+          if (output === null) {
+            throw new Error("Invalid state");
+          }
           bindTexture(
             uniforms.iChannels[i]!,
-            state.outputs[i]!.renderTarget.getPrevTex(),
+            output.renderTarget.getPrevTex(),
             i,
           );
         }
@@ -580,7 +612,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
     }
     gl.drawArrays(gl.TRIANGLES, 0, 3);
 
-    for (const output of state.outputs) {
+    for (const output of bufferOutputs) {
       if (output === null) {
         continue;
       }
@@ -633,6 +665,8 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
 ${commonBufferText}
 `;
     const fragmentCode = `${completeHeader}${fragmentText}`;
+
+    console.log(fragmentCode);
     const compileRes = util.createShaderProgram(vertexCode, fragmentCode);
     const headerLineCnt = getLineCnt(completeHeader);
     if (compileRes.error) {
@@ -651,16 +685,32 @@ ${commonBufferText}
   const state: {
     // finalImagePass: RRenderPass | null;
     iChannels: (BufferIChannel | Texture | null)[];
-    outputs: (RRenderPass | null)[];
+    outputs: {
+      "Buffer A": RRenderPass | null;
+      "Buffer B": RRenderPass | null;
+      "Buffer C": RRenderPass | null;
+      "Buffer D": RRenderPass | null;
+      "Buffer E": RRenderPass | null;
+      Image: RRenderPass | null;
+    };
+    // outputs: (RRenderPass | null)[];
   } = {
     // finalImagePass: null,
     iChannels: [],
-    outputs: [],
+    outputs: {
+      "Buffer A": null,
+      "Buffer B": null,
+      "Buffer C": null,
+      "Buffer D": null,
+      "Buffer E": null,
+      Image: null,
+    },
   };
 
   // TODO: 3d textures?
   const addImageIChannel = (
     url: string,
+    idx: number,
     props?: TextureProps,
   ): Promise<void> => {
     return new Promise((resolve, reject) => {
@@ -674,7 +724,9 @@ ${commonBufferText}
         try {
           const properties = props || DefaultTextureProps;
           texture.bind(gl);
-          gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+          if (!props || props.vflip) {
+            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+          }
           gl.texImage2D(
             gl.TEXTURE_2D,
             0,
@@ -696,8 +748,7 @@ ${commonBufferText}
       image.addEventListener("error", (e) => {
         reject(new Error(`Failed to load image from ${url}: ${e.message}`));
       });
-
-      state.iChannels.push(texture);
+      state.iChannels.splice(idx, 0, texture);
     });
   };
   const setTextureData = (idx: number, url: string): Promise<void> => {
@@ -736,9 +787,8 @@ ${commonBufferText}
     });
   };
 
-  const addBufferIChannel = (idx: number) => {
-    const buffer = new BufferIChannel(idx);
-    state.iChannels.push(buffer);
+  const addBufferIChannel = (name: BufferName, idx: number) => {
+    state.iChannels.splice(idx, 0, new BufferIChannel(name));
   };
 
   const resizeBuffers = () => {
@@ -747,7 +797,7 @@ ${commonBufferText}
       if (!(iChannel instanceof BufferIChannel)) {
         continue;
       }
-      const output = state.outputs[iChannel.idx];
+      const output = state.outputs[iChannel.bufferName];
       if (!output) {
         throw new Error(
           "Invalid state: iChannel refers to output that doesn't exist",
@@ -880,7 +930,7 @@ ${commonBufferText}
         if (!(iChannel instanceof BufferIChannel)) {
           continue;
         }
-        const output = state.outputs[iChannel.idx];
+        const output = state.outputs[iChannel.bufferName];
         if (!output) {
           throw new Error(
             "Invalid state: iChannel refers to output that doesn't exist",
@@ -910,62 +960,65 @@ ${commonBufferText}
     // TODO: compilation stats and character counts and line counts
     setShaders: (
       shaderOutputs: ShaderOutput[],
-    ): { error: boolean; errMsgs: (ErrMsg[] | null)[] } => {
-      const programOrErrStrs: (string | WebGLProgram)[] = [];
+    ): { error: boolean; errMsgs: Map<ShaderOutputName, ErrMsg[] | null> } => {
+      const programOrErrStrs = new Map<
+        ShaderOutputName,
+        string | WebGLProgram
+      >();
       let anyError = false;
       const commonBufferIdx = shaderOutputs.findIndex(
         (output) => output.type === "common",
       );
       const commonOutput = shaderOutputs[commonBufferIdx]?.code || "";
 
-      const lineCnts = shaderOutputs.map(() => 0);
+      const lineCnts = new Map<ShaderOutputName, number>();
       for (let i = 0; i < shaderOutputs.length; i++) {
         const output = shaderOutputs[i];
         if (output.type === "common") {
           continue;
         }
         const res = compileShader(commonOutput, output.code);
-        lineCnts[i] = res.data!.headerLineCnt;
+        lineCnts.set(output.name, res.data!.headerLineCnt);
         if (res.error) {
           anyError = true;
-          programOrErrStrs.push(res.message!);
+          programOrErrStrs.set(output.name, res.message!);
         } else {
           const program = res.data!.program;
-          programOrErrStrs.push(program);
+          programOrErrStrs.set(output.name, program);
         }
       }
 
       if (!anyError) {
-        for (let i = 0; i < state.outputs.length; i++) {
-          const output = state.outputs[i];
+        const bufferOutputs = getBufferOutputsWithNames();
+        for (const { name, output } of bufferOutputs) {
           if (output === null) continue;
           if (output.program) {
             gl.deleteProgram(output.program);
           }
-          output.uniformLocs = new FragShaderUniforms(programOrErrStrs[i], gl);
-          output.program = programOrErrStrs[i];
+          const program = programOrErrStrs.get(name) as WebGLProgram;
+          output.uniformLocs = new FragShaderUniforms(program, gl);
+          output.program = program;
         }
         validPipelines = true;
       }
-      const errMsgs: ErrMsg[][] = [];
+      const errMsgs = new Map<ShaderOutputName, ErrMsg[] | null>();
       const commonBufferErrs: ErrMsg[] = [];
       let commonBufferErrProcessed = false;
-      for (let i = 0; i < programOrErrStrs.length; i++) {
-        if (typeof programOrErrStrs[i] === "string") {
-          errMsgs.push(
+      for (const [name, progOrErrStr] of programOrErrStrs) {
+        if (typeof progOrErrStr === "string") {
+          errMsgs.set(
+            name,
             getErrorMessages(
-              programOrErrStrs[i] as string,
-              lineCnts[i],
+              progOrErrStr as string,
+              lineCnts.get(name)!,
               !commonBufferErrProcessed,
               commonBufferErrs,
             ),
           );
           commonBufferErrProcessed = true;
-        } else {
-          errMsgs.push([]);
         }
       }
-      errMsgs[commonBufferIdx] = commonBufferErrs;
+      errMsgs.set("Common", commonBufferErrs);
 
       return {
         error: anyError,
@@ -973,14 +1026,11 @@ ${commonBufferText}
       };
     },
 
-    setShaderDirty(idx: number) {
-      if (idx < 0 || idx >= state.outputs.length) {
-        throw new Error("Invalid pass index, out of range");
+    setShaderDirty(name: BufferName) {
+      if (!state.outputs[name]) {
+        throw new Error("Invalid state: shader output is null");
       }
-      if (!state.outputs[idx]) {
-        throw new Error("Invalid pass index no output with this index");
-      }
-      state.outputs[idx].dirty = true;
+      state.outputs[name].dirty = true;
     },
     // TODO: initialize should return shader compile errors
     initialize: async (params: IRendererInitPararms) => {
@@ -1012,10 +1062,10 @@ ${commonBufferText}
         const input = shaderInputs[i];
         if (input.type === "texture") {
           imageLoadPromises.push(
-            addImageIChannel(input.url!, input.properties),
+            addImageIChannel(input.url!, i, input.properties),
           );
         } else {
-          addBufferIChannel(input.idx);
+          addBufferIChannel(input.name as BufferName, i);
         }
       }
 
@@ -1029,31 +1079,32 @@ ${commonBufferText}
       //get the common output if exists
       let commonOutput: ShaderOutput | null = null;
       for (let i = 0; i < shaderOutputs.length; i++) {
-        if (shaderOutputs[i].type == "common") {
+        if (shaderOutputs[i].type === "common") {
           commonOutput = shaderOutputs[i];
           break;
         }
       }
 
-      const compileTasks = [];
+      const compileTasks: {
+        code: string;
+        name: BufferName;
+      }[] = [];
 
       for (let i = 0; i < shaderOutputs.length; i++) {
         const output = shaderOutputs[i];
-        if (output.type == "common") {
+        if (output.type === "common" || output.name === "Common") {
           continue;
         }
-        const isFinalImage = output.type == "image";
         compileTasks.push({
           code: output.code,
-          isFinalImage,
-          passIdx: output.idx,
+          name: output.name,
         });
       }
 
-      compileTasks.sort((a, b) => a.passIdx - b.passIdx);
       // TODO: parallelize shader compilation
       for (const task of compileTasks) {
         // TODO: common buffer
+        console.log({ taskcode: task.code, commonOutput: commonOutput?.code });
         const res = compileShader(commonOutput?.code || "", task.code);
         if (res.error) {
           console.error("error compiling shader", res.message);
@@ -1063,7 +1114,7 @@ ${commonBufferText}
         let doubleBuffer = false;
         for (const ichannel of state.iChannels) {
           if (ichannel instanceof BufferIChannel) {
-            if (ichannel.idx === task.passIdx) {
+            if (ichannel.bufferName === task.name) {
               doubleBuffer = true;
               break;
             }
@@ -1077,7 +1128,7 @@ ${commonBufferText}
           canvas.height,
           doubleBuffer,
         );
-        state.outputs[task.passIdx] = pass;
+        state.outputs[task.name] = pass;
       }
       validPipelines = true;
       initialized = true;
