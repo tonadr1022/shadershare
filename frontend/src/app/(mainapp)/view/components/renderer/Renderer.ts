@@ -156,13 +156,20 @@ uniform sampler2D iChannel0;
 uniform sampler2D iChannel1;
 uniform sampler2D iChannel2;
 uniform sampler2D iChannel3;
+uniform sampler2D iChannel4;
+uniform sampler2D iChannel5;
+uniform sampler2D iChannel6;
+uniform sampler2D iChannel7;
+uniform sampler2D iChannel8;
+uniform sampler2D iChannel9;
+uniform sampler2D iChannel10;
 
 uniform vec3 iResolution;
 uniform float iTime; // seconds
 uniform float iTimeDelta;
 uniform int iFrame;
-uniform float iChannelTime[4];
-uniform vec3 iChannelResolution[4];
+uniform float iChannelTime[10];
+uniform vec3 iChannelResolution[10];
 uniform vec4 iMouse; // xy = curr pixel coords, zw = click pixel coords
 
 out vec4 fC;
@@ -526,6 +533,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
       { name: "Buffer C", output: state.outputs["Buffer C"] },
       { name: "Buffer D", output: state.outputs["Buffer D"] },
       { name: "Buffer E", output: state.outputs["Buffer E"] },
+      { name: "Image", output: state.outputs["Image"] },
     ];
   };
   const getBufferOutputs = () => {
@@ -544,6 +552,28 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
     }
     const bufferOutputs = getBufferOutputs();
 
+    const bindIChannels = (
+      output: RRenderPass,
+      uniforms: FragShaderUniforms,
+    ) => {
+      // TODO: define max ichannels and make sure ichannels array is long enough
+      for (let i = 0; i < state.iChannels.length; i++) {
+        const iChannel = state.iChannels[i];
+        if (!iChannel || !uniforms.iChannels[i]) {
+          continue;
+        }
+
+        if (iChannel instanceof Texture) {
+          bindTexture(uniforms.iChannels[i]!, iChannel.texture, i);
+        } else if (iChannel instanceof BufferIChannel) {
+          bindTexture(
+            uniforms.iChannels[i]!,
+            output.renderTarget.getPrevTex(),
+            i,
+          );
+        }
+      }
+    };
     for (const output of bufferOutputs) {
       if (output === null) {
         continue;
@@ -561,24 +591,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
       );
       gl.clearColor(0.0, 0.0, 0.0, 1.0);
       gl.clear(gl.COLOR_BUFFER_BIT);
-      // TODO: define max ichannels and make sure ichannels array is long enough
-      for (let i = 0; i < 3; i++) {
-        if (uniforms.iChannels[i]) {
-          if (i >= state.iChannels.length) {
-            throw new Error("invalid state");
-          }
-          const iChannel = state.iChannels[i];
-          if (iChannel instanceof Texture) {
-            bindTexture(uniforms.iChannels[i]!, iChannel.texture, i);
-          } else if (iChannel instanceof BufferIChannel) {
-            bindTexture(
-              uniforms.iChannels[i]!,
-              output.renderTarget.getPrevTex(),
-              i,
-            );
-          }
-        }
-      }
+      bindIChannels(output, uniforms);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
     }
 
@@ -587,30 +600,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
     gl.bindFramebuffer(gl.FRAMEBUFFER, outFBO);
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
     gl.clear(gl.COLOR_BUFFER_BIT);
-
-    const uniforms = finalImagePass.uniformLocs;
-    // TODO: consolidate into func
-    for (let i = 0; i < 3; i++) {
-      if (uniforms.iChannels[i]) {
-        if (i >= state.iChannels.length) {
-          throw new Error("invalid state");
-        }
-        const iChannel = state.iChannels[i];
-        if (iChannel instanceof Texture) {
-          bindTexture(uniforms.iChannels[i]!, iChannel.texture, i);
-        } else if (iChannel instanceof BufferIChannel) {
-          const output = state.outputs[iChannel.bufferName];
-          if (output === null) {
-            throw new Error("Invalid state");
-          }
-          bindTexture(
-            uniforms.iChannels[i]!,
-            output.renderTarget.getPrevTex(),
-            i,
-          );
-        }
-      }
-    }
+    bindIChannels(finalImagePass, finalImagePass.uniformLocs);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
 
     for (const output of bufferOutputs) {
@@ -628,12 +618,8 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
     if (!validPipelines) {
       return;
     }
-    // currTime = performance.now() / 1000;
-    // timeDelta = currTime - lastTime;
     timeDelta = options?.dt || 0;
     fpsCounter.addTime(timeDelta);
-    // const dt = newTime - time;
-    // lastTime = currTime;
 
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.bindTexture(gl.TEXTURE_2D, null);
@@ -765,6 +751,7 @@ ${commonBufferText}
         image.crossOrigin = "";
         image.addEventListener("load", () => {
           texture.bind(gl);
+          // TODO: use properties
           gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
           gl.texImage2D(
             gl.TEXTURE_2D,
@@ -1032,6 +1019,8 @@ ${commonBufferText}
           output.program = program;
         }
         validPipelines = true;
+      } else {
+        console.error("error occurred during shader compilation");
       }
       const errMsgs = new Map<ShaderOutputName, ErrMsg[] | null>();
       const commonBufferErrs: ErrMsg[] = [];
@@ -1135,8 +1124,6 @@ ${commonBufferText}
 
       // TODO: parallelize shader compilation
       for (const task of compileTasks) {
-        // TODO: common buffer
-        console.log({ taskcode: task.code, commonOutput: commonOutput?.code });
         const res = compileShader(commonOutput?.code || "", task.code);
         if (res.error) {
           console.error("error compiling shader", res.message);
@@ -1145,11 +1132,12 @@ ${commonBufferText}
 
         let doubleBuffer = false;
         for (const ichannel of state.iChannels) {
-          if (ichannel instanceof BufferIChannel) {
-            if (ichannel.bufferName === task.name) {
-              doubleBuffer = true;
-              break;
-            }
+          if (
+            ichannel instanceof BufferIChannel &&
+            ichannel.bufferName === task.name
+          ) {
+            doubleBuffer = true;
+            break;
           }
         }
 
