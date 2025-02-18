@@ -12,6 +12,7 @@ import {
   TextureWrap,
   BufferName,
   ShaderOutputName,
+  ShaderInput,
 } from "@/types/shader";
 import { createErrorResult, createSuccessResult } from "../util";
 import { webgl2Utils, WebGL2Utils } from "./Util";
@@ -787,6 +788,36 @@ ${commonBufferText}
     });
   };
 
+  const removeBufferIChannel = (idx: number) => {
+    if (idx < 0 || idx >= state.iChannels.length) {
+      throw new Error("Invalid pass index, out of range");
+    }
+
+    // TODO: need to delete render pass?
+    state.iChannels.splice(idx, 1);
+  };
+
+  const removeImageIChannel = (idx: number) => {
+    if (idx < 0 || idx >= state.iChannels.length) {
+      throw new Error("Invalid pass index, out of range");
+    }
+    const channel = state.iChannels[idx];
+    if (!(channel instanceof Texture)) {
+      throw new Error("Invalid channel type");
+    }
+    channel.destroy(gl);
+    state.iChannels.splice(idx, 1);
+  };
+  const removeIChannel = (input: ShaderInput) => {
+    if (input.type === "buffer") {
+      removeBufferIChannel(input.idx);
+    } else if (input.type === "texture") {
+      removeImageIChannel(input.idx);
+    } else {
+      throw new Error("Invalid input type");
+    }
+  };
+
   const addBufferIChannel = (name: BufferName, idx: number) => {
     state.iChannels.splice(idx, 0, new BufferIChannel(name));
   };
@@ -886,6 +917,7 @@ ${commonBufferText}
 
     addImageIChannel,
     addBufferIChannel,
+    removeIChannel,
     setShaderTime: (t: number) => {
       shaderTime = t;
     },

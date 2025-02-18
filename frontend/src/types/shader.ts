@@ -57,17 +57,19 @@ export enum AccessLevel {
   PUBLIC = 1,
   UNLISTED = 2,
 }
+export type ShaderMetadata = {
+  id: string;
+  title: string;
+  description: string;
+  user_id: string;
+  access_level: AccessLevel;
+  created_at: string;
+  updated_at: string;
+  preview_img_url: string | undefined;
+};
 
 export type ShaderData = {
-  shader: {
-    id: string;
-    title: string;
-    description: string;
-    created_at: string;
-    access_level: AccessLevel;
-    preview_img_url: string | undefined;
-    user_id: string;
-  };
+  shader: ShaderMetadata;
   shader_inputs: ShaderInput[];
   shader_outputs: ShaderOutput[];
 };

@@ -111,6 +111,7 @@ type (
 		CreateShaderOutput(ctx context.Context, output CreateShaderOutputPayload) (*ShaderOutput, error)
 		DeleteShaderInput(ctx context.Context, inputID uuid.UUID) error
 		DeleteShaderOutput(ctx context.Context, outputID uuid.UUID) error
+		DeleteShader(ctx context.Context, userID uuid.UUID, shaderID uuid.UUID) error
 		GetShaderCount(ctx context.Context) (int64, error)
 	}
 
@@ -127,5 +128,6 @@ type (
 		CreateShaderOutput(ctx context.Context, output CreateShaderOutputPayload) (*ShaderOutput, error)
 		DeleteShaderInput(ctx context.Context, inputID uuid.UUID) error
 		DeleteShaderOutput(ctx context.Context, outputID uuid.UUID) error
+		DeleteShader(ctx context.Context, userID uuid.UUID, shaderID uuid.UUID) error
 	}
 )

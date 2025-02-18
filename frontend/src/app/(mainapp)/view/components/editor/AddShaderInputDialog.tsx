@@ -113,7 +113,7 @@ const AddShaderInputDialog = ({ onSave }: Props) => {
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425]px">
         <DialogHeader>
-          <DialogTitle>Add Input</DialogTitle>
+          <DialogTitle>Add Shader Input</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={onSubmit} className="space-y-4">

@@ -14,6 +14,11 @@ const ShaderInputEdit = () => {
       orientation="vertical"
     >
       <div className="flex flex-row gap-4">
+        <AddShaderInputDialog
+          onSave={(idx) => {
+            setEditIdx(idx);
+          }}
+        />
         <TabsList>
           {shaderDataRef.current.shader_inputs.map((input, idx) => {
             return (
@@ -22,16 +27,11 @@ const ShaderInputEdit = () => {
                 onClick={() => setEditIdx(idx)}
                 key={input.name}
               >
-                {input.name}
+                {idx}
               </TabsTrigger>
             );
           })}
         </TabsList>
-        <AddShaderInputDialog
-          onSave={(idx) => {
-            setEditIdx(idx);
-          }}
-        />
       </div>
       {shaderDataRef.current.shader_inputs.map((input, idx) => {
         return (

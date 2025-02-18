@@ -1,6 +1,7 @@
 package shaders
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"shadershare/internal/domain"
@@ -36,8 +37,12 @@ func RegisterHandlers(r *gin.RouterGroup, service domain.ShaderService) {
 	r.GET("/shaders/:id", h.getShader)
 	r.POST("/shaders", middleware.Auth(), h.createShader)
 	r.PUT("/shaders/:id", middleware.Auth(), h.updateShader)
+	r.DELETE("/shaders/:id", middleware.Auth(), h.deleteShader)
+
 	r.POST("/shaders/output", middleware.Auth(), h.createShaderOutput)
 	r.POST("/shaders/input", middleware.Auth(), h.createShaderInput)
+	r.DELETE("/shaders/input/:id", middleware.Auth(), h.deleteShaderOutput)
+	r.DELETE("/shaders/output/:id", middleware.Auth(), h.deleteShaderOutput)
 }
 
 func (h ShaderHandler) updateShader(c *gin.Context) {
@@ -187,6 +192,7 @@ func (h ShaderHandler) getShader(c *gin.Context) {
 		util.SetInternalServiceErrorResponse(c)
 		return
 	}
+	fmt.Println(shader.ShaderInputs)
 
 	c.JSON(http.StatusOK, shader)
 }
@@ -230,4 +236,71 @@ func (h ShaderHandler) createShaderInput(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, shaderInput)
+}
+
+func (h ShaderHandler) deleteShaderInput(c *gin.Context) {
+	_, ok := middleware.CurrentUser(c)
+	if !ok {
+		util.SetErrorResponse(c, http.StatusInternalServerError, "Internal Server Error")
+		return
+	}
+
+	inputID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		util.SetErrorResponse(c, http.StatusBadRequest, "Invalid input ID")
+		return
+	}
+
+	err = h.service.DeleteShaderInput(c, inputID)
+	if err != nil {
+		util.SetInternalServiceErrorResponse(c)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Input deleted"})
+}
+
+func (h ShaderHandler) deleteShaderOutput(c *gin.Context) {
+	_, ok := middleware.CurrentUser(c)
+	if !ok {
+		util.SetErrorResponse(c, http.StatusInternalServerError, "Internal Server Error")
+		return
+	}
+
+	outputID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		util.SetErrorResponse(c, http.StatusBadRequest, "Invalid output ID")
+		return
+	}
+
+	err = h.service.DeleteShaderOutput(c, outputID)
+	if err != nil {
+		util.SetInternalServiceErrorResponse(c)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Output deleted"})
+}
+
+func (h ShaderHandler) deleteShader(c *gin.Context) {
+	userctx, ok := middleware.CurrentUser(c)
+	if !ok {
+		util.SetErrorResponse(c, http.StatusInternalServerError, "Internal Server Error")
+		return
+	}
+
+	shaderID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		util.SetErrorResponse(c, http.StatusBadRequest, "Invalid shader ID")
+		return
+	}
+
+	err = h.service.DeleteShader(c, userctx.ID, shaderID)
+	if err != nil {
+		if err == e.ErrNotFound {
+			util.SetErrorResponse(c, http.StatusNotFound, "Shader not found")
+			return
+		}
+		util.SetInternalServiceErrorResponse(c)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Shader deleted"})
 }

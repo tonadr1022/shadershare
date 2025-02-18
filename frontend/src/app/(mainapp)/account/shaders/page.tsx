@@ -1,9 +1,14 @@
 "use client";
-import { getUserShaders } from "@/api/shader-api";
-import { useQuery } from "@tanstack/react-query";
+import { deleteShader, getUserShaders } from "@/api/shader-api";
+import { Button } from "@/components/ui/button";
+import { ShaderMetadata } from "@/types/shader";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Trash } from "lucide-react";
 import { useRouter } from "next/navigation";
 import React from "react";
+import { toast } from "sonner";
 
+// TODO: table
 const ProfileShaders = () => {
   // const data = await getUserShaders();
   // console.log(data);
@@ -17,21 +22,39 @@ const ProfileShaders = () => {
     console.log(data);
   }
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const deleteShaderMut = useMutation({
+    mutationFn: deleteShader,
+
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["shaders", "profile"] });
+      toast.success("Shader deleted");
+    },
+  });
+
   return (
-    <div>
+    <div className="w-full">
       {isPending ? (
         <div>Loading...</div>
       ) : isError ? (
         <div>Error loading shaders</div>
       ) : (
-        <div>
-          {data?.map((shader: any) => (
-            <div
-              key={shader.id}
-              onClick={() => router.push(`/view/${shader.id}`)}
-            >
-              <h3>{shader.title}</h3>
-              <p>{shader.description}</p>
+        <div className="flex flex-col gap-2">
+          {data?.map((shader: ShaderMetadata) => (
+            <div key={shader.id} className="flex flex-row w-full">
+              <div
+                className="flex flex-col flex-grow"
+                onClick={() => router.push(`/view/${shader.id}`)}
+              >
+                <h3>{shader.title}</h3>
+                <p>{shader.description}</p>
+              </div>
+              <Button
+                variant="destructive"
+                onClick={() => deleteShaderMut.mutate(shader.id)}
+              >
+                <Trash />
+              </Button>
             </div>
           ))}
         </div>

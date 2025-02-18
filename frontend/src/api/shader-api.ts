@@ -53,6 +53,12 @@ export const getShader = async (id: string): Promise<ShaderData> => {
   const res = await axiosInstance.get(`/shaders/${id}`);
   return res.data;
 };
+
+export const deleteShader = async (id: string) => {
+  const res = await axiosInstance.delete(`/shaders/${id}`);
+  return res.data;
+};
+
 export const getUserShaders = async () => {
   const res = await axiosInstance.get("/profile?show=shaders");
   return res.data;
@@ -70,6 +76,16 @@ export const getShadersWithUsernames = async (
       limit: limit || 10,
     },
   });
+  return res.data;
+};
+
+export const deleteShaderInput = async (id: string) => {
+  const res = await axiosInstance.delete(`/shaders/input/${id}`);
+  return res.data;
+};
+
+export const deleteShaderOutput = async (id: string) => {
+  const res = await axiosInstance.delete(`/shaders/output/${id}`);
   return res.data;
 };
 

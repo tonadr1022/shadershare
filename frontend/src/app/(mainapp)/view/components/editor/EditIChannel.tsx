@@ -16,10 +16,13 @@ import {
 } from "@/types/shader";
 import Image from "next/image";
 import React, { useCallback, useState } from "react";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Trash } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import ShaderInputTypeSelect from "./ShaderInputTypeSelect";
+import { useMutation } from "@tanstack/react-query";
+import { deleteShaderInput } from "@/api/shader-api";
+import { toast } from "sonner";
 
 type Props = {
   input: ShaderInput;
@@ -41,6 +44,26 @@ const EditIChannel = ({ input, idx }: Props) => {
     },
     [input],
   );
+  const afterDeleteShaderInput = useCallback(() => {
+    if (!renderer) return;
+    renderer.removeIChannel(input);
+  }, [input, renderer]);
+
+  const deleteShaderInputMut = useMutation({
+    mutationFn: deleteShaderInput,
+    onSuccess: () => {
+      afterDeleteShaderInput();
+      toast.success("Input deleted");
+    },
+  });
+
+  const handleDelete = useCallback(() => {
+    if (input.id) {
+      deleteShaderInputMut.mutate(input.id);
+    } else {
+      afterDeleteShaderInput();
+    }
+  }, [input.id, deleteShaderInputMut, afterDeleteShaderInput]);
 
   return (
     <div className="flex flex-col gap-4" key={input.name}>
@@ -129,6 +152,13 @@ const EditIChannel = ({ input, idx }: Props) => {
       ) : (
         <></>
       )}
+      <Button
+        onClick={handleDelete}
+        variant="destructive"
+        className=" h-12 w-12"
+      >
+        <Trash />
+      </Button>
     </div>
   );
 };

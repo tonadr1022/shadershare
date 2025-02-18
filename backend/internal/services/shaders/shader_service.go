@@ -16,6 +16,10 @@ func NewShaderService(repo domain.ShaderRepository, userRepo domain.UserReposito
 	return &shaderService{repo, userRepo}
 }
 
+func (s shaderService) DeleteShader(ctx context.Context, userID uuid.UUID, shaderID uuid.UUID) error {
+	return s.repo.DeleteShader(ctx, userID, shaderID)
+}
+
 func (s shaderService) GetUserShaderList(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]domain.Shader, error) {
 	return s.repo.GetUserShaderList(ctx, userID, limit, offset)
 }
