@@ -40,7 +40,10 @@ import {
 import { useMutation } from "@tanstack/react-query";
 import { createShaderOutput } from "@/api/shader-api";
 import { toast } from "sonner";
-import { defaultBufferFragmentCode } from "../renderer/Renderer";
+import {
+  defaultBufferFragmentCode,
+  defaultCommonBufferCode,
+} from "../renderer/Renderer";
 
 // type EditorOptions = {
 //   fontSize: number;
@@ -291,7 +294,10 @@ export const MultiBufferEditor = React.memo(() => {
       const newOutput: ShaderOutput = {
         name,
         type: type,
-        code: defaultBufferFragmentCode,
+        code:
+          name === "Common"
+            ? defaultCommonBufferCode
+            : defaultBufferFragmentCode,
       };
 
       if (shaderID !== "") {
@@ -321,18 +327,6 @@ export const MultiBufferEditor = React.memo(() => {
         <TabsContent value="1">
           <Tabs defaultValue="Image" className="">
             <div className="flex flex-row gap-4">
-              <TabsList>
-                {shaderDataRef.current.shader_outputs.map((output, idx) => (
-                  <TabsTrigger
-                    value={output.name}
-                    onClick={() => setRenderPassEditIdx(idx)}
-                    key={output.name}
-                  >
-                    {output.name}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button className="h-9 inline-flex items-center justify-center ">
@@ -353,6 +347,17 @@ export const MultiBufferEditor = React.memo(() => {
                   )}
                 </DropdownMenuContent>
               </DropdownMenu>
+              <TabsList>
+                {shaderDataRef.current.shader_outputs.map((output, idx) => (
+                  <TabsTrigger
+                    value={output.name}
+                    onClick={() => setRenderPassEditIdx(idx)}
+                    key={output.name}
+                  >
+                    {output.name}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
             </div>
             {shaderDataRef.current.shader_outputs.map((output, idx) => (
               <TabsContent

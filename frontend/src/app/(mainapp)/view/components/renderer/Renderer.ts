@@ -130,6 +130,9 @@ const checkGLError = (gl: WebGL2RenderingContext) => {
   }
 };
 
+export const defaultCommonBufferCode = `vec4 someFunction(vec4 a, float b) {
+  return a + b;
+}`;
 export const defaultBufferFragmentCode = `void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     fragColor = vec4(0.0,0.0,1.0,1.0);
 }`;
@@ -342,6 +345,8 @@ class Texture {
   wrapMode: TextureWrap = "clamp";
   texture: WebGLTexture = 0;
   type: TextureType = TextureType.D2;
+  width: number = 0;
+  height: number = 0;
 
   create(gl: WebGL2RenderingContext, type: TextureType) {
     if (this.texture !== 0) {
@@ -502,10 +507,16 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
       currTime,
       currTime,
     ]);
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < state.iChannels.length; i++) {
+      const iChannel = state.iChannels[i];
+      const dims: [number, number] = [canvas.width, canvas.height];
+      if (iChannel instanceof Texture) {
+        dims[0] = iChannel.width;
+        dims[1] = iChannel.height;
+      }
       gl.uniform3fv(uniforms.iChannelResolutions[i], [
-        canvas.width,
-        canvas.height,
+        dims[0],
+        dims[1],
         window.devicePixelRatio,
       ]);
     }
@@ -653,7 +664,6 @@ ${commonBufferText}
 `;
     const fragmentCode = `${completeHeader}${fragmentText}`;
 
-    console.log(fragmentCode);
     const compileRes = util.createShaderProgram(vertexCode, fragmentCode);
     const headerLineCnt = getLineCnt(completeHeader);
     if (compileRes.error) {
@@ -711,6 +721,8 @@ ${commonBufferText}
         try {
           const properties = props || DefaultTextureProps;
           texture.bind(gl);
+          texture.width = image.width;
+          texture.height = image.height;
           if (!props || props.vflip) {
             gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
           }
