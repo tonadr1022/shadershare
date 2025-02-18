@@ -1,10 +1,11 @@
 "use client";
 import { getMe, logoutUser } from "@/api/auth-api";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useCallback } from "react";
 import { useTheme } from "next-themes";
 import { useMemo, useEffect, useState } from "react";
+import { deleteShader } from "@/api/shader-api";
 
 export const useGetMe = () => {
   return useQuery({
@@ -52,4 +53,15 @@ export const useResolvedTheme = (): "light" | "dark" => {
         return "light";
     }
   }, [theme, resolvedTheme, systemTheme]);
+};
+
+export const useDeleteShader = (onSuccess?: () => void) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deleteShader,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["shaders"] });
+      if (onSuccess) onSuccess();
+    },
+  });
 };
