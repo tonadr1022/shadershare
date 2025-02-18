@@ -21,7 +21,7 @@ const ShaderEditor = ({ shaderData, editable }: Props) => {
     <RendererProvider initialShaderData={shaderData}>
       <ResizablePanelGroup direction="horizontal" className="gap-2">
         <ResizablePanel
-          className="flex flex-col w-full h-full"
+          className="flex flex-col w-full h-full gap-2"
           defaultSize={50}
           minSize={20}
           collapsible
@@ -33,7 +33,10 @@ const ShaderEditor = ({ shaderData, editable }: Props) => {
           ) : (
             <ShaderMetadata shaderData={shaderData!} />
           )}
-          <DownloadPreviewImageDialog />
+
+          <div className="self-center">
+            <DownloadPreviewImageDialog />
+          </div>
           {/* {shaderData && shaderData.shader.preview_img_url && ( */}
           {/*   <Image */}
           {/*     alt="preview" */}

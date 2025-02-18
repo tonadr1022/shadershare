@@ -1,12 +1,12 @@
 "use client";
-import { deleteShader, getUserShaders } from "@/api/shader-api";
+import { getUserShaders } from "@/api/shader-api";
 import { Button } from "@/components/ui/button";
+import { useDeleteShader } from "@/hooks/hooks";
 import { ShaderMetadata } from "@/types/shader";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Trash } from "lucide-react";
 import { useRouter } from "next/navigation";
 import React from "react";
-import { toast } from "sonner";
 
 // TODO: table
 const ProfileShaders = () => {
@@ -22,16 +22,7 @@ const ProfileShaders = () => {
     console.log(data);
   }
   const router = useRouter();
-  const queryClient = useQueryClient();
-  const deleteShaderMut = useMutation({
-    mutationFn: deleteShader,
-
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["shaders", "profile"] });
-      toast.success("Shader deleted");
-    },
-  });
-
+  const deleteShaderMut = useDeleteShader();
   return (
     <div className="w-full">
       {isPending ? (

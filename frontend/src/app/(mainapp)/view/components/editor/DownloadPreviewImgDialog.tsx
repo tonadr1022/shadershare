@@ -31,7 +31,7 @@ const promptSavePreviewImage = async (
 ) => {
   const renderer = createRenderer();
   const canvas = document.createElement("canvas");
-  renderer.initialize({
+  await renderer.initialize({
     canvas: canvas,
     shaderInputs: shaderData.shader_inputs,
     shaderOutputs: shaderData.shader_outputs,

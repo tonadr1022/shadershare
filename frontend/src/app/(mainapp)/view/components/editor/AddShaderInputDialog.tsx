@@ -31,41 +31,44 @@ import { BufferName, ShaderInput, ShaderInputType } from "@/types/shader";
 import { Plus } from "lucide-react";
 import { createShaderInput } from "@/api/shader-api";
 import { useMutation } from "@tanstack/react-query";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 
 const formSchema = z.object({
   type: z.string(),
   name: z.string().min(2, {
     message: "Name must be at least 2 characters.",
   }),
+  url: z.string().optional(),
 });
 type Props = {
   onSave: (idx: number) => void;
 };
 const AddShaderInputDialog = ({ onSave }: Props) => {
+  const [open, setOpen] = useState(false);
   const { renderer, shaderDataRef } = useRendererCtx();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      type: "buffer",
-      name: "New Input",
+      type: "texture",
+      name: "ShaderInput",
+      url: "https://dummyimage.com/64x64/ffffff/ffffff.png",
     },
   });
   const afterCreateShaderInput = useCallback(
     (data: ShaderInput) => {
-      console.log("new data", data);
       if (!renderer) return;
       if (data.type === "buffer") {
         renderer.addBufferIChannel(data.name as BufferName, data.idx);
       } else if (data.type === "texture") {
-        console.log(data.idx);
         renderer.addImageIChannel(data.url!, data.idx, data.properties);
       } else {
         throw new Error("invalid shader input type");
       }
       shaderDataRef.current.shader_inputs.push(data);
+      form.reset();
+      setOpen(false);
     },
-    [shaderDataRef, renderer],
+    [form, shaderDataRef, renderer],
   );
 
   const createShaderInputMut = useMutation({
@@ -105,7 +108,7 @@ const AddShaderInputDialog = ({ onSave }: Props) => {
   });
 
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="default">
           <Plus />
@@ -154,6 +157,23 @@ const AddShaderInputDialog = ({ onSave }: Props) => {
                 </FormItem>
               )}
             />
+            <FormField
+              control={form.control}
+              name="url"
+              render={({ field }) => {
+                if (form.watch("type") !== "texture") return <></>;
+                return (
+                  <FormItem>
+                    <FormLabel>Texture URL</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                );
+              }}
+            />
+
             <Button className="mx-auto block" type="submit" variant="default">
               Add
             </Button>

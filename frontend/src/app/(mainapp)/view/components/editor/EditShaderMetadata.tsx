@@ -37,6 +37,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useDeleteShader } from "@/hooks/hooks";
+import { Trash } from "lucide-react";
+import { Dialog } from "@radix-ui/react-dialog";
+import {
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 const formSchema = z.object({
   title: z.string().min(2, {
@@ -90,6 +101,9 @@ const EditShaderMetadata = ({ initialData }: Props) => {
     },
   });
 
+  const deleteShaderMut = useDeleteShader(() => {
+    router.push("/");
+  });
   const onSubmit = useCallback(
     async (values: z.infer<typeof formSchema>) => {
       // if not able to compile, can't save it
@@ -229,14 +243,43 @@ const EditShaderMetadata = ({ initialData }: Props) => {
               </FormItem>
             )}
           />
-          <Button
-            className="mx-auto block"
-            type="submit"
-            variant="default"
-            disabled={createShaderMut.isPending || updateShaderMut.isPending}
-          >
-            Save
-          </Button>
+          <div className="flex flex-row items-center justify-center gap-2">
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="destructive">
+                  <Trash />
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>
+                    Are you sure you want to delete this shader?
+                  </DialogTitle>
+                  <DialogDescription>
+                    This action cannot be undone.
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                  <Button
+                    variant="destructive"
+                    onClick={() =>
+                      deleteShaderMut.mutate(shaderDataRef.current.shader.id)
+                    }
+                  >
+                    Delete
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+            <Button
+              className=""
+              type="submit"
+              variant="default"
+              disabled={createShaderMut.isPending || updateShaderMut.isPending}
+            >
+              Save
+            </Button>
+          </div>
         </form>
       </Form>
     </div>
