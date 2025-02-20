@@ -39,8 +39,8 @@ import {
 } from "@/components/ui/select";
 import { useDeleteShader } from "@/hooks/hooks";
 import { Trash } from "lucide-react";
-import { Dialog } from "@radix-ui/react-dialog";
 import {
+  Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -48,6 +48,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import DeleteShaderDialog from "@/components/shader/DeleteShaderDialog";
 
 const formSchema = z.object({
   title: z.string().min(2, {
@@ -244,33 +245,14 @@ const EditShaderMetadata = ({ initialData }: Props) => {
             )}
           />
           <div className="flex flex-row items-center justify-center gap-2">
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button variant="destructive">
-                  <Trash />
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>
-                    Are you sure you want to delete this shader?
-                  </DialogTitle>
-                  <DialogDescription>
-                    This action cannot be undone.
-                  </DialogDescription>
-                </DialogHeader>
-                <DialogFooter>
-                  <Button
-                    variant="destructive"
-                    onClick={() =>
-                      deleteShaderMut.mutate(shaderDataRef.current.shader.id)
-                    }
-                  >
-                    Delete
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+            <DeleteShaderDialog
+              shaderId={shaderDataRef.current.shader.id}
+              redirectUrl="/"
+            >
+              <Button variant="destructive">
+                <Trash />
+              </Button>
+            </DeleteShaderDialog>
             <Button
               className=""
               type="submit"

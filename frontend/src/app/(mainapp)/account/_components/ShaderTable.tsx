@@ -20,8 +20,17 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
+import { ArrowDown, ArrowUp, MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import DeleteShaderDialog from "@/components/shader/DeleteShaderDialog";
 
 type Props = {
   data: ShaderMetadata[];
@@ -66,7 +75,14 @@ const columns: ColumnDef<ShaderMetadata>[] = [
       if (previewImgUrl) {
         return (
           <div className="w-24">
-            <Image width={320} height={180} alt="preview" src={previewImgUrl} />
+            <Link href={`/view/${row.original.id}`}>
+              <Image
+                width={320}
+                height={180}
+                alt="preview"
+                src={previewImgUrl}
+              />
+            </Link>
           </div>
         );
       }
@@ -77,7 +93,11 @@ const columns: ColumnDef<ShaderMetadata>[] = [
     accessorKey: "title",
     header: ({ column }) => <SortableHeader column={column} name="Title" />,
     cell: ({ row }) => {
-      return <div>{row.getValue("title")}</div>;
+      return (
+        <Button asChild variant="link">
+          <Link href={`/view/${row.original.id}`}>{row.getValue("title")}</Link>
+        </Button>
+      );
     },
   },
   {
@@ -116,6 +136,33 @@ const columns: ColumnDef<ShaderMetadata>[] = [
       );
     },
   },
+  {
+    id: "actions",
+    cell: ({ row }) => {
+      const shader = row.original;
+      return (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="h-8 w-8 p-0">
+              <span className="sr-only">Open menu</span>
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+            <DeleteShaderDialog shaderId={shader.id}>
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onSelect={(event) => event.preventDefault()}
+              >
+                <div className="text-destructive">Delete</div>
+              </DropdownMenuItem>
+            </DeleteShaderDialog>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      );
+    },
+  },
 ];
 const ShaderTable = ({ data }: Props) => {
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -131,13 +178,13 @@ const ShaderTable = ({ data }: Props) => {
     },
   });
   return (
-    <div className="w-full flex flex-col gap-2">
+    <div className="w-full flex flex-col gap-2 rounded-md border">
       <Table>
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
-            <TableRow key={headerGroup.id}>
+            <TableRow key={headerGroup.id} className="border-none">
               {headerGroup.headers.map((header) => (
-                <TableHead key={header.id}>
+                <TableHead key={header.id} className="border-none">
                   {header.isPlaceholder
                     ? null
                     : flexRender(
@@ -154,7 +201,7 @@ const ShaderTable = ({ data }: Props) => {
             table.getRowModel().rows.map((row) => (
               <TableRow key={row.id}>
                 {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id}>
+                  <TableCell key={cell.id} className="border-none">
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </TableCell>
                 ))}
@@ -163,7 +210,14 @@ const ShaderTable = ({ data }: Props) => {
           ) : (
             <TableRow>
               <TableCell colSpan={columns.length} className="h-24 text-center">
-                No Data.
+                No Shaders...{"  "}
+                <Button
+                  asChild
+                  variant="link"
+                  className="p-0 h-auto text-primary"
+                >
+                  <Link href="/new">Create one!</Link>
+                </Button>
               </TableCell>
             </TableRow>
           )}

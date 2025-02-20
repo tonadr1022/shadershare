@@ -25,17 +25,23 @@ const ProfileDropdown = () => {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="transition-none mr-4 ">
         <Link href={url.account}>
-          <DropdownMenuItem>Account</DropdownMenuItem>
+          <DropdownMenuItem className="cursor-pointer">
+            Account
+          </DropdownMenuItem>
         </Link>
         <Link href={"/account/shaders"}>
-          <DropdownMenuItem>My Shaders</DropdownMenuItem>
+          <DropdownMenuItem className="cursor-pointer">
+            My Shaders
+          </DropdownMenuItem>
         </Link>
         <ThemeDropdown />
 
         {user ? (
-          <DropdownMenuItem onClick={logout}>Logout</DropdownMenuItem>
+          <DropdownMenuItem onClick={logout} className="cursor-pointer">
+            Logout
+          </DropdownMenuItem>
         ) : (
-          <DropdownMenuItem>
+          <DropdownMenuItem className="cursor-pointer">
             <Link href={url.login}>Login</Link>
           </DropdownMenuItem>
         )}

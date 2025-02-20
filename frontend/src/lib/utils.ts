@@ -17,3 +17,38 @@ export const toastAxiosErrors = (error: AxiosError) => {
     toast.error("Error: " + err);
   }
 };
+
+export function generatePagination(currentPage: number, totalPages: number) {
+  const pagination = [];
+
+  pagination.push(1);
+
+  let start = Math.max(2, currentPage - 2);
+  let end = Math.min(totalPages - 1, currentPage + 2);
+
+  if (end - start < 4) {
+    if (start === 2) {
+      end = Math.min(totalPages - 1, start + 4);
+    } else if (end === totalPages - 1) {
+      start = Math.max(2, end - 4);
+    }
+  }
+
+  if (start > 2) {
+    pagination.push(-1);
+  }
+
+  for (let i = start; i <= end; i++) {
+    pagination.push(i);
+  }
+
+  if (end < totalPages - 1) {
+    pagination.push(-2);
+  }
+
+  if (totalPages > 1) {
+    pagination.push(totalPages);
+  }
+
+  return pagination;
+}
