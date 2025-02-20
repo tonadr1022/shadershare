@@ -3,8 +3,6 @@
 import {
   DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
   DialogTitle,
   DialogTrigger,
   Dialog,
@@ -39,7 +37,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useResolvedTheme } from "@/hooks/hooks";
 import ShaderInputEdit from "./ShaderInputEdit";
 import { Button } from "@/components/ui/button";
-import { Plus, Settings } from "lucide-react";
+import { HelpCircle, Plus, Settings } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -54,18 +52,8 @@ import {
   defaultBufferFragmentCode,
   defaultCommonBufferCode,
 } from "../renderer/Renderer";
-import {
-  defaultLocalSettings,
-  useLocalSettings,
-} from "@/context/LocalSettingsContext";
+import { useLocalSettings } from "@/context/LocalSettingsContext";
 import EditorSettingsForm from "@/app/(mainapp)/account/settings/_components/EditorSettingsForm";
-
-// type EditorOptions = {
-//   fontSize: number;
-//   keyBinding: "vim";
-//   tabSize: 4;
-//   relativeLineNumber: true;
-// };
 
 const shaderOutputNames: ShaderOutputName[] = [
   "Common",
@@ -131,7 +119,7 @@ const isKeyboardEvent = (action: string, event: KeyboardEvent) => {
   );
 };
 
-export const Editor2 = React.memo((props: Props2) => {
+const Editor = React.memo((props: Props2) => {
   const { visible } = props;
 
   useEffect(() => {
@@ -218,10 +206,12 @@ export const Editor2 = React.memo((props: Props2) => {
     />
   );
 });
-Editor2.displayName = "Editor2";
+Editor.displayName = "Editor2";
 
 export const MultiBufferEditor = React.memo(() => {
-  const [renderPassEditIdx, setRenderPassEditIdx] = useState(0);
+  const [editorHelpValue, setEditorHelpValue] = useState("keybinds");
+  const [shaderOutputName, setShaderOutputName] = useState("Image");
+  // const [renderPassEditIdx, setRenderPassEditIdx] = useState();
   const [errMsgs, setErrMsgs] = useState<Map<
     ShaderOutputName,
     ErrMsg[] | null
@@ -329,7 +319,6 @@ export const MultiBufferEditor = React.memo(() => {
     },
     [afterCreateShaderOutput, shaderDataRef, createShaderOutputMut],
   );
-
   return (
     <div className=" flex flex-col w-full h-full">
       <Tabs
@@ -339,12 +328,17 @@ export const MultiBufferEditor = React.memo(() => {
         <TabsList>
           <TabsTrigger value="0">Inputs</TabsTrigger>
           <TabsTrigger value="1">Outputs</TabsTrigger>
+          <TabsTrigger value="2">Help</TabsTrigger>
         </TabsList>
         <TabsContent value="0">
           <ShaderInputEdit />
         </TabsContent>
         <TabsContent value="1">
-          <Tabs defaultValue="Image" className="">
+          <Tabs
+            defaultValue={shaderOutputName}
+            onValueChange={(value) => setShaderOutputName(value)}
+            className=""
+          >
             <div className="flex flex-row gap-4 justify-between">
               <div className="flex gap-4">
                 <DropdownMenu>
@@ -371,7 +365,7 @@ export const MultiBufferEditor = React.memo(() => {
                   {shaderDataRef.current.shader_outputs.map((output, idx) => (
                     <TabsTrigger
                       value={output.name}
-                      onClick={() => setRenderPassEditIdx(idx)}
+                      // onClick={() => setRenderPassEditIdx(idx)}
                       key={output.name}
                     >
                       {output.name}
@@ -400,19 +394,85 @@ export const MultiBufferEditor = React.memo(() => {
                 value={output.name}
                 key={output.name}
                 className={cn(
-                  renderPassEditIdx === idx ? "" : "hidden",
+                  shaderOutputName === output.name ? "" : "hidden",
                   "bg-background m-0",
                 )}
               >
-                <Editor2
+                <Editor
                   errMsgs={!errMsgs ? null : errMsgs.get(output.name)}
                   name={output.name}
-                  visible={renderPassEditIdx === idx}
+                  visible={shaderOutputName === output.name}
                   text={output.code}
                   onTextChange={onTextUpdate}
                 />
               </TabsContent>
             ))}
+          </Tabs>
+        </TabsContent>
+        <TabsContent value="2">
+          <Tabs
+            defaultValue={editorHelpValue}
+            onValueChange={(value) => setEditorHelpValue(value)}
+          >
+            <TabsList>
+              <TabsTrigger value="keybinds">Keybinds</TabsTrigger>
+              <TabsTrigger value="shaders">Shaders</TabsTrigger>
+            </TabsList>
+            <TabsContent value="keybinds">
+              <div className="flex flex-col gap-2 ">
+                <h3 className="pb-4">Keybinds</h3>
+                <ul className="list-disc pl-4">
+                  {Object.entries(keyBindsMap).map(([action, keybind]) => (
+                    <li key={action}>
+                      <span className="font-bold">{keybind.name}:</span>{" "}
+                      {keybind.alt ? "Alt + " : ""}
+                      {keybind.key}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </TabsContent>
+            <TabsContent value="shaders">
+              <h3 className="pb-4">Shaders</h3>
+              <div className="flex flex-col gap-4">
+                <div>
+                  <h5 className="font-semibold">Buffers and iChannels</h5>
+                  <p>
+                    Buffers A-E allow you to read and write to textures that can
+                    be read from in subsequent passes, as well as the final
+                    image. Each is effectively its own render pass, running its
+                    own shader. If a buffer is enabled, a corresponding input
+                    should also be enabled so the final image or following
+                    buffers can read from it.
+                  </p>
+                  <p>
+                    A shader input can be sampled by index using{" "}
+                    <code>iChannelX</code> with the corresponding sampler:
+                  </p>
+                  <pre className="bg-secondary p-2 rounded-md">
+                    <code>
+                      {`fragColor = vec4(texture(iChannel0, fragCoord / iResolution.xy).xyz, 1.0);`}
+                    </code>
+                  </pre>
+                </div>
+
+                <div>
+                  <h5 className="font-semibold">mainImage Function</h5>
+                  <p>
+                    Use this function for buffers A-E and the final image
+                    shader. You must set <code>fragColor</code> to a{" "}
+                    <strong>vec4</strong>.
+                  </p>
+                  <pre className="bg-secondary p-2 rounded-md">
+                    <code>
+                      {`void mainImage(out vec4 fragColor, in vec2 fragCoord) {
+    fragColor = vec4(1.0);
+}`}
+                    </code>
+                  </pre>
+                </div>
+              </div>
+            </TabsContent>
           </Tabs>
         </TabsContent>
       </Tabs>

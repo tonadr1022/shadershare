@@ -8,7 +8,7 @@ export type LocalSettings = {
   relativeLineNumbers: boolean;
 };
 
-export const defaultLocalSettings: LocalSettings = {
+const defaultLocalSettings: LocalSettings = {
   tabSize: 4,
   keyBindingMode: "standard",
   relativeLineNumbers: false,
