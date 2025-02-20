@@ -37,7 +37,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useResolvedTheme } from "@/hooks/hooks";
 import ShaderInputEdit from "./ShaderInputEdit";
 import { Button } from "@/components/ui/button";
-import { HelpCircle, Plus, Settings } from "lucide-react";
+import { Plus, Settings } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,

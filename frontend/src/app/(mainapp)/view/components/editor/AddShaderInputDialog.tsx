@@ -89,7 +89,8 @@ const AddShaderInputDialog = ({ onSave }: Props) => {
       idx: shaderDataRef.current.shader_inputs.length,
     };
     if (data.type === "texture") {
-      newInput.url = "https://dummyimage.com/64x64/ffffff/ffffff.png";
+      newInput.url =
+        data.url || "https://dummyimage.com/64x64/ffffff/ffffff.png";
       newInput.properties = {
         wrap: "repeat",
         filter: "linear",

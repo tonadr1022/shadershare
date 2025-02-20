@@ -710,12 +710,12 @@ const webGL2Renderer = () => {
     gl.bindTexture(gl.TEXTURE_2D, null);
     checkGLError(gl);
     if (options?.checkResize) {
-      // const displayWidth = canvas.clientWidth;
-      // const displayHeight = canvas.clientHeight;
-      // if (canvas.width != displayWidth || canvas.height != displayHeight) {
-      //   console.log("on resize");
-      //   onResize(displayWidth, displayHeight);
-      // }
+      const displayWidth = canvas.clientWidth;
+      const displayHeight = canvas.clientHeight;
+      if (canvas.width != displayWidth || canvas.height != displayHeight) {
+        console.log("on resize");
+        onResize(displayWidth, displayHeight, true);
+      }
     }
 
     gl.viewport(0, 0, canvas.width, canvas.height);
@@ -936,7 +936,6 @@ ${commonBufferText}
 
         if (oldDims[0] > 0 && oldDims[1] > 0) {
           gl.bindFramebuffer(gl.FRAMEBUFFER, newRenderTarget.fbo);
-
           {
             // draw previous
             bindTexture(
@@ -1001,14 +1000,18 @@ ${commonBufferText}
     }
   };
   const actualDims = [0, 0];
-  const onResize = (width: number, height: number) => {
+  const onResize = (width: number, height: number, force: boolean = false) => {
     if (!initialized || !canvas) {
       return;
     }
     const scale = window.devicePixelRatio;
     canvas.width = Math.floor(width * scale);
     canvas.height = Math.floor(height * scale);
-    if (canvas.width !== actualDims[0] || canvas.height !== actualDims[1]) {
+    if (
+      force ||
+      canvas.width !== actualDims[0] ||
+      canvas.height !== actualDims[1]
+    ) {
       resizeBuffers();
     }
     actualDims[0] = canvas.width;

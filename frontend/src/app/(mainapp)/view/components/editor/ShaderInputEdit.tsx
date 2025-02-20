@@ -6,6 +6,7 @@ import AddShaderInputDialog from "./AddShaderInputDialog";
 
 const ShaderInputEdit = () => {
   const [, setEditIdx] = React.useState<number>(0);
+  const [, forceUpdate] = React.useState(0);
   const { shaderDataRef } = useRendererCtx();
   return (
     <Tabs
@@ -17,6 +18,7 @@ const ShaderInputEdit = () => {
         <AddShaderInputDialog
           onSave={(idx) => {
             setEditIdx(idx);
+            forceUpdate((prev) => prev + 1);
           }}
         />
         <TabsList>
