@@ -38,14 +38,24 @@ export function UsersSidebar() {
                 <SidebarMenuItem key={item.href}>
                   <SidebarMenuButton
                     asChild
-                    isActive={
+                    disabled={
                       segment ===
-                      (item.href === "/users"
+                      (item.href === "/account"
                         ? null
                         : item.href.split("/").pop())
                     }
                   >
-                    <Link href={item.href}>
+                    <Link
+                      href={item.href}
+                      className={`flex items-center transition-colors ${
+                        segment ===
+                        (item.href === "/account"
+                          ? null
+                          : item.href.split("/").pop())
+                          ? "text-foreground font-semibold"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
                       <item.icon className="mr-2 h-4 w-4" />
                       {item.label}
                     </Link>

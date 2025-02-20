@@ -17,6 +17,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 const navbarItems = [
   { href: url.browse, label: "Browse" },
+  { href: url.usershaders, label: "My Shaders" },
   { href: url.new, label: "New" },
 ];
 

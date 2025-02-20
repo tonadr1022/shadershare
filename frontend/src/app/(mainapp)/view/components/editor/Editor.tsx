@@ -1,5 +1,14 @@
 "use client";
 
+import {
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  Dialog,
+} from "@/components/ui/dialog";
 import React, {
   useCallback,
   useEffect,
@@ -12,6 +21,7 @@ import CodeMirror, {
   StateEffect,
   StateField,
 } from "@uiw/react-codemirror";
+import { lineNumbersRelative } from "@uiw/codemirror-extensions-line-numbers-relative";
 import { cpp } from "@codemirror/lang-cpp";
 import { vim } from "@replit/codemirror-vim";
 import { indentUnit } from "@codemirror/language";
@@ -29,7 +39,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useResolvedTheme } from "@/hooks/hooks";
 import ShaderInputEdit from "./ShaderInputEdit";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, Settings } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -44,6 +54,11 @@ import {
   defaultBufferFragmentCode,
   defaultCommonBufferCode,
 } from "../renderer/Renderer";
+import {
+  defaultLocalSettings,
+  useLocalSettings,
+} from "@/context/LocalSettingsContext";
+import EditorSettingsForm from "@/app/(mainapp)/account/settings/_components/EditorSettingsForm";
 
 // type EditorOptions = {
 //   fontSize: number;
@@ -161,18 +176,22 @@ export const Editor2 = React.memo((props: Props2) => {
     }
   }, [visible]);
 
-  const extensions = useMemo(
-    () => [
+  const { localSettings: settings } = useLocalSettings();
+  const extensions = useMemo(() => {
+    const exts = [
       cpp(),
-      indentUnit.of("    "),
-      vim({ status: false }),
-      // TODO: only active for vim mode
+      indentUnit.of(" ".repeat(settings.tabSize)),
       drawSelection({ cursorBlinkRate: 0 }),
       errorField,
-    ],
-
-    [],
-  );
+    ];
+    if (settings.relativeLineNumbers) {
+      exts.push(lineNumbersRelative);
+    }
+    if (settings.keyBindingMode === "vim") {
+      exts.push(vim({ status: false }));
+    }
+    return exts;
+  }, [settings]);
 
   const codeMirrorOnTextChange = useCallback(
     (text: string) => {
@@ -326,38 +345,54 @@ export const MultiBufferEditor = React.memo(() => {
         </TabsContent>
         <TabsContent value="1">
           <Tabs defaultValue="Image" className="">
-            <div className="flex flex-row gap-4">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button className="h-9 inline-flex items-center justify-center ">
-                    <Plus className="" />
+            <div className="flex flex-row gap-4 justify-between">
+              <div className="flex gap-4">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button className="h-9 inline-flex items-center justify-center ">
+                      <Plus className="" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuLabel>Add Shader Output</DropdownMenuLabel>
+                    {shaderOutputNames.map((name) =>
+                      hasBuffer(name) ? null : (
+                        <DropdownMenuItem
+                          onClick={() => handleAddShaderOutput(name)}
+                          key={name}
+                        >
+                          {name}
+                        </DropdownMenuItem>
+                      ),
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <TabsList>
+                  {shaderDataRef.current.shader_outputs.map((output, idx) => (
+                    <TabsTrigger
+                      value={output.name}
+                      onClick={() => setRenderPassEditIdx(idx)}
+                      key={output.name}
+                    >
+                      {output.name}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+              </div>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button variant="secondary">
+                    <Settings />
                   </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuLabel>Add Shader Output</DropdownMenuLabel>
-                  {shaderOutputNames.map((name) =>
-                    hasBuffer(name) ? null : (
-                      <DropdownMenuItem
-                        onClick={() => handleAddShaderOutput(name)}
-                        key={name}
-                      >
-                        {name}
-                      </DropdownMenuItem>
-                    ),
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <TabsList>
-                {shaderDataRef.current.shader_outputs.map((output, idx) => (
-                  <TabsTrigger
-                    value={output.name}
-                    onClick={() => setRenderPassEditIdx(idx)}
-                    key={output.name}
-                  >
-                    {output.name}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogTitle>Editor</DialogTitle>
+                  <DialogDescription>
+                    Change editor settings here.
+                  </DialogDescription>
+                  <EditorSettingsForm />
+                </DialogContent>
+              </Dialog>
             </div>
             {shaderDataRef.current.shader_outputs.map((output, idx) => (
               <TabsContent

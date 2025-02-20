@@ -11,6 +11,7 @@ import EditShaderMetadata from "@/app/(mainapp)/view/components/editor/EditShade
 import { RendererProvider } from "@/context/RendererContext";
 import { ShaderData } from "@/types/shader";
 import ShaderMetadata from "@/app/(mainapp)/view/components/editor/ShaderMetadata";
+import LocalSettingsProvider from "@/context/LocalSettingsContext";
 
 type Props = {
   shaderData?: ShaderData;
@@ -55,7 +56,9 @@ const ShaderEditor = ({ shaderData, editable }: Props) => {
           collapsible
           className=""
         >
-          <MultiBufferEditor />
+          <LocalSettingsProvider>
+            <MultiBufferEditor />
+          </LocalSettingsProvider>
         </ResizablePanel>
       </ResizablePanelGroup>
     </RendererProvider>

@@ -1,7 +1,12 @@
-"use client";
+import LocalSettingsProvider from "@/context/LocalSettingsContext";
+import EditorSettingsForm from "./_components/EditorSettingsForm";
 
 const ProfileSettings = () => {
-  return <div>Settings</div>;
+  return (
+    <LocalSettingsProvider>
+      <EditorSettingsForm />
+    </LocalSettingsProvider>
+  );
 };
 
 export default ProfileSettings;
