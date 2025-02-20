@@ -19,15 +19,16 @@ type shaderRepository struct {
 	db      *pgxpool.Pool
 }
 
-func (r shaderRepository) DeleteShader(ctx context.Context, userID uuid.UUID, shaderID uuid.UUID) error {
-	err := r.queries.DeleteShader(ctx, db.DeleteShaderParams{ID: shaderID, UserID: userID})
+func (r shaderRepository) DeleteShader(ctx context.Context, userID uuid.UUID, shaderID uuid.UUID) (*domain.Shader, error) {
+	shader, err := r.queries.DeleteShader(ctx, db.DeleteShaderParams{ID: shaderID, UserID: userID})
 	if err != nil {
 		if err == pgx.ErrNoRows {
-			return e.ErrNotFound
+			return nil, e.ErrNotFound
 		}
-		return err
+		return nil, err
 	}
-	return nil
+	apiShader := r.ShaderFromDB(shader)
+	return &apiShader, nil
 }
 
 func (r shaderRepository) CreateShaderInput(ctx context.Context, shaderInput domain.CreateShaderInputPayload) (*domain.ShaderInput, error) {

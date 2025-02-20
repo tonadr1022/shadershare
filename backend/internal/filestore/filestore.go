@@ -16,15 +16,27 @@ import (
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 )
 
-var (
+type FileStore interface {
+	UploadFile(file *multipart.FileHeader) (string, error)
+	UpdateFile(file *multipart.FileHeader, fileURL string) error
+	RemoveFile(ctx context.Context, file string) error
+}
+
+type s3FileStore struct {
 	bucketName string
 	client     *s3.Client
-)
+}
 
-func printObjects(client *s3.Client) {
-	fmt.Println("bucket: ", bucketName)
+func NewS3FileStore(isProd bool) FileStore {
+	fileStore := &s3FileStore{}
+	fileStore.setupS3(isProd)
+	return fileStore
+}
+
+func (s *s3FileStore) PrintObjects(client *s3.Client) {
+	fmt.Println("bucket: ", s.bucketName)
 	listObjectsOutput, err := client.ListObjectsV2(context.TODO(), &s3.ListObjectsV2Input{
-		Bucket: &bucketName,
+		Bucket: &s.bucketName,
 	})
 	if err != nil {
 		log.Fatal(err)
@@ -36,8 +48,8 @@ func printObjects(client *s3.Client) {
 	}
 }
 
-func SetupS3(isProd bool) {
-	bucketName = os.Getenv("S3_BUCKET_NAME")
+func (s *s3FileStore) setupS3(isProd bool) {
+	s.bucketName = os.Getenv("S3_BUCKET_NAME")
 	// accountID := os.Getenv("S3_ACCOUNT_ID")
 	accessKeyID := os.Getenv("AWS_ACCESS_KEY_ID")
 	accessKeySecret := os.Getenv("AWS_ACCESS_KEY_SECRET")
@@ -49,7 +61,7 @@ func SetupS3(isProd bool) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	client = s3.NewFromConfig(cfg, func(o *s3.Options) {
+	s.client = s3.NewFromConfig(cfg, func(o *s3.Options) {
 		o.BaseEndpoint = aws.String(os.Getenv("S3_ENDPOINT_URL"))
 		if !isProd {
 			o.UsePathStyle = true
@@ -57,12 +69,12 @@ func SetupS3(isProd bool) {
 	})
 	// TODO: make bucket if not exists in prod too?
 	if !isProd {
-		_, err := client.CreateBucket(context.TODO(), &s3.CreateBucketInput{
-			Bucket: &bucketName,
+		_, err := s.client.CreateBucket(context.TODO(), &s3.CreateBucketInput{
+			Bucket: &s.bucketName,
 		})
 		if err != nil {
-			_, errBucketExists := client.HeadBucket(context.TODO(), &s3.HeadBucketInput{
-				Bucket: &bucketName,
+			_, errBucketExists := s.client.HeadBucket(context.TODO(), &s3.HeadBucketInput{
+				Bucket: &s.bucketName,
 			})
 			if errBucketExists != nil {
 				log.Fatal(err)
@@ -71,8 +83,7 @@ func SetupS3(isProd bool) {
 	}
 }
 
-func UpdateFile(file *multipart.FileHeader, fileURL string) error {
-	fmt.Println("UPDATING FILE", fileURL)
+func (s *s3FileStore) UpdateFile(file *multipart.FileHeader, fileURL string) error {
 	src, err := file.Open()
 	if err != nil {
 		return fmt.Errorf("failed to open file: %v", err)
@@ -80,10 +91,9 @@ func UpdateFile(file *multipart.FileHeader, fileURL string) error {
 	// extract filename
 	// comes after last slash
 	filename := fileURL[strings.LastIndex(fileURL, "/")+1:]
-	fmt.Println("filename", filename, fileURL)
 	defer src.Close()
-	_, err = client.PutObject(context.TODO(), &s3.PutObjectInput{
-		Bucket: &bucketName,
+	_, err = s.client.PutObject(context.TODO(), &s3.PutObjectInput{
+		Bucket: &s.bucketName,
 		Key:    aws.String(filename),
 		Body:   src,
 		ACL:    s3types.ObjectCannedACLPublicRead,
@@ -94,14 +104,22 @@ func UpdateFile(file *multipart.FileHeader, fileURL string) error {
 	return nil
 }
 
-func UploadFile(file *multipart.FileHeader) (string, error) {
+func (s *s3FileStore) RemoveFile(ctx context.Context, file string) error {
+	_, err := s.client.DeleteObject(ctx, &s3.DeleteObjectInput{
+		Bucket: &s.bucketName,
+		Key:    aws.String(file),
+	})
+	return err
+}
+
+func (s *s3FileStore) UploadFile(file *multipart.FileHeader) (string, error) {
 	src, err := file.Open()
 	if err != nil {
 		return "", fmt.Errorf("failed to open file: %v", err)
 	}
 	defer src.Close()
-	_, err = client.PutObject(context.TODO(), &s3.PutObjectInput{
-		Bucket: &bucketName,
+	_, err = s.client.PutObject(context.TODO(), &s3.PutObjectInput{
+		Bucket: &s.bucketName,
 		Key:    aws.String(file.Filename),
 		Body:   src,
 		ACL:    s3types.ObjectCannedACLPublicRead,
@@ -110,6 +128,6 @@ func UploadFile(file *multipart.FileHeader) (string, error) {
 		return "", fmt.Errorf("failed to upload file: %v", err)
 	}
 	// TODO: in prod need s3 url!
-	minioURL := fmt.Sprintf("http://%s/%s/%s", "localhost:9000", bucketName, file.Filename)
+	minioURL := fmt.Sprintf("http://%s/%s/%s", "localhost:9000", s.bucketName, file.Filename)
 	return minioURL, nil
 }

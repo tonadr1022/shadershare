@@ -1,12 +1,9 @@
 package shaders
 
 import (
-	"fmt"
-	"log"
 	"net/http"
 	"shadershare/internal/domain"
 	"shadershare/internal/e"
-	"shadershare/internal/filestore"
 	"shadershare/internal/middleware"
 	"shadershare/internal/pkg/com"
 	"shadershare/internal/util"
@@ -78,7 +75,7 @@ func (h ShaderHandler) updateShader(c *gin.Context) {
 		}
 	}
 
-	shader, err := h.service.UpdateShader(c, userctx.ID, shaderID, payload)
+	shader, err := h.service.UpdateShader(c, userctx.ID, shaderID, payload, file)
 	if err != nil {
 		if err == e.ErrNotFound {
 			util.SetErrorResponse(c, http.StatusNotFound, "Shader not found or access denied")
@@ -88,17 +85,6 @@ func (h ShaderHandler) updateShader(c *gin.Context) {
 			return
 		}
 	}
-
-	// update if exists already
-	if payload.PreviewImgURL != nil && file != nil {
-		err = filestore.UpdateFile(file, *payload.PreviewImgURL)
-		if err != nil {
-			log.Println("Error updating file", err)
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-	}
-	// update only after success
 
 	c.JSON(http.StatusOK, shader)
 }
@@ -123,22 +109,14 @@ func (h ShaderHandler) createShader(c *gin.Context) {
 		return
 	}
 
-	file.Filename = randomFileName(".png")
-	fileUrl, err := filestore.UploadFile(file)
-	if err != nil {
-		log.Println("Error uploading file", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	payload.PreviewImgURL = fileUrl
-
-	shader, err := h.service.CreateShader(c, userctx.ID, payload)
+	shader, err := h.service.CreateShader(c, userctx.ID, payload, file)
 	if err != nil {
 		if err == e.ErrShaderWithTitleExists {
 			util.SetErrorResponse(c, http.StatusBadRequest, "Shader with this title already exists")
 			return
 		}
-		util.SetInternalServiceErrorResponse(c)
+
+		util.SetErrorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -192,7 +170,6 @@ func (h ShaderHandler) getShader(c *gin.Context) {
 		util.SetInternalServiceErrorResponse(c)
 		return
 	}
-	fmt.Println(shader.ShaderInputs)
 
 	c.JSON(http.StatusOK, shader)
 }

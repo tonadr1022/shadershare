@@ -30,6 +30,6 @@ SET title = COALESCE(NULLIF($3::TEXT,''), title),
 WHERE id = $1 AND user_id = $2
 RETURNING *;
 
--- name: DeleteShader :exec
+-- name: DeleteShader :one
 DELETE FROM shaders
-WHERE id = $1 AND user_id = $2;
+WHERE id = $1 AND user_id = $2 RETURNING *;

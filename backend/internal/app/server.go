@@ -51,7 +51,7 @@ func Run() {
 		log.Fatalf("Error initializing database: %v", err)
 	}
 
-	filestore.SetupS3(isProd)
+	fileStore := filestore.NewS3FileStore(isProd)
 
 	defer dbConn.Close()
 
@@ -92,7 +92,7 @@ func Run() {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		fileUrl, err := filestore.UploadFile(file)
+		fileUrl, err := fileStore.UploadFile(file)
 		if err != nil {
 			log.Println("Error uploading file", err)
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -108,7 +108,7 @@ func Run() {
 
 	shadersRepo := shaders.NewShaderRepository(dbConn, queries)
 	usersRepo := user.NewUserRepository(dbConn, queries)
-	shaderService := shaders.NewShaderService(shadersRepo, usersRepo)
+	shaderService := shaders.NewShaderService(shadersRepo, usersRepo, fileStore)
 	util.InitUsernameGenerator()
 	userService := user.NewUserService(usersRepo)
 	shaders.RegisterHandlers(api, shaderService)

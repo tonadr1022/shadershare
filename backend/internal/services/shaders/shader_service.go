@@ -2,38 +2,76 @@ package shaders
 
 import (
 	"context"
+	"log"
+	"mime/multipart"
 	"shadershare/internal/domain"
+	"shadershare/internal/filestore"
+	"strings"
 
 	"github.com/google/uuid"
 )
 
 type shaderService struct {
-	repo     domain.ShaderRepository
-	userRepo domain.UserRepository
+	repo      domain.ShaderRepository
+	userRepo  domain.UserRepository
+	fileStore filestore.FileStore
 }
 
-func NewShaderService(repo domain.ShaderRepository, userRepo domain.UserRepository) domain.ShaderService {
-	return &shaderService{repo, userRepo}
+func NewShaderService(repo domain.ShaderRepository, userRepo domain.UserRepository, fileStore filestore.FileStore) domain.ShaderService {
+	return &shaderService{repo, userRepo, fileStore}
 }
 
 func (s shaderService) DeleteShader(ctx context.Context, userID uuid.UUID, shaderID uuid.UUID) error {
-	return s.repo.DeleteShader(ctx, userID, shaderID)
+	deletedShader, err := s.repo.DeleteShader(ctx, userID, shaderID)
+	if err != nil {
+		return err
+	}
+	// delete preview image
+	if deletedShader.PreviewImgURL != "" {
+		lastSlash := strings.LastIndex(deletedShader.PreviewImgURL, "/")
+		filename := deletedShader.PreviewImgURL[lastSlash+1:]
+		err = s.fileStore.RemoveFile(ctx, filename)
+	}
+	return err
 }
 
 func (s shaderService) GetUserShaderList(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]domain.Shader, error) {
 	return s.repo.GetUserShaderList(ctx, userID, limit, offset)
 }
 
-func (s shaderService) UpdateShader(ctx context.Context, userID uuid.UUID, shaderID uuid.UUID, updatePayload domain.UpdateShaderPayload) (*domain.Shader, error) {
-	return s.repo.UpdateShader(ctx, userID, shaderID, updatePayload)
+func (s shaderService) UpdateShader(ctx context.Context, userID uuid.UUID, shaderID uuid.UUID, updatePayload domain.UpdateShaderPayload, file *multipart.FileHeader) (*domain.Shader, error) {
+	shader, err := s.repo.UpdateShader(ctx, userID, shaderID, updatePayload)
+	if err != nil {
+		return nil, err
+	}
+	// update if exists already
+	if updatePayload.PreviewImgURL != nil && file != nil {
+		err = s.fileStore.UpdateFile(file, *updatePayload.PreviewImgURL)
+		if err != nil {
+			log.Println("Error updating file", err)
+			return nil, err
+		}
+	}
+	return shader, nil
 }
 
 func (s shaderService) GetShaderList(ctx context.Context, sort string, limit int, offset int, accessLevel domain.AccessLevel) ([]domain.Shader, error) {
 	return s.repo.GetShaderList(ctx, sort, limit, offset, accessLevel)
 }
 
-func (s shaderService) CreateShader(ctx context.Context, userID uuid.UUID, shaderPayload domain.CreateShaderPayload) (*domain.ShaderDetailed, error) {
-	return s.repo.CreateShader(ctx, userID, shaderPayload)
+func (s shaderService) CreateShader(ctx context.Context, userID uuid.UUID, shaderPayload domain.CreateShaderPayload, file *multipart.FileHeader) (*domain.ShaderDetailed, error) {
+	file.Filename = randomFileName(".png")
+	fileUrl, err := s.fileStore.UploadFile(file)
+	if err != nil {
+		return nil, err
+	}
+	shaderPayload.PreviewImgURL = fileUrl
+
+	shader, err := s.repo.CreateShader(ctx, userID, shaderPayload)
+	if err != nil {
+		return nil, err
+	}
+	return shader, nil
 }
 
 func (s shaderService) GetShader(ctx context.Context, shaderID uuid.UUID) (*domain.ShaderDetailed, error) {
