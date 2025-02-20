@@ -39,15 +39,6 @@ import {
 } from "@/components/ui/select";
 import { useDeleteShader } from "@/hooks/hooks";
 import { Trash } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import DeleteShaderDialog from "@/components/shader/DeleteShaderDialog";
 
 const formSchema = z.object({
@@ -102,9 +93,6 @@ const EditShaderMetadata = ({ initialData }: Props) => {
     },
   });
 
-  const deleteShaderMut = useDeleteShader(() => {
-    router.push("/");
-  });
   const onSubmit = useCallback(
     async (values: z.infer<typeof formSchema>) => {
       // if not able to compile, can't save it

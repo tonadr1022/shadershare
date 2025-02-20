@@ -1,7 +1,24 @@
+"use client";
+import { useGetMe } from "@/hooks/hooks";
 import React from "react";
+import UpdateProfileDialog from "./_components/UpdateProfileDialog";
+import { Spinner } from "@/components/ui/spinner";
 
 const Profile = () => {
-  return <div>Users Profile</div>;
+  const { data: user, isPending, isError } = useGetMe();
+  if (isPending) return <Spinner />;
+  if (isError) return <p>Error loading profile.</p>;
+  return (
+    <div className="flex flex-col gap-4">
+      {user && (
+        <>
+          <h2>{user.username}</h2>
+          <h3>Email: {user.email}</h3>
+          {<UpdateProfileDialog user={user} />}
+        </>
+      )}
+    </div>
+  );
 };
 
 export default Profile;

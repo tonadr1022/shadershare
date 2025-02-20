@@ -25,3 +25,8 @@ export const getMe = async (): Promise<User> => {
 export const logoutUser = async () => {
   await axiosInstance.post("/logout");
 };
+
+export const updateUser = async (data: Partial<User>): Promise<User> => {
+  const res = await axiosInstance.put("/profile", data);
+  return res.data;
+};

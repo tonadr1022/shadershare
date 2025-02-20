@@ -26,6 +26,7 @@ func RegisterHandlers(baseUrl string, e *gin.Engine, r *gin.RouterGroup, shaderS
 	e.GET("/auth/:provider/callback", h.oauthCallback)
 	r.GET("/auth/:provider", h.loginWithProvider)
 
+	r.PUT("/profile", middleware.Auth(), h.updateProfile)
 	r.GET("/profile", middleware.Auth(), h.profile)
 	r.GET("/me", middleware.Auth(), h.me)
 	r.POST("/logout", h.logout)
@@ -121,5 +122,27 @@ func (h userHandler) me(c *gin.Context) {
 		util.SetErrorResponse(c, http.StatusInternalServerError, "Internal Server Error")
 		return
 	}
+	c.JSON(http.StatusOK, user)
+}
+
+func (h userHandler) updateProfile(c *gin.Context) {
+	userctx, ok := middleware.CurrentUser(c)
+	if !ok {
+		util.SetInternalServiceErrorResponse(c)
+		return
+	}
+
+	var payload domain.UserUpdatePayload
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		util.SetErrorResponse(c, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+
+	user, err := h.userService.UpdateProfile(c, userctx.ID, payload)
+	if err != nil {
+		util.SetErrorResponse(c, http.StatusInternalServerError, "Internal Server Error")
+		return
+	}
+
 	c.JSON(http.StatusOK, user)
 }

@@ -13,7 +13,7 @@ export default function UserPageLayout({
       <Separator />
       <SidebarProvider className="flex flex-row min-h-full max-h-full">
         <UsersSidebar />
-        <main className="h-full w-full">{children}</main>
+        <main className="h-full w-full p-4">{children}</main>
       </SidebarProvider>
     </div>
   );

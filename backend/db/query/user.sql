@@ -21,13 +21,13 @@ INSERT INTO users (
     $1, $2, $3
 ) RETURNING *;
 
--- name: UpdateUser :exec
+-- name: UpdateUser :one
 UPDATE users 
 SET 
-username = coalesce(sqlc.narg('username'),username),
-email = coalesce(sqlc.narg('email'),email),
-avatar_url = coalesce(sqlc.narg('avatar_url'),avatar_url)
-WHERE id = sqlc.narg('id')
+username = coalesce(NULLIF($2::TEXT,''),username),
+email = coalesce(NULLIF($3::TEXT,''),email),
+avatar_url = coalesce(NULLIF($4::TEXT,''),avatar_url)
+WHERE id = $1
 RETURNING *;
 
 

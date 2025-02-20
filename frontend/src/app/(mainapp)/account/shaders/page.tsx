@@ -5,6 +5,7 @@ import React from "react";
 import ShaderTable from "../_components/ShaderTable";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import ShaderBrowser from "@/components/ShaderBrowser";
 
 // TODO: table
 const ProfileShaders = () => {
@@ -13,28 +14,28 @@ const ProfileShaders = () => {
     queryFn: getUserShaders,
   });
 
+  if (isPending) return <Spinner />;
+  if (isError) return <p>Error loading shaders.</p>;
+
   return (
-    <div className="w-fit p-4">
-      {isPending ? (
-        <Spinner />
-      ) : isError ? (
-        <div>Error loading shaders.</div>
-      ) : (
-        <div className="">
-          <Tabs defaultValue="table">
-            <TabsList>
-              <TabsTrigger value="table">Table</TabsTrigger>
-              <TabsTrigger value="browse">Browse</TabsTrigger>
-            </TabsList>
-            <TabsContent value="table">
-              {data && <ShaderTable data={data} />}
-            </TabsContent>
-            <TabsContent value="browse">
-              <div>browse shaders</div>
-            </TabsContent>
-          </Tabs>
-        </div>
-      )}
+    <div className="w-fit">
+      <div className="">
+        <Tabs defaultValue="table">
+          <TabsList>
+            <TabsTrigger value="table">Table</TabsTrigger>
+            <TabsTrigger value="browse">Browse</TabsTrigger>
+          </TabsList>
+          <TabsContent value="table">
+            {data && <ShaderTable data={data} />}
+          </TabsContent>
+          <TabsContent value="browse">
+            <ShaderBrowser
+              urlPath="/account/shaders"
+              show={{ usernames: false }}
+            />
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   );
 };

@@ -101,3 +101,13 @@ WHERE id = ANY($1)
 	}
 	return items, nil
 }
+
+func (r userRepository) UpdateUser(ctx context.Context, id uuid.UUID, payload domain.UserUpdatePayload) (*domain.User, error) {
+	params := db.UpdateUserParams{Column2: payload.Username, ID: id}
+	dbuser, err := r.queries.UpdateUser(ctx, params)
+	if err != nil {
+		return nil, db.TransformErrNoRows(err)
+	}
+	user := r.ToDomainUser(dbuser)
+	return &user, nil
+}

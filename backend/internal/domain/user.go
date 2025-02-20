@@ -27,6 +27,11 @@ type (
 		Email     string `json:"email" binding:"required"`
 		AvatarUrl string `json:"avatar_url"`
 	}
+
+	UserUpdatePayload struct {
+		Username string `json:"username,omitempty"`
+	}
+
 	OAuthPayload struct {
 		Email     string
 		AvatarUrl string
@@ -42,6 +47,7 @@ type (
 		CompleteOAuthLogin(ctx context.Context, payload *OAuthPayload) (auth.JWTPair, error)
 		// LoginUser(ctx context.Context, payload LoginPayload) (auth.JWTPair, error)
 		GetUserByID(ctx context.Context, id uuid.UUID) (*User, error)
+		UpdateProfile(ctx context.Context, id uuid.UUID, payload UserUpdatePayload) (*User, error)
 	}
 
 	UserRepository interface {
@@ -50,6 +56,7 @@ type (
 		GetUserByID(ctx context.Context, id uuid.UUID) (*User, error)
 		GetUserByEmail(ctx context.Context, email string) (*User, error)
 		GetUserByEmailOrUsername(ctx context.Context, email_or_username string) (*User, error)
+		UpdateUser(ctx context.Context, id uuid.UUID, payload UserUpdatePayload) (*User, error)
 	}
 )
 
