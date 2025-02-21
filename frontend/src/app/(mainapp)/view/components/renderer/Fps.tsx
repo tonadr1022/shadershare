@@ -21,7 +21,7 @@ const Fps = ({ renderer, paused }: Props) => {
     return () => clearInterval(interval);
   }, [renderer, paused]);
 
-  return <>{fps ? fps : "000.00"} fps</>;
+  return <span>{fps ? fps : "000.00"}&nbsp;fps</span>;
 };
 
 export default Fps;

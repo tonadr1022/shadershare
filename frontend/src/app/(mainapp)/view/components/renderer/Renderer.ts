@@ -696,6 +696,40 @@ const webGL2Renderer = () => {
     }
   };
 
+  let mediaRecorder: MediaRecorder | null = null;
+  let recordedChunks: Blob[] = [];
+  const startRecording = () => {
+    const stream = canvas.captureStream(60);
+    mediaRecorder = new MediaRecorder(stream, {
+      mimeType: "video/webm",
+    });
+
+    recordedChunks = [];
+    mediaRecorder.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        recordedChunks.push(event.data);
+      }
+    };
+    mediaRecorder.start();
+  };
+
+  const stopRecording = () => {
+    if (!mediaRecorder) {
+      return;
+    }
+    mediaRecorder.stop();
+    setTimeout(() => {
+      const blob = new Blob(recordedChunks, {
+        type: "video/webm",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "recording.webm";
+      a.click();
+      URL.revokeObjectURL(url);
+    }, 0);
+  };
   const render = (options?: { checkResize?: boolean; dt: number }) => {
     if (!initialized || !gl || !canvas) {
       return;
@@ -1352,6 +1386,8 @@ ${commonBufferText}
 
     onResize,
     render,
+    startRecording,
+    stopRecording,
     getFps: () => {
       const avgFrameTime = fpsCounter.getAvg();
       if (avgFrameTime == 0) return 0;

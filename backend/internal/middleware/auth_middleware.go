@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"fmt"
 	"net/http"
 	"shadershare/internal/auth"
 	"shadershare/internal/domain"
@@ -38,8 +37,6 @@ func Auth() gin.HandlerFunc {
 			}
 		}
 
-		// print the cookies
-		fmt.Println("COOKIES:\n", ctx.Request.Cookies())
 		// expired or missing access token, try refresh token
 		refreshToken, err := ctx.Request.Cookie("refreshToken")
 
