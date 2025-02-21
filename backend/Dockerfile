@@ -26,7 +26,7 @@ ADD https://github.com/golang-migrate/migrate/releases/download/v${MIGRATE_VERSI
 RUN tar -xzf /tmp/migrate.linux-amd64.tar.gz -C /usr/local/bin 
 
 # deploy binary into lean image
-FROM alpine:latest
+FROM alpine:3.21.3
 RUN apk --no-cache add ca-certificates bash 
 WORKDIR /app
 
@@ -40,4 +40,4 @@ RUN chmod +x /app/entrypoint.sh
 
 EXPOSE 8080
 
-ENTRYPOINT ['/app/entrypoint.sh']
+ENTRYPOINT ["/app/entrypoint.sh"]

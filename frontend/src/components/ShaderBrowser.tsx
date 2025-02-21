@@ -1,3 +1,4 @@
+"use client";
 import { getShadersWithUsernames } from "@/api/shader-api";
 import { generatePagination } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";

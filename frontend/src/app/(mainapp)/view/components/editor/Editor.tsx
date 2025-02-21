@@ -362,7 +362,7 @@ export const MultiBufferEditor = React.memo(() => {
                   </DropdownMenuContent>
                 </DropdownMenu>
                 <TabsList>
-                  {shaderDataRef.current.shader_outputs.map((output, idx) => (
+                  {shaderDataRef.current.shader_outputs.map((output) => (
                     <TabsTrigger
                       value={output.name}
                       // onClick={() => setRenderPassEditIdx(idx)}
@@ -388,7 +388,7 @@ export const MultiBufferEditor = React.memo(() => {
                 </DialogContent>
               </Dialog>
             </div>
-            {shaderDataRef.current.shader_outputs.map((output, idx) => (
+            {shaderDataRef.current.shader_outputs.map((output) => (
               <TabsContent
                 forceMount={true}
                 value={output.name}

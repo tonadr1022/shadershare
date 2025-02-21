@@ -37,7 +37,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useDeleteShader } from "@/hooks/hooks";
 import { Trash } from "lucide-react";
 import DeleteShaderDialog from "@/components/shader/DeleteShaderDialog";
 

@@ -5,6 +5,7 @@ export const SimpleMultipass: ShaderData = {
   shader: {
     id: "",
     created_at: "",
+    updated_at: "",
     preview_img_url: "",
     access_level: 0,
     user_id: "",
@@ -37,6 +38,7 @@ export const MultipassExample: ShaderData = {
   shader: {
     id: "",
     created_at: "",
+    updated_at: "",
     preview_img_url: "",
     access_level: 0,
     user_id: "",
@@ -139,6 +141,7 @@ export const DefaultNewShader: ShaderData = {
   shader: {
     id: "",
     created_at: "",
+    updated_at: "",
     title: "",
     user_id: "",
     access_level: 0,
@@ -159,6 +162,7 @@ export const TextureExample: ShaderData = {
   shader: {
     id: "",
     created_at: "",
+    updated_at: "",
     title: "TextureExample",
     user_id: "",
     access_level: 1,
@@ -206,6 +210,7 @@ export const MultiPassRed: ShaderData = {
   shader: {
     id: "",
     created_at: "",
+    updated_at: "",
     title: "MultiPassRed",
     user_id: "",
     access_level: 0,

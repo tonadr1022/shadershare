@@ -6,7 +6,6 @@ import { toast } from "sonner";
 import { z } from "zod";
 import {
   DialogContent,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
