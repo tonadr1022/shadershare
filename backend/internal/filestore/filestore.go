@@ -58,6 +58,7 @@ func (s *s3FileStore) setupS3(isProd bool) {
 	accessKeySecret := os.Getenv("AWS_ACCESS_KEY_SECRET")
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(accessKeyID, accessKeySecret, "")),
+		config.WithRegion("auto"),
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -69,7 +70,6 @@ func (s *s3FileStore) setupS3(isProd bool) {
 			o.UsePathStyle = true
 		}
 	})
-
 	if !isProd {
 		_, err := s.client.CreateBucket(context.TODO(), &s3.CreateBucketInput{
 			Bucket: &s.bucketName,
@@ -95,10 +95,11 @@ func (s *s3FileStore) UpdateFile(file *multipart.FileHeader, fileURL string) err
 	filename := fileURL[strings.LastIndex(fileURL, "/")+1:]
 	defer src.Close()
 	_, err = s.client.PutObject(context.TODO(), &s3.PutObjectInput{
-		Bucket: &s.bucketName,
-		Key:    aws.String(filename),
-		Body:   src,
-		ACL:    s3types.ObjectCannedACLPublicRead,
+		Bucket:      &s.bucketName,
+		Key:         aws.String(filename),
+		Body:        src,
+		ACL:         s3types.ObjectCannedACLPublicRead,
+		ContentType: aws.String(file.Header.Get("Content-Type")),
 	})
 	if err != nil {
 		return fmt.Errorf("failed to upload file: %v", err)
@@ -121,16 +122,17 @@ func (s *s3FileStore) UploadFile(file *multipart.FileHeader) (string, error) {
 	}
 	defer src.Close()
 	_, err = s.client.PutObject(context.TODO(), &s3.PutObjectInput{
-		Bucket: &s.bucketName,
-		Key:    aws.String(file.Filename),
-		Body:   src,
-		ACL:    s3types.ObjectCannedACLPublicRead,
+		Bucket:      &s.bucketName,
+		Key:         aws.String(file.Filename),
+		Body:        src,
+		ACL:         s3types.ObjectCannedACLPublicRead,
+		ContentType: aws.String(file.Header.Get("Content-Type")),
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to upload file: %v", err)
 	}
 	if s.isProd {
-		return fmt.Sprintf("https://%s.%s/%s", s.bucketName, s.baseEndpoint, file.Filename), nil
+		return fmt.Sprintf("https://media.shader-share.com/%s", file.Filename), nil
 	}
 	// TODO: in prod need s3 url!
 	minioURL := fmt.Sprintf("http://%s/%s/%s", "localhost:9000", s.bucketName, file.Filename)

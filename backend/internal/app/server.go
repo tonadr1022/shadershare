@@ -36,12 +36,24 @@ func Run() {
 		log.Fatal("JWT_SECRET is not set")
 	}
 
+	var domain string
+	var sameSite http.SameSite
+	if isProd {
+		sameSite = http.SameSiteNoneMode
+		domain = ""
+	} else {
+		domain = ""
+		sameSite = http.SameSiteLaxMode
+	}
+
 	auth.InitAuth(&auth.AuthSettings{
 		JWTSecret:          jwtSecret,
 		AccessTokenMaxAge:  15 * time.Minute,
 		RefreshTokenMaxAge: 30 * 24 * time.Hour,
 		Secure:             isProd,
 		HttpOnly:           true,
+		Domain:             domain,
+		SameSite:           sameSite,
 	}, isProd)
 
 	r := gin.Default()
@@ -61,9 +73,10 @@ func Run() {
 	if environment == "dev" {
 		allowedOrigins = append(allowedOrigins, "http://localhost:3000", "http://localhost:8080")
 	}
+	fmt.Println("allowed origins", allowedOrigins)
 
 	if isProd {
-		config.AllowOrigins = []string{"*"}
+		config.AllowOrigins = []string{"https://shader-share.com", "https://www.shader-share.com"}
 	} else {
 		config.AllowOrigins = allowedOrigins
 	}

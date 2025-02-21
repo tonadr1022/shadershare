@@ -42,6 +42,8 @@ type (
 		RefreshTokenMaxAge time.Duration
 		Secure             bool
 		HttpOnly           bool
+		Domain             string
+		SameSite           http.SameSite
 	}
 )
 
@@ -124,9 +126,11 @@ func (a *auth) generateJWT(userID uuid.UUID, email string, lifeTime time.Duratio
 }
 
 func (a *auth) SetAccessTokenCookie(ctx *gin.Context, token string) {
-	ctx.SetCookie("accessToken", token, int((a.settings.AccessTokenMaxAge).Seconds()), "/", "", a.settings.Secure, a.settings.HttpOnly)
+	ctx.SetSameSite(a.settings.SameSite)
+	ctx.SetCookie("accessToken", token, int((a.settings.AccessTokenMaxAge).Seconds()), "/", a.settings.Domain, a.settings.Secure, a.settings.HttpOnly)
 }
 
 func (a *auth) SetRefreshTokenCookie(ctx *gin.Context, token string) {
-	ctx.SetCookie("refreshToken", token, int((a.settings.RefreshTokenMaxAge).Seconds()), "/", "", a.settings.Secure, a.settings.HttpOnly)
+	ctx.SetSameSite(a.settings.SameSite)
+	ctx.SetCookie("refreshToken", token, int((a.settings.RefreshTokenMaxAge).Seconds()), "/", a.settings.Domain, a.settings.Secure, a.settings.HttpOnly)
 }
