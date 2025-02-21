@@ -1,0 +1,19 @@
+name: Deploy Backend to Heroku
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'  # Only triggers when there are changes in the backend directory
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Heroku Deployment
+        run: git push https://heroku.com/$HEROKU_APP_NAME.git main
+        env:
+          HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
