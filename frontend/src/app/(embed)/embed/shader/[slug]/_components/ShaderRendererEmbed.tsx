@@ -11,20 +11,36 @@ type Props = {
 };
 
 const ShaderRendererEmbed = ({ shaderId }: Props) => {
+  const [errMsg, setErrMsg] = React.useState("");
   const { data, isPending, isError } = useQuery({
     queryFn: async () => {
       return getShader(shaderId);
     },
+    retry: (failureCount, error) => {
+      if (error.message.includes("404")) {
+        setErrMsg("Shader not found D:");
+        return false;
+      }
+      if (failureCount >= 3) {
+        setErrMsg("Failed to load shader D:");
+      }
+      return failureCount < 3;
+    },
     queryKey: ["shaders", shaderId],
   });
-  if (isPending) return <Spinner />;
-  if (isError) return <p>Error loading shader. D:</p>;
-  if (!data) return <p>No shader found</p>;
   return (
-    <div className="w-screen h-screen">
-      <RendererProvider initialShaderData={data}>
-        <ShaderRenderer keepAspectRatio={false} />
-      </RendererProvider>
+    <div className="w-screen h-screen flex  justify-center items-center align-middle">
+      {isError ? (
+        <p>{errMsg}</p>
+      ) : isPending ? (
+        <Spinner />
+      ) : !data ? (
+        <p>{errMsg}</p>
+      ) : (
+        <RendererProvider initialShaderData={data}>
+          <ShaderRenderer keepAspectRatio={false} isEmbedded />
+        </RendererProvider>
+      )}
     </div>
   );
 };

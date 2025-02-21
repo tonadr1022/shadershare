@@ -157,7 +157,7 @@ func (h ShaderHandler) getShaderList(c *gin.Context) {
 func (h ShaderHandler) getShader(c *gin.Context) {
 	shaderID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		util.SetErrorResponse(c, http.StatusBadRequest, "Invalid shader ID")
+		util.SetErrorResponse(c, http.StatusNotFound, "Shader not found")
 		return
 	}
 

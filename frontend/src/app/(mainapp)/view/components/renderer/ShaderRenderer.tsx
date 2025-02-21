@@ -18,11 +18,14 @@ import { promptSaveScreenshot } from "./Renderer";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import Fps from "./Fps";
 import { useRendererCtx } from "@/context/RendererContext";
+import { cn } from "@/lib/utils";
 
 type Props = {
   keepAspectRatio: boolean;
+  isEmbedded?: boolean;
 };
-const ShaderRenderer = ({ keepAspectRatio }: Props) => {
+const ShaderRenderer = ({ keepAspectRatio, isEmbedded }: Props) => {
+  const isShaderEmbed = isEmbedded || false;
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const { paused, setPaused, shaderDataRef, renderer } = useRendererCtx();
 
@@ -145,7 +148,12 @@ const ShaderRenderer = ({ keepAspectRatio }: Props) => {
   }, [renderer]);
 
   return (
-    <div className="flex flex-col w-full h-full">
+    <div
+      className={cn(
+        isShaderEmbed && "relative",
+        "flex flex-col w-full h-full group",
+      )}
+    >
       {keepAspectRatio ? (
         <AspectRatio ratio={16 / 9} className="w-full p-0 m-0 bg-background">
           <canvas ref={canvasRef} className="w-full h-full" />
@@ -153,64 +161,85 @@ const ShaderRenderer = ({ keepAspectRatio }: Props) => {
       ) : (
         <canvas ref={canvasRef} className="w-full h-full" />
       )}
-      <div className="w-full h-[40px] flex ">
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                className="rounded-none m-0"
-                variant="outline"
-                onClick={onRestart}
-              >
-                <ArrowLeftToLineIcon />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Restart</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="outline" onClick={onPause}>
-                {paused ? <Play /> : <Pause />}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{paused ? "Play" : "Pause"} Alt + p</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="outline" onClick={onScreenshot}>
-                <CameraIcon />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Screenshot</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="outline" onClick={toggleFullscreen}>
-                <Fullscreen />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Fullscreen</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-        <div className="font-semibold p-2 border-none">
-          {canvasDims.width}x{canvasDims.height}
+      {isShaderEmbed && (
+        <div className="w-full opacity-0 group-hover:opacity-80 transition-opacity  h-[40px] bg-background absolute inset-0">
+          <div className="px-2 w-full h-[40px] flex items-center">
+            <h6 className="text-sm">
+              {shaderDataRef.current.shader.title} &nbsp;
+            </h6>
+            <p className="text-xs">by {shaderDataRef.current.shader.user_id}</p>
+          </div>
         </div>
-        <div className="font-semibold p-2 border-none">
-          <Fps paused={paused} renderer={renderer} />
+      )}
+      <div
+        className={cn(
+          isShaderEmbed &&
+            "absolute bottom-0 left-0 w-full opacity-0 group-hover:opacity-80 transition-opacity bg-background",
+        )}
+      >
+        <div className={cn("w-full h-[40px] flex")}>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  className="rounded-none m-0"
+                  variant="outline"
+                  onClick={onRestart}
+                >
+                  <ArrowLeftToLineIcon />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Restart</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" onClick={onPause}>
+                  {paused ? <Play /> : <Pause />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>
+                  {paused ? "Play" : "Pause"} {!isShaderEmbed && "Alt + p"}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" onClick={onScreenshot}>
+                  <CameraIcon />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Screenshot</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          {!isShaderEmbed && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" onClick={toggleFullscreen}>
+                    <Fullscreen />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Fullscreen</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+          <div className="font-semibold p-2 border-none">
+            {canvasDims.width}x{canvasDims.height}
+          </div>
+          <div className="font-semibold p-2 border-none">
+            <Fps paused={paused} renderer={renderer} />
+          </div>
         </div>
       </div>
     </div>
