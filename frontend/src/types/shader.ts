@@ -74,6 +74,9 @@ export type ShaderData = {
   shader_outputs: ShaderOutput[];
 };
 
+export type ShaderDataWithUser = ShaderData & {
+  username?: string;
+};
 export type ShaderDataWithUsernameResponse = {
   shaders: ShaderData[];
   usernames: string[];

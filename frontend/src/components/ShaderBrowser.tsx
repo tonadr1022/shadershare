@@ -27,14 +27,9 @@ const ShaderBrowser = ({ show = { usernames: false }, urlPath }: Props) => {
     queryFn: () => getShadersWithUsernames((page - 1) * 10, 10),
   });
 
-  const pageNumbers = generatePagination(
-    page,
-    Math.ceil((data?.total || 0) / 10),
-  );
   const router = useRouter();
   const onPageButtonClick = useCallback(
     (page: number) => {
-      console.log(`${urlPath}?page=${page}`);
       router.push(`${urlPath}?page=${page}`);
     },
     [router, urlPath],
@@ -42,17 +37,21 @@ const ShaderBrowser = ({ show = { usernames: false }, urlPath }: Props) => {
 
   return (
     <div className="p-4 flex flex-col items-center gap-4">
-      {isPending && <Spinner />}
-      {isError && <p>Error loading shaders.</p>}
+      {isPending ? <Spinner /> : isError ? <p>Error loading shaders.</p> : null}
+      <div className="flex items-center gap-2">
+        <p>Results: ({data ? data.total : 0}):</p>
+        <PaginationButtons
+          onClick={onPageButtonClick}
+          pageNumbers={generatePagination(
+            page,
+            Math.ceil((data?.total || 0) / 10),
+          )}
+          page={page}
+          totalDataLength={data?.total || 0}
+        />
+      </div>
+      {process.env.NODE_ENV === "development" && <AddTestShaders />}
       {data && <ShaderPreviewCards show={show} data={data} />}
-      <PaginationButtons
-        onClick={onPageButtonClick}
-        pageNumbers={pageNumbers}
-        page={page}
-        totalDataLength={data?.total || 0}
-      />
-      <h4>{data ? data.total : 0} shaders</h4>
-      <AddTestShaders />
     </div>
   );
 };

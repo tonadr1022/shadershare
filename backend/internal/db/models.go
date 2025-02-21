@@ -20,6 +20,19 @@ type Shader struct {
 	UpdatedAt     pgtype.Timestamptz
 }
 
+type ShaderDetail struct {
+	ID            uuid.UUID
+	Title         string
+	Description   pgtype.Text
+	UserID        uuid.UUID
+	AccessLevel   int16
+	PreviewImgUrl pgtype.Text
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+	Inputs        []byte
+	Outputs       []byte
+}
+
 type ShaderInput struct {
 	ID         uuid.UUID
 	ShaderID   uuid.UUID

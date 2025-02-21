@@ -33,3 +33,8 @@ RETURNING *;
 -- name: DeleteShader :one
 DELETE FROM shaders
 WHERE id = $1 AND user_id = $2 RETURNING *;
+
+-- name: GetShaderWithUser :one 
+SELECT s.*, u.username FROM shaders s
+JOIN users u ON s.user_id = u.id
+WHERE s.id = $1;

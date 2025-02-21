@@ -5,7 +5,7 @@ import {
 } from "@/app/(mainapp)/view/components/renderer/Renderer";
 import { DefaultNewShader } from "@/rendering/example-shaders";
 import {
-  ShaderData,
+  ShaderDataWithUser,
   ShaderOutputName,
   shaderOutputNames,
 } from "@/types/shader";
@@ -22,7 +22,7 @@ interface RendererContextType {
   paused: boolean;
   setPaused: React.Dispatch<React.SetStateAction<boolean>>;
   renderer: IRenderer | null;
-  shaderDataRef: React.RefObject<ShaderData>;
+  shaderDataRef: React.RefObject<ShaderDataWithUser>;
   codeDirtyRef: React.RefObject<Map<ShaderOutputName, boolean>>;
   shaderDataDirty: boolean;
   setShaderDataDirty: React.Dispatch<React.SetStateAction<boolean>>;
@@ -33,7 +33,8 @@ const RendererContext = createContext<RendererContextType | undefined>(
 );
 
 interface RendererProviderProps {
-  initialShaderData?: ShaderData;
+  initialShaderData?: ShaderDataWithUser;
+  username?: string;
   children: ReactNode;
 }
 
@@ -45,7 +46,7 @@ export const RendererProvider: React.FC<RendererProviderProps> = ({
   const [renderer, setRenderer] = useState<IRenderer | null>(null);
   const [shaderDataDirty, setShaderDataDirty] = useState<boolean>(false);
   const initialized = useRef(false);
-  const shaderDataRef = React.useRef<ShaderData>(
+  const shaderDataRef = React.useRef<ShaderDataWithUser>(
     initialShaderData || DefaultNewShader,
   );
   const codeDirtyRef = useRef<Map<ShaderOutputName, boolean>>(new Map());

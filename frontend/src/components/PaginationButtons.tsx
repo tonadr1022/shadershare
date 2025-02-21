@@ -17,7 +17,8 @@ const PaginationButtons = ({
   return (
     <div className="flex flex-row gap-2">
       <Button
-        variant="default"
+        variant="outline"
+        size="sm"
         disabled={page === 1}
         onClick={() => onClick(page - 1)}
       >
@@ -35,7 +36,8 @@ const PaginationButtons = ({
         return (
           <Button
             key={num}
-            variant="default"
+            variant="outline"
+            size="sm"
             disabled={num === page}
             onClick={() => onClick(num)}
           >
@@ -44,7 +46,8 @@ const PaginationButtons = ({
         );
       })}
       <Button
-        variant="default"
+        variant="outline"
+        size="sm"
         disabled={
           totalDataLength === 0 || page === Math.ceil(totalDataLength / 10)
         }

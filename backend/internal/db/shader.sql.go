@@ -99,6 +99,41 @@ func (q *Queries) GetShader(ctx context.Context, id uuid.UUID) (Shader, error) {
 	return i, err
 }
 
+const getShaderWithUser = `-- name: GetShaderWithUser :one
+SELECT s.id, s.title, s.description, s.user_id, s.access_level, s.preview_img_url, s.created_at, s.updated_at, u.username FROM shaders s
+JOIN users u ON s.user_id = u.id
+WHERE s.id = $1
+`
+
+type GetShaderWithUserRow struct {
+	ID            uuid.UUID
+	Title         string
+	Description   pgtype.Text
+	UserID        uuid.UUID
+	AccessLevel   int16
+	PreviewImgUrl pgtype.Text
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+	Username      string
+}
+
+func (q *Queries) GetShaderWithUser(ctx context.Context, id uuid.UUID) (GetShaderWithUserRow, error) {
+	row := q.db.QueryRow(ctx, getShaderWithUser, id)
+	var i GetShaderWithUserRow
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Description,
+		&i.UserID,
+		&i.AccessLevel,
+		&i.PreviewImgUrl,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Username,
+	)
+	return i, err
+}
+
 const getUserShaderList = `-- name: GetUserShaderList :many
 SELECT id, title, description, user_id, access_level, preview_img_url, created_at, updated_at FROM shaders 
 WHERE user_id = $1

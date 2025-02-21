@@ -17,9 +17,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_BASE_URL || "https://localhost:3000",
+  ),
   title: "Shader Share",
   description: "Share and discover shaders",
-  viewport: "width=device-width, initial-scale=1",
   openGraph: {
     title: "Shader Share",
     description: "Share and discover shaders",
@@ -42,7 +44,6 @@ export const metadata: Metadata = {
     "demoscene",
     "real time rendering",
   ],
-  themeColor: "#000000",
   robots: "index, follow",
 };
 

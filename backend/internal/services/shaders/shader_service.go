@@ -136,3 +136,7 @@ func (s shaderService) GetShadersListDetailed(ctx context.Context, sort string, 
 func (s shaderService) GetShaderCount(ctx context.Context) (int64, error) {
 	return s.repo.GetShaderCount(ctx)
 }
+
+func (s shaderService) GetShaderWithUser(ctx context.Context, shaderID uuid.UUID) (*domain.ShaderWithUser, error) {
+	return s.repo.GetShaderWithUser(ctx, shaderID)
+}

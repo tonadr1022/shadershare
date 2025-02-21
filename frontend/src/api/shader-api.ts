@@ -1,6 +1,7 @@
 "use client";
 import {
   ShaderData,
+  ShaderDataWithUser,
   ShaderDataWithUsernameResponse,
   ShaderInput,
   ShaderMetadata,
@@ -55,6 +56,15 @@ export const getShader = async (id: string): Promise<ShaderData> => {
   return res.data;
 };
 
+export const getShaderWithUsername = async (
+  id: string,
+): Promise<ShaderDataWithUser> => {
+  const res = await axiosInstance.get(`/shaders/${id}`, {
+    params: { include: "username" },
+  });
+  return res.data;
+};
+
 export const deleteShader = async (id: string) => {
   const res = await axiosInstance.delete(`/shaders/${id}`);
   return res.data;
@@ -72,7 +82,7 @@ export const getShadersWithUsernames = async (
 ): Promise<ShaderDataWithUsernameResponse> => {
   const res = await axiosInstance.get("/shaders", {
     params: {
-      include: "usernames",
+      include: "username",
       offset: offset || 0,
       limit: limit || 10,
     },

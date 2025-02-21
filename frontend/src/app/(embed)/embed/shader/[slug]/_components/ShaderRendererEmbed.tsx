@@ -3,7 +3,7 @@ import ShaderRenderer from "@/app/(mainapp)/view/components/renderer/ShaderRende
 import React from "react";
 import { RendererProvider } from "@/context/RendererContext";
 import { useQuery } from "@tanstack/react-query";
-import { getShader } from "@/api/shader-api";
+import { getShaderWithUsername } from "@/api/shader-api";
 import { Spinner } from "@/components/ui/spinner";
 
 type Props = {
@@ -14,7 +14,7 @@ const ShaderRendererEmbed = ({ shaderId }: Props) => {
   const [errMsg, setErrMsg] = React.useState("");
   const { data, isPending, isError } = useQuery({
     queryFn: async () => {
-      return getShader(shaderId);
+      return getShaderWithUsername(shaderId);
     },
     retry: (failureCount, error) => {
       if (error.message.includes("404")) {
@@ -37,7 +37,7 @@ const ShaderRendererEmbed = ({ shaderId }: Props) => {
       ) : !data ? (
         <p>{errMsg}</p>
       ) : (
-        <RendererProvider initialShaderData={data}>
+        <RendererProvider username={data.username} initialShaderData={data}>
           <ShaderRenderer keepAspectRatio={false} isEmbedded />
         </RendererProvider>
       )}

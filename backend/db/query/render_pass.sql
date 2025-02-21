@@ -105,3 +105,16 @@ FROM shaders s
 WHERE s.access_level = $3
 ORDER BY s.updated_at DESC
 LIMIT $1 OFFSET $2;
+
+-- -- name: GetShaderDetailedList2 :many
+-- SELECT * FROM shader_details WHERE access_level = $3
+-- ORDER BY updated_at DESC
+-- LIMIT $1 OFFSET $2;
+
+-- name: GetShaderDetailedWithUser :one
+SELECT 
+  sd.*, 
+  u.username
+FROM shader_details sd
+JOIN users u ON sd.user_id = u.id
+WHERE sd.id = $1;

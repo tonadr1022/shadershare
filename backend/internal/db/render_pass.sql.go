@@ -246,6 +246,53 @@ func (q *Queries) GetShaderDetailedList(ctx context.Context, arg GetShaderDetail
 	return items, nil
 }
 
+const getShaderDetailedWithUser = `-- name: GetShaderDetailedWithUser :one
+
+SELECT 
+  sd.id, sd.title, sd.description, sd.user_id, sd.access_level, sd.preview_img_url, sd.created_at, sd.updated_at, sd.inputs, sd.outputs, 
+  u.username
+FROM shader_details sd
+JOIN users u ON sd.user_id = u.id
+WHERE sd.id = $1
+`
+
+type GetShaderDetailedWithUserRow struct {
+	ID            uuid.UUID
+	Title         string
+	Description   pgtype.Text
+	UserID        uuid.UUID
+	AccessLevel   int16
+	PreviewImgUrl pgtype.Text
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+	Inputs        []byte
+	Outputs       []byte
+	Username      string
+}
+
+// -- name: GetShaderDetailedList2 :many
+// SELECT * FROM shader_details WHERE access_level = $3
+// ORDER BY updated_at DESC
+// LIMIT $1 OFFSET $2;
+func (q *Queries) GetShaderDetailedWithUser(ctx context.Context, id uuid.UUID) (GetShaderDetailedWithUserRow, error) {
+	row := q.db.QueryRow(ctx, getShaderDetailedWithUser, id)
+	var i GetShaderDetailedWithUserRow
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Description,
+		&i.UserID,
+		&i.AccessLevel,
+		&i.PreviewImgUrl,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Inputs,
+		&i.Outputs,
+		&i.Username,
+	)
+	return i, err
+}
+
 const getShaderInput = `-- name: GetShaderInput :one
 SELECT id, shader_id, url, type, name, idx, properties FROM shader_inputs
 WHERE id = $1

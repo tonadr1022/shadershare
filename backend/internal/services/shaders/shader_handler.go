@@ -144,7 +144,7 @@ func (h ShaderHandler) getShaderList(c *gin.Context) {
 	// TODO: refactor service?
 	if len(includes) == 0 {
 		shaders, err = h.service.GetShadersListDetailed(c, sort, limit, offset, domain.AccessLevelPublic)
-	} else if slices.Contains(includes, "usernames") {
+	} else if slices.Contains(includes, "username") {
 		shaders, err = h.service.GetShadersDetailedWithUsernames(c, sort, limit, offset, domain.AccessLevelPublic)
 	}
 	if err != nil {
@@ -160,8 +160,14 @@ func (h ShaderHandler) getShader(c *gin.Context) {
 		util.SetErrorResponse(c, http.StatusNotFound, "Shader not found")
 		return
 	}
-
-	shader, err := h.service.GetShader(c, shaderID)
+	includeQuery := c.DefaultQuery("include", "")
+	includes := strings.Split(includeQuery, ",")
+	var shader interface{}
+	if slices.Contains(includes, "username") {
+		shader, err = h.service.GetShaderWithUser(c, shaderID)
+	} else {
+		shader, err = h.service.GetShader(c, shaderID)
+	}
 	if err != nil {
 		if err == e.ErrNotFound {
 			util.SetErrorResponse(c, http.StatusNotFound, "Shader not found")

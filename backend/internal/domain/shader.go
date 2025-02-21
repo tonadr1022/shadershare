@@ -95,6 +95,11 @@ type (
 		ShaderOutputs []ShaderOutput `json:"shader_outputs"`
 	}
 
+	ShaderWithUser struct {
+		ShaderDetailed
+		Username string `json:"username"`
+	}
+
 	ShadersDetailedWithUsernames struct {
 		Shaders   []ShaderDetailed `json:"shaders"`
 		Usernames []string         `json:"usernames"`
@@ -114,6 +119,7 @@ type (
 		DeleteShaderOutput(ctx context.Context, outputID uuid.UUID) error
 		DeleteShader(ctx context.Context, userID uuid.UUID, shaderID uuid.UUID) (*Shader, error)
 		GetShaderCount(ctx context.Context) (int64, error)
+		GetShaderWithUser(ctx context.Context, shaderID uuid.UUID) (*ShaderWithUser, error)
 	}
 
 	ShaderService interface {
@@ -125,6 +131,7 @@ type (
 		GetUserShaderList(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]Shader, error)
 		UpdateShader(ctx context.Context, userID uuid.UUID, shaderID uuid.UUID, updatePayload UpdateShaderPayload, file *multipart.FileHeader) (*Shader, error)
 		GetShader(ctx context.Context, shaderID uuid.UUID) (*ShaderDetailed, error)
+		GetShaderWithUser(ctx context.Context, shaderID uuid.UUID) (*ShaderWithUser, error)
 		CreateShaderInput(ctx context.Context, input CreateShaderInputPayload) (*ShaderInput, error)
 		CreateShaderOutput(ctx context.Context, output CreateShaderOutputPayload) (*ShaderOutput, error)
 		DeleteShaderInput(ctx context.Context, inputID uuid.UUID) error

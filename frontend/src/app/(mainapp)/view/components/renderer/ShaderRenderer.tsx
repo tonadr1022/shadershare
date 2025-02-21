@@ -198,7 +198,9 @@ const ShaderRenderer = ({ keepAspectRatio, isEmbedded }: Props) => {
             <h6 className="text-sm">
               {shaderDataRef.current.shader.title} &nbsp;
             </h6>
-            <p className="text-xs">by {shaderDataRef.current.shader.user_id}</p>
+            <p className="text-xs">
+              by {shaderDataRef.current.username || "uh oh no username D:"}
+            </p>
           </div>
         </div>
       )}
