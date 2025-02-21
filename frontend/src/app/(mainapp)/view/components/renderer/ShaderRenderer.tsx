@@ -282,24 +282,22 @@ const ShaderRenderer = ({ keepAspectRatio, isEmbedded }: Props) => {
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
-            {!isShaderEmbed && (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      className="rounded-none h-full"
-                      onClick={toggleFullscreen}
-                    >
-                      <Fullscreen />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Fullscreen</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="rounded-none h-full"
+                    onClick={toggleFullscreen}
+                  >
+                    <Fullscreen />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Fullscreen</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
           <div
             className={cn(

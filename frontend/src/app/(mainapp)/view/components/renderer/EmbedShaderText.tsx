@@ -24,6 +24,9 @@ const EmbedShaderText = ({ link }: Props) => {
   }, []);
 
   const [embedCode, setEmbedCode] = React.useState(`<iframe
+  title="Shadershare Player"
+  allowfullscreen
+  allow="clipboard-write; web-share"
   width="640"
   height="360"
   style="border: none"
