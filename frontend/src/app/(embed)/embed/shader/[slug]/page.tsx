@@ -5,7 +5,8 @@ const ShaderEmbed = async ({
 }: {
   params: Promise<{ slug: string }>;
 }) => {
-  return <ShaderRendererEmbed />;
+  const { slug: shaderId } = await params;
+  return <ShaderRendererEmbed shaderId={shaderId} />;
 };
 
 export default ShaderEmbed;

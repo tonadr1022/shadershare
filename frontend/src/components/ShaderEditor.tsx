@@ -28,7 +28,7 @@ const ShaderEditor = ({ shaderData, editable }: Props) => {
           collapsible
           collapsedSize={20}
         >
-          <ShaderRenderer />
+          <ShaderRenderer keepAspectRatio={true} />
           {editable ? (
             <EditShaderMetadata initialData={shaderData} />
           ) : (

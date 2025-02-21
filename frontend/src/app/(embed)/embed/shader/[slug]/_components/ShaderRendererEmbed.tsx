@@ -1,15 +1,30 @@
 "use client";
 import ShaderRenderer from "@/app/(mainapp)/view/components/renderer/ShaderRenderer";
-import { MultiPassRed } from "@/rendering/example-shaders";
-import { ShaderData } from "@/types/shader";
-import { createRenderer } from "@/app/(mainapp)/view/components/renderer/Renderer";
 import React from "react";
+import { RendererProvider } from "@/context/RendererContext";
+import { useQuery } from "@tanstack/react-query";
+import { getShader } from "@/api/shader-api";
+import { Spinner } from "@/components/ui/spinner";
 
-const ShaderRendererEmbed = () => {
-  const initialShader: ShaderData = MultiPassRed;
+type Props = {
+  shaderId: string;
+};
+
+const ShaderRendererEmbed = ({ shaderId }: Props) => {
+  const { data, isPending, isError } = useQuery({
+    queryFn: async () => {
+      return getShader(shaderId);
+    },
+    queryKey: ["shaders", shaderId],
+  });
+  if (isPending) return <Spinner />;
+  if (isError) return <p>Error loading shader. D:</p>;
+  if (!data) return <p>No shader found</p>;
   return (
     <div className="w-screen h-screen">
-      <ShaderRenderer initialData={initialShader} renderer={createRenderer()} />
+      <RendererProvider initialShaderData={data}>
+        <ShaderRenderer keepAspectRatio={false} />
+      </RendererProvider>
     </div>
   );
 };

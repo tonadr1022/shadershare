@@ -19,7 +19,10 @@ import { AspectRatio } from "@/components/ui/aspect-ratio";
 import Fps from "./Fps";
 import { useRendererCtx } from "@/context/RendererContext";
 
-const ShaderRenderer = () => {
+type Props = {
+  keepAspectRatio: boolean;
+};
+const ShaderRenderer = ({ keepAspectRatio }: Props) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const { paused, setPaused, shaderDataRef, renderer } = useRendererCtx();
 
@@ -142,10 +145,14 @@ const ShaderRenderer = () => {
   }, [renderer]);
 
   return (
-    <div className="flex flex-col w-full">
-      <AspectRatio ratio={16 / 9} className="w-full p-0 m-0 bg-background">
+    <div className="flex flex-col w-full h-full">
+      {keepAspectRatio ? (
+        <AspectRatio ratio={16 / 9} className="w-full p-0 m-0 bg-background">
+          <canvas ref={canvasRef} className="w-full h-full" />
+        </AspectRatio>
+      ) : (
         <canvas ref={canvasRef} className="w-full h-full" />
-      </AspectRatio>
+      )}
       <div className="w-full h-[40px] flex ">
         <TooltipProvider>
           <Tooltip>
