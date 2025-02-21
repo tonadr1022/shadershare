@@ -23,12 +23,15 @@ type FileStore interface {
 }
 
 type s3FileStore struct {
-	bucketName string
-	client     *s3.Client
+	bucketName   string
+	client       *s3.Client
+	isProd       bool
+	baseEndpoint string
 }
 
 func NewS3FileStore(isProd bool) FileStore {
 	fileStore := &s3FileStore{}
+	fileStore.isProd = isProd
 	fileStore.setupS3(isProd)
 	return fileStore
 }
@@ -53,21 +56,20 @@ func (s *s3FileStore) setupS3(isProd bool) {
 	// accountID := os.Getenv("S3_ACCOUNT_ID")
 	accessKeyID := os.Getenv("AWS_ACCESS_KEY_ID")
 	accessKeySecret := os.Getenv("AWS_ACCESS_KEY_SECRET")
-	region := os.Getenv("AWS_REGION")
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(accessKeyID, accessKeySecret, "")),
-		config.WithRegion(region),
 	)
 	if err != nil {
 		log.Fatal(err)
 	}
+	s.baseEndpoint = os.Getenv("S3_ENDPOINT_URL")
 	s.client = s3.NewFromConfig(cfg, func(o *s3.Options) {
-		o.BaseEndpoint = aws.String(os.Getenv("S3_ENDPOINT_URL"))
+		o.BaseEndpoint = aws.String(s.baseEndpoint)
 		if !isProd {
 			o.UsePathStyle = true
 		}
 	})
-	// TODO: make bucket if not exists in prod too?
+
 	if !isProd {
 		_, err := s.client.CreateBucket(context.TODO(), &s3.CreateBucketInput{
 			Bucket: &s.bucketName,
@@ -126,6 +128,9 @@ func (s *s3FileStore) UploadFile(file *multipart.FileHeader) (string, error) {
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to upload file: %v", err)
+	}
+	if s.isProd {
+		return fmt.Sprintf("https://%s.%s/%s", s.bucketName, s.baseEndpoint, file.Filename), nil
 	}
 	// TODO: in prod need s3 url!
 	minioURL := fmt.Sprintf("http://%s/%s/%s", "localhost:9000", s.bucketName, file.Filename)

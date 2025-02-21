@@ -61,7 +61,12 @@ func Run() {
 	if environment == "dev" {
 		allowedOrigins = append(allowedOrigins, "http://localhost:3000", "http://localhost:8080")
 	}
-	config.AllowOrigins = allowedOrigins
+
+	if isProd {
+		config.AllowOrigins = []string{"*"}
+	} else {
+		config.AllowOrigins = allowedOrigins
+	}
 	config.AllowCredentials = true
 	config.AllowMethods = []string{"GET", "POST", "PUT", "HEAD", "DELETE"}
 	config.AllowHeaders = []string{"Origin", "Content-Length", "Content-Type", "Authorization"}
