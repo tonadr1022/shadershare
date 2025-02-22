@@ -74,7 +74,7 @@ func (s shaderService) CreateShader(ctx context.Context, userID uuid.UUID, shade
 	return shader, nil
 }
 
-func (s shaderService) GetShader(ctx context.Context, shaderID uuid.UUID) (*domain.ShaderDetailed, error) {
+func (s shaderService) GetShader(ctx context.Context, shaderID uuid.UUID) (*domain.ShaderDetailedResponse, error) {
 	return s.repo.GetShader(ctx, shaderID)
 }
 
@@ -95,33 +95,11 @@ func (s shaderService) DeleteShaderOutput(ctx context.Context, outputID uuid.UUI
 }
 
 func (s shaderService) GetShadersDetailedWithUsernames(ctx context.Context, sort string, limit int, offset int, accessLevel domain.AccessLevel) (*domain.ShadersDetailedWithUsernames, error) {
-	shaders, err := s.repo.GetShadersListDetailed(ctx, sort, limit, offset, accessLevel)
+	result, err := s.repo.GetShadersDetailedWithUsernames(ctx, sort, limit, offset, accessLevel)
 	if err != nil {
 		return nil, err
 	}
-	userIDs := make([]uuid.UUID, len(shaders))
-	for i, shader := range shaders {
-		userIDs[i] = shader.Shader.UserID
-	}
-	if shaders == nil {
-		return nil, nil
-	}
-	usernames, err := s.userRepo.GetUsernames(ctx, userIDs)
-	if err != nil {
-		return nil, err
-	}
-	usernamesMap := make(map[uuid.UUID]string)
-	for i, username := range usernames {
-		usernamesMap[userIDs[i]] = username
-	}
-	result := &domain.ShadersDetailedWithUsernames{
-		Shaders: shaders,
-	}
-	result.Usernames = make([]string, len(shaders))
-
-	for i, shader := range shaders {
-		result.Usernames[i] = usernamesMap[shader.Shader.UserID]
-	}
+	// TODO: cache??
 	result.Total, err = s.repo.GetShaderCount(ctx)
 	if err != nil {
 		return nil, err
@@ -129,7 +107,7 @@ func (s shaderService) GetShadersDetailedWithUsernames(ctx context.Context, sort
 	return result, nil
 }
 
-func (s shaderService) GetShadersListDetailed(ctx context.Context, sort string, limit int, offset int, accessLevel domain.AccessLevel) ([]domain.ShaderDetailed, error) {
+func (s shaderService) GetShadersListDetailed(ctx context.Context, sort string, limit int, offset int, accessLevel domain.AccessLevel) ([]domain.ShaderDetailedResponse, error) {
 	return s.repo.GetShadersListDetailed(ctx, sort, limit, offset, accessLevel)
 }
 

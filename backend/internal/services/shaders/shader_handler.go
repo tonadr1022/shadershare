@@ -142,10 +142,10 @@ func (h ShaderHandler) getShaderList(c *gin.Context) {
 	includes := strings.Split(includeQuery, ",")
 	var shaders interface{}
 	// TODO: refactor service?
-	if len(includes) == 0 {
-		shaders, err = h.service.GetShadersListDetailed(c, sort, limit, offset, domain.AccessLevelPublic)
-	} else if slices.Contains(includes, "username") {
+	if slices.Contains(includes, "username") {
 		shaders, err = h.service.GetShadersDetailedWithUsernames(c, sort, limit, offset, domain.AccessLevelPublic)
+	} else {
+		shaders, err = h.service.GetShadersListDetailed(c, sort, limit, offset, domain.AccessLevelPublic)
 	}
 	if err != nil {
 		util.SetInternalServiceErrorResponse(c)

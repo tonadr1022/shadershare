@@ -116,46 +116,16 @@ func (q *Queries) GetShaderCount(ctx context.Context) (int64, error) {
 }
 
 const getShaderDetailed = `-- name: GetShaderDetailed :one
-SELECT 
-  s.id, s.title, s.description, s.user_id, s.access_level, s.preview_img_url, s.created_at, s.updated_at,
-  (SELECT JSON_AGG(JSON_BUILD_OBJECT(
-        'id', si.id, 
-        'shader_id', si.shader_id,
-        'url', si.url,
-        'type', si.type, 
-        'name', si.name,
-        'idx', si.idx,
-        'properties', si.properties
-        )) FROM shader_inputs si WHERE si.shader_id = s.id) AS inputs,
-  (SELECT JSON_AGG(JSON_BUILD_OBJECT(
-        'id', so.id,
-        'shader_id', so.shader_id,
-        'code', so.code,
-        'name', so.name,
-        'type', so.type
-        )) FROM shader_outputs so WHERE so.shader_id = s.id) AS outputs
+SELECT id, title, description, user_id, access_level, preview_img_url, created_at, updated_at, inputs, outputs
 FROM 
-  shaders s
+  shader_details s
 WHERE 
   s.id = $1
 `
 
-type GetShaderDetailedRow struct {
-	ID            uuid.UUID
-	Title         string
-	Description   pgtype.Text
-	UserID        uuid.UUID
-	AccessLevel   int16
-	PreviewImgUrl pgtype.Text
-	CreatedAt     pgtype.Timestamptz
-	UpdatedAt     pgtype.Timestamptz
-	Inputs        []byte
-	Outputs       []byte
-}
-
-func (q *Queries) GetShaderDetailed(ctx context.Context, id uuid.UUID) (GetShaderDetailedRow, error) {
+func (q *Queries) GetShaderDetailed(ctx context.Context, id uuid.UUID) (ShaderDetail, error) {
 	row := q.db.QueryRow(ctx, getShaderDetailed, id)
-	var i GetShaderDetailedRow
+	var i ShaderDetail
 	err := row.Scan(
 		&i.ID,
 		&i.Title,
@@ -173,24 +143,8 @@ func (q *Queries) GetShaderDetailed(ctx context.Context, id uuid.UUID) (GetShade
 
 const getShaderDetailedList = `-- name: GetShaderDetailedList :many
 SELECT 
-  s.id, s.title, s.description, s.user_id, s.access_level, s.preview_img_url, s.created_at, s.updated_at,
-  (SELECT JSON_AGG(JSON_BUILD_OBJECT(
-        'id', si.id, 
-        'shader_id', si.shader_id,
-        'url', si.url,
-        'type', si.type, 
-        'name', si.name,
-        'idx', si.idx,
-        'properties', si.properties
-        )) FROM shader_inputs si WHERE si.shader_id = s.id) AS inputs,
-  (SELECT JSON_AGG(JSON_BUILD_OBJECT(
-        'id', so.id,
-        'shader_id', so.shader_id,
-        'code', so.code,
-        'name', so.name,
-        'type', so.type
-        )) FROM shader_outputs so WHERE so.shader_id = s.id) AS outputs
-FROM shaders s
+  s.id, s.title, s.description, s.user_id, s.access_level, s.preview_img_url, s.created_at, s.updated_at, s.inputs, s.outputs
+FROM shader_details s
 WHERE s.access_level = $3
 ORDER BY s.updated_at DESC
 LIMIT $1 OFFSET $2
@@ -202,7 +156,72 @@ type GetShaderDetailedListParams struct {
 	AccessLevel int16
 }
 
-type GetShaderDetailedListRow struct {
+func (q *Queries) GetShaderDetailedList(ctx context.Context, arg GetShaderDetailedListParams) ([]ShaderDetail, error) {
+	rows, err := q.db.Query(ctx, getShaderDetailedList, arg.Limit, arg.Offset, arg.AccessLevel)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ShaderDetail
+	for rows.Next() {
+		var i ShaderDetail
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Description,
+			&i.UserID,
+			&i.AccessLevel,
+			&i.PreviewImgUrl,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Inputs,
+			&i.Outputs,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getShaderDetailedList22 = `-- name: GetShaderDetailedList22 :many
+SELECT 
+    s.id, s.title, s.description, s.user_id, s.access_level, s.preview_img_url, s.created_at, s.updated_at,
+    JSON_AGG(DISTINCT JSONB_BUILD_OBJECT(
+        'id', si.id, 
+        'shader_id', si.shader_id,
+        'url', si.url,
+        'type', si.type, 
+        'name', si.name,
+        'idx', si.idx,
+        'properties', si.properties
+    )) FILTER (WHERE si.id IS NOT NULL) AS inputs,
+    JSON_AGG(DISTINCT JSONB_BUILD_OBJECT(
+        'id', so.id,
+        'shader_id', so.shader_id,
+        'code', so.code,
+        'name', so.name,
+        'type', so.type
+    )) FILTER (WHERE so.id IS NOT NULL) AS outputs
+FROM shaders s
+LEFT JOIN shader_inputs si ON si.shader_id = s.id
+LEFT JOIN shader_outputs so ON so.shader_id = s.id
+WHERE s.access_level = $3
+GROUP BY s.id
+ORDER BY s.updated_at DESC
+LIMIT $1 OFFSET $2
+`
+
+type GetShaderDetailedList22Params struct {
+	Limit       int32
+	Offset      int32
+	AccessLevel int16
+}
+
+type GetShaderDetailedList22Row struct {
 	ID            uuid.UUID
 	Title         string
 	Description   pgtype.Text
@@ -215,15 +234,15 @@ type GetShaderDetailedListRow struct {
 	Outputs       []byte
 }
 
-func (q *Queries) GetShaderDetailedList(ctx context.Context, arg GetShaderDetailedListParams) ([]GetShaderDetailedListRow, error) {
-	rows, err := q.db.Query(ctx, getShaderDetailedList, arg.Limit, arg.Offset, arg.AccessLevel)
+func (q *Queries) GetShaderDetailedList22(ctx context.Context, arg GetShaderDetailedList22Params) ([]GetShaderDetailedList22Row, error) {
+	rows, err := q.db.Query(ctx, getShaderDetailedList22, arg.Limit, arg.Offset, arg.AccessLevel)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetShaderDetailedListRow
+	var items []GetShaderDetailedList22Row
 	for rows.Next() {
-		var i GetShaderDetailedListRow
+		var i GetShaderDetailedList22Row
 		if err := rows.Scan(
 			&i.ID,
 			&i.Title,
@@ -247,7 +266,6 @@ func (q *Queries) GetShaderDetailedList(ctx context.Context, arg GetShaderDetail
 }
 
 const getShaderDetailedWithUser = `-- name: GetShaderDetailedWithUser :one
-
 SELECT 
   sd.id, sd.title, sd.description, sd.user_id, sd.access_level, sd.preview_img_url, sd.created_at, sd.updated_at, sd.inputs, sd.outputs, 
   u.username
@@ -270,10 +288,6 @@ type GetShaderDetailedWithUserRow struct {
 	Username      string
 }
 
-// -- name: GetShaderDetailedList2 :many
-// SELECT * FROM shader_details WHERE access_level = $3
-// ORDER BY updated_at DESC
-// LIMIT $1 OFFSET $2;
 func (q *Queries) GetShaderDetailedWithUser(ctx context.Context, id uuid.UUID) (GetShaderDetailedWithUserRow, error) {
 	row := q.db.QueryRow(ctx, getShaderDetailedWithUser, id)
 	var i GetShaderDetailedWithUserRow
@@ -291,6 +305,69 @@ func (q *Queries) GetShaderDetailedWithUser(ctx context.Context, id uuid.UUID) (
 		&i.Username,
 	)
 	return i, err
+}
+
+const getShaderDetailedWithUserList = `-- name: GetShaderDetailedWithUserList :many
+SELECT 
+  sd.id, sd.title, sd.description, sd.user_id, sd.access_level, sd.preview_img_url, sd.created_at, sd.updated_at, sd.inputs, sd.outputs, 
+  u.username
+FROM shader_details sd
+JOIN users u ON sd.user_id = u.id
+WHERE sd.access_level = $3
+ORDER BY sd.updated_at DESC
+LIMIT $1 OFFSET $2
+`
+
+type GetShaderDetailedWithUserListParams struct {
+	Limit       int32
+	Offset      int32
+	AccessLevel int16
+}
+
+type GetShaderDetailedWithUserListRow struct {
+	ID            uuid.UUID
+	Title         string
+	Description   pgtype.Text
+	UserID        uuid.UUID
+	AccessLevel   int16
+	PreviewImgUrl pgtype.Text
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+	Inputs        []byte
+	Outputs       []byte
+	Username      string
+}
+
+func (q *Queries) GetShaderDetailedWithUserList(ctx context.Context, arg GetShaderDetailedWithUserListParams) ([]GetShaderDetailedWithUserListRow, error) {
+	rows, err := q.db.Query(ctx, getShaderDetailedWithUserList, arg.Limit, arg.Offset, arg.AccessLevel)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetShaderDetailedWithUserListRow
+	for rows.Next() {
+		var i GetShaderDetailedWithUserListRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Description,
+			&i.UserID,
+			&i.AccessLevel,
+			&i.PreviewImgUrl,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Inputs,
+			&i.Outputs,
+			&i.Username,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getShaderInput = `-- name: GetShaderInput :one

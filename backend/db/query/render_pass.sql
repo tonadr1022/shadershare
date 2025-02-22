@@ -59,33 +59,24 @@ WHERE id = $1 RETURNING *;
 SELECT COUNT(*) FROM shaders;
 
 -- name: GetShaderDetailed :one
-SELECT 
-  s.*,
-  (SELECT JSON_AGG(JSON_BUILD_OBJECT(
-        'id', si.id, 
-        'shader_id', si.shader_id,
-        'url', si.url,
-        'type', si.type, 
-        'name', si.name,
-        'idx', si.idx,
-        'properties', si.properties
-        )) FROM shader_inputs si WHERE si.shader_id = s.id) AS inputs,
-  (SELECT JSON_AGG(JSON_BUILD_OBJECT(
-        'id', so.id,
-        'shader_id', so.shader_id,
-        'code', so.code,
-        'name', so.name,
-        'type', so.type
-        )) FROM shader_outputs so WHERE so.shader_id = s.id) AS outputs
+SELECT *
 FROM 
-  shaders s
+  shader_details s
 WHERE 
   s.id = $1;
 
 -- name: GetShaderDetailedList :many
 SELECT 
-  s.*,
-  (SELECT JSON_AGG(JSON_BUILD_OBJECT(
+  s.*
+FROM shader_details s
+WHERE s.access_level = $3
+ORDER BY s.updated_at DESC
+LIMIT $1 OFFSET $2;
+
+-- name: GetShaderDetailedList22 :many
+SELECT 
+    s.*,
+    JSON_AGG(DISTINCT JSONB_BUILD_OBJECT(
         'id', si.id, 
         'shader_id', si.shader_id,
         'url', si.url,
@@ -93,23 +84,21 @@ SELECT
         'name', si.name,
         'idx', si.idx,
         'properties', si.properties
-        )) FROM shader_inputs si WHERE si.shader_id = s.id) AS inputs,
-  (SELECT JSON_AGG(JSON_BUILD_OBJECT(
+    )) FILTER (WHERE si.id IS NOT NULL) AS inputs,
+    JSON_AGG(DISTINCT JSONB_BUILD_OBJECT(
         'id', so.id,
         'shader_id', so.shader_id,
         'code', so.code,
         'name', so.name,
         'type', so.type
-        )) FROM shader_outputs so WHERE so.shader_id = s.id) AS outputs
+    )) FILTER (WHERE so.id IS NOT NULL) AS outputs
 FROM shaders s
+LEFT JOIN shader_inputs si ON si.shader_id = s.id
+LEFT JOIN shader_outputs so ON so.shader_id = s.id
 WHERE s.access_level = $3
+GROUP BY s.id
 ORDER BY s.updated_at DESC
 LIMIT $1 OFFSET $2;
-
--- -- name: GetShaderDetailedList2 :many
--- SELECT * FROM shader_details WHERE access_level = $3
--- ORDER BY updated_at DESC
--- LIMIT $1 OFFSET $2;
 
 -- name: GetShaderDetailedWithUser :one
 SELECT 
@@ -118,3 +107,13 @@ SELECT
 FROM shader_details sd
 JOIN users u ON sd.user_id = u.id
 WHERE sd.id = $1;
+
+-- name: GetShaderDetailedWithUserList :many
+SELECT 
+  sd.*, 
+  u.username
+FROM shader_details sd
+JOIN users u ON sd.user_id = u.id
+WHERE sd.access_level = $3
+ORDER BY sd.updated_at DESC
+LIMIT $1 OFFSET $2;

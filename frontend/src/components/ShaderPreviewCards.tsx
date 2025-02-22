@@ -14,7 +14,7 @@ const ShaderPreviewCards = ({ data, show }: Props) => {
   const router = useRouter();
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 justify-center gap-4">
-      {data.shaders.map((shader, idx) => (
+      {data.shaders.map((shader) => (
         <div
           className="w-full h-full cursor-pointer"
           onClick={() => router.push(`/view/${shader.shader.id}`)}
@@ -27,10 +27,11 @@ const ShaderPreviewCards = ({ data, show }: Props) => {
             height={180}
             className="w-full h-auto rounded-md"
           />
+          <div>{shader.shader_outputs[0].shader_id}</div>
           <div className="flex flex-row justify-between">
             <p className="font-bold">{shader.shader.title}</p>
             {(!show || show.usernames) && (
-              <p className="text-sm">{data.usernames[idx]}</p>
+              <p className="text-sm">{shader.username || "no username"}</p>
             )}
           </div>
         </div>

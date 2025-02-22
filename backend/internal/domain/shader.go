@@ -2,6 +2,7 @@ package domain
 
 import (
 	"context"
+	"encoding/json"
 	"mime/multipart"
 	"time"
 
@@ -95,24 +96,29 @@ type (
 		ShaderOutputs []ShaderOutput `json:"shader_outputs"`
 	}
 
+	ShaderDetailedResponse struct {
+		Shader        Shader          `json:"shader"`
+		ShaderInputs  json.RawMessage `json:"shader_inputs"`
+		ShaderOutputs json.RawMessage `json:"shader_outputs"`
+	}
+
 	ShaderWithUser struct {
-		ShaderDetailed
+		ShaderDetailedResponse
 		Username string `json:"username"`
 	}
 
 	ShadersDetailedWithUsernames struct {
-		Shaders   []ShaderDetailed `json:"shaders"`
-		Usernames []string         `json:"usernames"`
-		Total     int64            `json:"total"`
+		Shaders []ShaderWithUser `json:"shaders"`
+		Total   int64            `json:"total"`
 	}
 
 	ShaderRepository interface {
 		GetShaderList(ctx context.Context, sort string, limit int, offset int, accAccessLevel AccessLevel) ([]Shader, error)
-		GetShadersListDetailed(ctx context.Context, sort string, limit int, offset int, accessLevel AccessLevel) ([]ShaderDetailed, error)
+		GetShadersListDetailed(ctx context.Context, sort string, limit int, offset int, accessLevel AccessLevel) ([]ShaderDetailedResponse, error)
 		CreateShader(ctx context.Context, userID uuid.UUID, shaderPayload CreateShaderPayload) (*ShaderDetailed, error)
 		GetUserShaderList(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]Shader, error)
 		UpdateShader(ctx context.Context, userID uuid.UUID, shaderID uuid.UUID, updatePayload UpdateShaderPayload) (*Shader, error)
-		GetShader(ctx context.Context, shaderID uuid.UUID) (*ShaderDetailed, error)
+		GetShader(ctx context.Context, shaderID uuid.UUID) (*ShaderDetailedResponse, error)
 		CreateShaderInput(ctx context.Context, input CreateShaderInputPayload) (*ShaderInput, error)
 		CreateShaderOutput(ctx context.Context, output CreateShaderOutputPayload) (*ShaderOutput, error)
 		DeleteShaderInput(ctx context.Context, inputID uuid.UUID) error
@@ -120,17 +126,18 @@ type (
 		DeleteShader(ctx context.Context, userID uuid.UUID, shaderID uuid.UUID) (*Shader, error)
 		GetShaderCount(ctx context.Context) (int64, error)
 		GetShaderWithUser(ctx context.Context, shaderID uuid.UUID) (*ShaderWithUser, error)
+		GetShadersDetailedWithUsernames(ctx context.Context, sort string, limit int, offset int, accessLevel AccessLevel) (*ShadersDetailedWithUsernames, error)
 	}
 
 	ShaderService interface {
 		GetShaderCount(ctx context.Context) (int64, error)
 		GetShaderList(ctx context.Context, sort string, limit int, offset int, accesLevel AccessLevel) ([]Shader, error)
 		CreateShader(ctx context.Context, userID uuid.UUID, shaderPayload CreateShaderPayload, file *multipart.FileHeader) (*ShaderDetailed, error)
-		GetShadersListDetailed(ctx context.Context, sort string, limit int, offset int, accessLevel AccessLevel) ([]ShaderDetailed, error)
+		GetShadersListDetailed(ctx context.Context, sort string, limit int, offset int, accessLevel AccessLevel) ([]ShaderDetailedResponse, error)
 		GetShadersDetailedWithUsernames(ctx context.Context, sort string, limit int, offset int, accessLevel AccessLevel) (*ShadersDetailedWithUsernames, error)
 		GetUserShaderList(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]Shader, error)
 		UpdateShader(ctx context.Context, userID uuid.UUID, shaderID uuid.UUID, updatePayload UpdateShaderPayload, file *multipart.FileHeader) (*Shader, error)
-		GetShader(ctx context.Context, shaderID uuid.UUID) (*ShaderDetailed, error)
+		GetShader(ctx context.Context, shaderID uuid.UUID) (*ShaderDetailedResponse, error)
 		GetShaderWithUser(ctx context.Context, shaderID uuid.UUID) (*ShaderWithUser, error)
 		CreateShaderInput(ctx context.Context, input CreateShaderInputPayload) (*ShaderInput, error)
 		CreateShaderOutput(ctx context.Context, output CreateShaderOutputPayload) (*ShaderOutput, error)
