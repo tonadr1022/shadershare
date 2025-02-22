@@ -26,22 +26,48 @@ export type TextureProps = {
   filter: FilterMode;
   vflip: boolean;
 };
+export type BufferProps = {
+  name: BufferName;
+};
 
 export const DefaultTextureProps: TextureProps = {
   wrap: "repeat",
   filter: "linear",
   vflip: false,
 };
+export const DefaultBufferProps: BufferProps = {
+  name: "Buffer A",
+};
 
 export type ShaderInput = {
   id?: string;
   shader_id?: string;
+  output_id?: string;
   url?: string;
   // TODO: make type
   type: ShaderInputType;
-  name: string;
   idx: number;
-  properties?: TextureProps | undefined;
+  properties: TextureProps | BufferProps;
+  dirty?: boolean;
+};
+
+export const DefaultShaderInputBuffer: ShaderInput = {
+  type: "buffer",
+  idx: 0,
+  properties: {
+    name: "Buffer A",
+  },
+};
+
+export const DefaultShaderInputTexture: ShaderInput = {
+  url: "https://dummyimage.com/64x64/ffffff/ffffff.png",
+  type: "texture",
+  idx: 0,
+  properties: {
+    wrap: "repeat",
+    filter: "linear",
+    vflip: true,
+  },
 };
 
 export type ShaderOutput = {
@@ -50,6 +76,11 @@ export type ShaderOutput = {
   code: string;
   name: ShaderOutputName;
   type: ShaderOutputType;
+  dirty?: boolean;
+};
+
+export type ShaderOutputFull = ShaderOutput & {
+  shader_inputs: ShaderInput[] | null;
 };
 
 export enum AccessLevel {
@@ -70,8 +101,7 @@ export type ShaderMetadata = {
 
 export type ShaderData = {
   shader: ShaderMetadata;
-  shader_inputs: ShaderInput[];
-  shader_outputs: ShaderOutput[];
+  shader_outputs: ShaderOutputFull[];
 };
 
 export type ShaderDataWithUser = ShaderData & {
@@ -107,8 +137,7 @@ export type ErrMsg = {
 
 export type IRendererInitPararms = {
   canvas: HTMLCanvasElement;
-  shaderInputs: ShaderInput[];
-  shaderOutputs: ShaderOutput[];
+  shaderOutputs: ShaderOutputFull[];
 };
 
 export type ShaderUpdateCreatePayload = {

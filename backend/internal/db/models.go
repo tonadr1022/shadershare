@@ -29,16 +29,15 @@ type ShaderDetail struct {
 	PreviewImgUrl pgtype.Text
 	CreatedAt     pgtype.Timestamptz
 	UpdatedAt     pgtype.Timestamptz
-	Inputs        []byte
 	Outputs       []byte
 }
 
 type ShaderInput struct {
 	ID         uuid.UUID
 	ShaderID   uuid.UUID
+	OutputID   uuid.UUID
 	Url        pgtype.Text
 	Type       string
-	Name       string
 	Idx        int32
 	Properties []byte
 }

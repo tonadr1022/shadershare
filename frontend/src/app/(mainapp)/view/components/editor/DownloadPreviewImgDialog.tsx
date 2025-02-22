@@ -33,7 +33,6 @@ const promptSavePreviewImage = async (
   const canvas = document.createElement("canvas");
   await renderer.initialize({
     canvas: canvas,
-    shaderInputs: shaderData.shader_inputs,
     shaderOutputs: shaderData.shader_outputs,
   });
   renderer.onResize(width, height);

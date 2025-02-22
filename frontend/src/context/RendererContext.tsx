@@ -59,10 +59,19 @@ export const RendererProvider: React.FC<RendererProviderProps> = ({
       codeDirtyRef.current.set(name, false);
     }
 
-    shaderDataRef.current.shader_inputs.sort((a, b) => a.idx - b.idx);
-    shaderDataRef.current.shader_outputs.sort((a, b) =>
-      a.name.localeCompare(b.name),
-    );
+    console.log(shaderDataRef.current);
+    const outputs = shaderDataRef.current.shader_outputs;
+    if (outputs) {
+      outputs.sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    for (let i = 0; i < outputs.length; i++) {
+      const inputs = outputs[i].shader_inputs;
+      if (inputs) {
+        inputs.sort((a, b) => a.idx - b.idx);
+      }
+    }
+
     return () => {
       renderer?.shutdown();
     };
@@ -91,4 +100,11 @@ export const useRendererCtx = (): RendererContextType => {
     throw new Error("useRenderer must be used within a RendererProvider");
   }
   return context;
+};
+
+export const getShaderOutput = (
+  ref: React.RefObject<ShaderDataWithUser>,
+  bufferName: ShaderOutputName,
+) => {
+  return ref.current.shader_outputs.find((out) => out.name === bufferName);
 };

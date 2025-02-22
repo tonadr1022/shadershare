@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -27,54 +28,78 @@ import {
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { useRendererCtx } from "@/context/RendererContext";
-import { BufferName, ShaderInput, ShaderInputType } from "@/types/shader";
-import { Plus } from "lucide-react";
+import {
+  BufferName,
+  BufferProps,
+  ShaderInput,
+  ShaderInputType,
+  TextureProps,
+} from "@/types/shader";
 import { createShaderInput } from "@/api/shader-api";
 import { useMutation } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 
 const formSchema = z.object({
   type: z.string(),
-  name: z.string().min(2, {
-    message: "Name must be at least 2 characters.",
-  }),
   url: z.string().optional(),
+  buffer_name: z.string().optional(),
 });
 type Props = {
   onSave: (idx: number) => void;
+  bufferName: BufferName;
+  children: React.ReactNode;
 };
-const AddShaderInputDialog = ({ onSave }: Props) => {
+const AddShaderInputDialog = ({ children, onSave, bufferName }: Props) => {
   const [open, setOpen] = useState(false);
   const { renderer, shaderDataRef } = useRendererCtx();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       type: "texture",
-      name: "ShaderInput",
       url: "https://dummyimage.com/64x64/ffffff/ffffff.png",
+      buffer_name: "Buffer A",
     },
   });
   const afterCreateShaderInput = useCallback(
     (data: ShaderInput) => {
       if (!renderer) return;
       if (data.type === "buffer") {
-        renderer.addBufferIChannel(data.name as BufferName, data.idx);
+        renderer.addBufferIChannel(
+          bufferName,
+          (data.properties as BufferProps).name,
+          data.idx,
+        );
       } else if (data.type === "texture") {
-        renderer.addImageIChannel(data.url!, data.idx, data.properties);
+        renderer.addImageIChannel(
+          data.url!,
+          bufferName,
+          data.idx,
+          data.properties as TextureProps,
+        );
       } else {
         throw new Error("invalid shader input type");
       }
-      shaderDataRef.current.shader_inputs.push(data);
+      const output = shaderDataRef.current.shader_outputs.find(
+        (out) => out.name === bufferName,
+      );
+
+      if (output) {
+        if (!output.shader_inputs) {
+          output.shader_inputs = [];
+        }
+        output.shader_inputs.push(data);
+      }
+
       form.reset();
       setOpen(false);
     },
-    [form, shaderDataRef, renderer],
+    [renderer, shaderDataRef, form, bufferName],
   );
 
   const createShaderInputMut = useMutation({
     mutationFn: createShaderInput,
     onError: () => {
-      toast.error("Failed to create shader output");
+      toast.error("Failed to create shader input");
     },
     onSuccess: (data) => {
       afterCreateShaderInput(data);
@@ -83,11 +108,25 @@ const AddShaderInputDialog = ({ onSave }: Props) => {
   });
   const onSubmit = form.handleSubmit((data) => {
     if (!renderer) return;
+    const output = shaderDataRef.current.shader_outputs.find(
+      (out) => out.name === bufferName,
+    );
+    if (!output) {
+      toast.error(
+        "Failed to create shader input: no corresponding output to attach it to",
+      );
+      return;
+    }
+
     const newInput: ShaderInput = {
       type: data.type as ShaderInputType,
-      name: data.name,
-      idx: shaderDataRef.current.shader_inputs.length,
+      idx:
+        shaderDataRef.current.shader_outputs.find(
+          (out) => out.name === bufferName,
+        )?.shader_inputs?.length || 0,
+      properties: { name: "Buffer A" },
     };
+
     if (data.type === "texture") {
       newInput.url =
         data.url || "https://dummyimage.com/64x64/ffffff/ffffff.png";
@@ -96,9 +135,21 @@ const AddShaderInputDialog = ({ onSave }: Props) => {
         filter: "linear",
         vflip: true,
       };
+    } else if (data.type === "buffer") {
+      const name = data.buffer_name as BufferName;
+      newInput.properties = {
+        name,
+      };
+      if (
+        !shaderDataRef.current.shader_outputs.find((out) => out.name === name)
+      ) {
+        toast.error("Output not found for " + name);
+        return;
+      }
     } else {
       throw new Error("invalid type");
     }
+    newInput.output_id = output.id;
     if (shaderDataRef.current.shader.id) {
       newInput.shader_id = shaderDataRef.current.shader.id;
       createShaderInputMut.mutate(newInput);
@@ -110,30 +161,17 @@ const AddShaderInputDialog = ({ onSave }: Props) => {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="default">
-          <Plus />
-        </Button>
-      </DialogTrigger>
+      <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="sm:max-w-[425]px">
         <DialogHeader>
           <DialogTitle>Add Shader Input</DialogTitle>
+          <DialogDescription>
+            Inputs can either be a 2D texture URL or an existing Buffer Output
+            to read from.
+          </DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={onSubmit} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Name</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
             <FormField
               control={form.control}
               name="type"
@@ -170,6 +208,40 @@ const AddShaderInputDialog = ({ onSave }: Props) => {
                       <Input {...field} placeholder="" />
                     </FormControl>
                     <FormMessage />
+                  </FormItem>
+                );
+              }}
+            />
+            <FormField
+              control={form.control}
+              name="buffer_name"
+              render={({ field }) => {
+                if (form.watch("type") !== "buffer") return <></>;
+                return (
+                  <FormItem>
+                    <FormLabel>Buffer</FormLabel>
+                    <FormControl>
+                      <Select
+                        {...field}
+                        onValueChange={field.onChange}
+                        value={field.value}
+                      >
+                        <SelectTrigger>
+                          <SelectValue id="buffer-select" />
+                        </SelectTrigger>
+                        <SelectContent defaultValue={"Buffer A"}>
+                          {shaderDataRef.current.shader_outputs.map((out) => {
+                            if (out.type === "buffer") {
+                              return (
+                                <SelectItem value={out.name} key={out.name}>
+                                  {out.name}
+                                </SelectItem>
+                              );
+                            }
+                          })}
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
                   </FormItem>
                 );
               }}

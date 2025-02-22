@@ -123,20 +123,27 @@ const EditShaderMetadata = ({ initialData }: Props) => {
         }
       } else {
         payload.shader_outputs = shaderDataRef.current.shader_outputs;
-        payload.shader_inputs = shaderDataRef.current.shader_inputs;
       }
       // TODO: check images etc
       const shaderDirty =
         shaderDataDirty ||
         codeDirtyRef.current.values().some((val: boolean) => val);
 
-      // TODO: partial update
-      payload.shader_inputs = shaderDataRef.current.shader_inputs;
-
       let previewFile: File | null = null;
       const needNewPreview = (shaderDirty && isUpdate) || !isUpdate;
       if (shaderDirty && isUpdate) {
         payload.preview_img_url = initialData.shader.preview_img_url;
+      }
+
+      payload.shader_inputs = [];
+      for (const out of shaderDataRef.current.shader_outputs) {
+        if (out.shader_inputs) {
+          for (const input of out.shader_inputs) {
+            if (input.dirty) {
+              payload.shader_inputs.push(input);
+            }
+          }
+        }
       }
 
       if (needNewPreview) {
@@ -150,6 +157,7 @@ const EditShaderMetadata = ({ initialData }: Props) => {
       // TODO: invalidate queries for browse?
       payload.access_level = parseInt(values.access_level) as AccessLevel;
       if (isUpdate) {
+        console.log(payload, "pp");
         updateShaderMut.mutate({ data: payload, previewFile: previewFile });
       } else {
         createShaderMut.mutate({ data: payload, previewFile: previewFile! });

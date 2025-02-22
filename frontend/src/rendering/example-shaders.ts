@@ -12,11 +12,17 @@ export const SimpleMultipass: ShaderData = {
     title: "SimpleMultipass",
     description: "",
   },
-  shader_inputs: [{ idx: 0, name: "Buffer A", type: "buffer" }],
   shader_outputs: [
     {
       name: "Buffer A",
       type: "buffer",
+      shader_inputs: [
+        {
+          idx: 0,
+          properties: { name: "Buffer A" },
+          type: "buffer",
+        },
+      ],
       code: `void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
     vec2 uv = fragCoord/iResolution.xy;
     vec3 col = 0.5 + 0.5*cos(iTime+uv.xyx+vec3(0,2,4));
@@ -27,6 +33,9 @@ export const SimpleMultipass: ShaderData = {
     {
       name: "Image",
       type: "image",
+      shader_inputs: [
+        { idx: 0, properties: { name: "Buffer A" }, type: "buffer" },
+      ],
       code: `void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
     fragColor = vec4(texture(iChannel0,fragCoord).xyz,1.0); 
 }`,
@@ -46,11 +55,13 @@ export const MultipassExample: ShaderData = {
     description:
       "A simple multipass example. src: https://www.shadertoy.com/view/4ddSz4",
   },
-  shader_inputs: [{ idx: 0, name: "Buffer A", type: "buffer" }],
   shader_outputs: [
     {
       name: "Buffer A",
       type: "buffer",
+      shader_inputs: [
+        { idx: 0, properties: { name: "Buffer A" }, type: "buffer" },
+      ],
       code: `vec4 readMemory(vec2 coords) {
     return texture(iChannel0, (coords + 0.5)/iChannelResolution[0].xy);
 }
@@ -114,6 +125,9 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
     {
       name: "Image",
       type: "image",
+      shader_inputs: [
+        { idx: 0, properties: { name: "Buffer A" }, type: "buffer" },
+      ],
       code: `vec4 readMemory(vec2 coords) {
     return texture(iChannel0, (coords + 0.5)/iChannelResolution[0].xy);
 }
@@ -151,11 +165,11 @@ export const DefaultNewShader: ShaderData = {
   shader_outputs: [
     {
       name: "Image",
+      shader_inputs: [],
       code: initialFragmentShaderText,
       type: "image",
     },
   ],
-  shader_inputs: [],
 };
 
 export const TextureExample: ShaderData = {
@@ -172,40 +186,28 @@ export const TextureExample: ShaderData = {
   shader_outputs: [
     {
       name: "Image",
+      shader_inputs: [
+        {
+          idx: 0,
+          type: "texture",
+          url: "https://i.imgur.com/NxbM74e.gif",
+          properties: {
+            wrap: "repeat",
+            filter: "linear",
+            vflip: true,
+          },
+        },
+      ],
       code: `void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     vec2 uv = fragCoord/iResolution.xy;
-    vec3 col = texture(iChannel0, uv).xyz;
+    vec3 col = texture(iChannel0, fract(uv*10. - iTime)).xyz;
     fragColor = vec4(col,1.0);
 }`,
       type: "image",
     },
   ],
-  shader_inputs: [
-    {
-      name: "pixeltest",
-      idx: 1,
-      type: "texture",
-      url: "https://i.imgur.com/48jgQKl.png",
-      properties: {
-        wrap: "repeat",
-        filter: "linear",
-        vflip: true,
-      },
-    },
-    {
-      name: "NyanCatTex",
-      idx: 0,
-      type: "texture",
-      url: "https://i.imgur.com/NxbM74e.gif",
-      // url: "https://dummyimage.com/64x64/ffffff/ffffff.png",
-      properties: {
-        wrap: "repeat",
-        filter: "linear",
-        vflip: true,
-      },
-    },
-  ],
 };
+
 export const MultiPassRed: ShaderData = {
   shader: {
     id: "",
@@ -217,17 +219,17 @@ export const MultiPassRed: ShaderData = {
     preview_img_url: "",
     description: "",
   },
-  shader_inputs: [
-    {
-      name: "Buffer A",
-      type: "buffer",
-      idx: 0,
-    },
-  ],
   shader_outputs: [
     {
       name: "Buffer A",
       type: "buffer",
+      shader_inputs: [
+        {
+          type: "buffer",
+          properties: { name: "Buffer A" },
+          idx: 0,
+        },
+      ],
       code: `vec4 readMemory(vec2 coords) {
     return texture(iChannel0, (coords + 0.5)/iChannelResolution[0].xy);
 }
@@ -249,6 +251,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     {
       name: "Image",
       type: "image",
+      shader_inputs: [],
       code: `vec4 readMemory(vec2 coords) {
     return texture(iChannel0, (coords + 0.5)/iChannelResolution[0].xy);
 }

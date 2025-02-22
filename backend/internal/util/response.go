@@ -26,6 +26,10 @@ func SetErrorsResponse(c *gin.Context, status int, errors []string) {
 	c.JSON(status, ErrorResponse{Errors: errors})
 }
 
+func SetNotFound(c *gin.Context) {
+	SetErrorResponse(c, http.StatusNotFound, "resource not found")
+}
+
 func getValidationErrors(err error) []string {
 	var validationErrors []string
 	if errors, ok := err.(validator.ValidationErrors); ok {

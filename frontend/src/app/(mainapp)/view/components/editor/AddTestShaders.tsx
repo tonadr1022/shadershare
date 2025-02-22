@@ -27,7 +27,6 @@ const AddTestShaders = () => {
         title: shader.shader.title + val,
         description: shader.shader.description,
         access_level: AccessLevel.PUBLIC,
-        shader_inputs: shader.shader_inputs,
         shader_outputs: shader.shader_outputs,
       },
       previewFile: previewFile!,

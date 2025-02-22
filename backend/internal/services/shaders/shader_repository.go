@@ -34,8 +34,8 @@ func (r shaderRepository) DeleteShader(ctx context.Context, userID uuid.UUID, sh
 func (r shaderRepository) CreateShaderInput(ctx context.Context, shaderInput domain.CreateShaderInputPayload) (*domain.ShaderInput, error) {
 	params := db.CreateShaderInputParams{
 		ShaderID: shaderInput.ShaderID,
+		OutputID: shaderInput.OutputID,
 		Type:     shaderInput.Type,
-		Name:     shaderInput.Name,
 		Idx:      int32(shaderInput.Idx),
 	}
 
@@ -109,7 +109,6 @@ func (r shaderRepository) shaderInputFromDB(dbShaderInput db.ShaderInput) domain
 		Url:        dbShaderInput.Url.String,
 		Type:       dbShaderInput.Type,
 		Idx:        int(dbShaderInput.Idx),
-		Name:       dbShaderInput.Name,
 		Properties: data,
 	}
 }
@@ -147,30 +146,7 @@ func (r shaderRepository) CreateShader(ctx context.Context, userID uuid.UUID, sh
 		}
 		return nil, err
 	}
-	// make shader inputs
-	resultInputs := make([]domain.ShaderInput, len(shaderPayload.ShaderInputs))
-	for _, shaderInput := range shaderPayload.ShaderInputs {
-		props, err := json.Marshal(shaderInput.Properties)
-		if err != nil {
-			return nil, err
-		}
-		params := db.CreateShaderInputParams{
-			ShaderID:   shader.ID,
-			Type:       shaderInput.Type,
-			Name:       shaderInput.Name,
-			Idx:        int32(shaderInput.Idx),
-			Properties: props,
-		}
-		if shaderInput.Url != nil {
-			params.Url = pgtype.Text{String: *shaderInput.Url, Valid: true}
-		}
 
-		input, err := r.queries.CreateShaderInput(ctx, params)
-		if err != nil {
-			return nil, err
-		}
-		resultInputs = append(resultInputs, r.shaderInputFromDB(input))
-	}
 	resultOutputs := make([]domain.ShaderOutput, len(shaderPayload.ShaderOutputs))
 	// make shader outputs
 	for _, shaderOutput := range shaderPayload.ShaderOutputs {
@@ -179,13 +155,27 @@ func (r shaderRepository) CreateShader(ctx context.Context, userID uuid.UUID, sh
 		if err != nil {
 			return nil, err
 		}
+
+		// make shader inputs for the output
+		output.ShaderInputs = make([]domain.ShaderInput, len(shaderOutput.ShaderInputs))
+		for shaderInputIdx, shaderInput := range shaderOutput.ShaderInputs {
+			shaderInput.OutputID = output.ID
+			shaderInput.ShaderID = output.ShaderID
+			input, err := r.CreateShaderInput(ctx, shaderInput)
+			if err != nil {
+				return nil, err
+			}
+			output.ShaderInputs[shaderInputIdx] = *input
+
+		}
 		resultOutputs = append(resultOutputs, *output)
 	}
+
 	err = tx.Commit(ctx)
 	if err != nil {
 		return nil, err
 	}
-	shaderWithRenderPasses := &domain.ShaderDetailed{Shader: r.ShaderFromDB(shader), ShaderOutputs: resultOutputs, ShaderInputs: resultInputs}
+	shaderWithRenderPasses := &domain.ShaderDetailed{Shader: r.ShaderFromDB(shader), ShaderOutputs: resultOutputs}
 	return shaderWithRenderPasses, nil
 }
 
@@ -217,7 +207,6 @@ func (r shaderRepository) GetShadersDetailedWithUsernames(ctx context.Context, s
 					CreatedAt:     row.CreatedAt.Time,
 					UpdatedAt:     row.UpdatedAt.Time,
 				},
-				ShaderInputs:  row.Inputs,
 				ShaderOutputs: row.Outputs,
 			},
 			Username: row.Username,
@@ -246,7 +235,6 @@ func (r shaderRepository) GetShadersListDetailed(ctx context.Context, sort strin
 				CreatedAt:     row.CreatedAt.Time,
 				UpdatedAt:     row.UpdatedAt.Time,
 			},
-			ShaderInputs:  row.Inputs,
 			ShaderOutputs: row.Outputs,
 		}
 		result[i] = res
@@ -284,6 +272,7 @@ func (r shaderRepository) ShaderFromDB(dbShader db.Shader) domain.Shader {
 }
 
 func (r shaderRepository) UpdateShader(ctx context.Context, userID uuid.UUID, shaderID uuid.UUID, updatePayload domain.UpdateShaderPayload) (*domain.Shader, error) {
+	fmt.Println(updatePayload)
 	params := db.UpdateShaderParams{
 		ID:     shaderID,
 		UserID: userID,
@@ -328,9 +317,6 @@ func (r shaderRepository) UpdateShader(ctx context.Context, userID uuid.UUID, sh
 		}
 		if shaderInput.Type != nil {
 			params.Column3 = *shaderInput.Type
-		}
-		if shaderInput.Name != nil {
-			params.Column4 = *shaderInput.Name
 		}
 		if shaderInput.Idx != nil {
 			params.Idx = int32(*shaderInput.Idx)
@@ -411,7 +397,6 @@ func (r shaderRepository) GetShader(ctx context.Context, shaderID uuid.UUID) (*d
 			CreatedAt:     row.CreatedAt.Time,
 			UpdatedAt:     row.UpdatedAt.Time,
 		},
-		ShaderInputs:  row.Inputs,
 		ShaderOutputs: row.Outputs,
 	}
 	return res, nil
@@ -438,7 +423,6 @@ func (r shaderRepository) GetShaderWithUser(ctx context.Context, shaderID uuid.U
 				CreatedAt:     row.CreatedAt.Time,
 				UpdatedAt:     row.UpdatedAt.Time,
 			},
-			ShaderInputs:  row.Inputs,
 			ShaderOutputs: row.Outputs,
 		},
 		Username: row.Username,

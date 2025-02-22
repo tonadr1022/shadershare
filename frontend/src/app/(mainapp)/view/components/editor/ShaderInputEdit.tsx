@@ -3,45 +3,84 @@ import EditIChannel from "./EditIChannel";
 import { useRendererCtx } from "@/context/RendererContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AddShaderInputDialog from "./AddShaderInputDialog";
+import { BufferName } from "@/types/shader";
+import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
 
-const ShaderInputEdit = () => {
-  const [, setEditIdx] = React.useState<number>(0);
+type Props = {
+  bufferName: BufferName;
+};
+
+const ShaderInputEdit = ({ bufferName }: Props) => {
+  const [editIdx, setEditIdx] = React.useState("0");
   const [, forceUpdate] = React.useState(0);
   const { shaderDataRef } = useRendererCtx();
+  // TODO: convert to json object on fetch so don't need array search
+  const output = shaderDataRef.current.shader_outputs.find(
+    (out) => out.name === bufferName,
+  );
+
+  if (!output) {
+    return <div>no output D:</div>;
+  }
+  const hasInputs = output.shader_inputs && output.shader_inputs.length;
   return (
     <Tabs
       defaultValue="0"
-      className="flex flex-col gap-4 items-start w-full"
       orientation="vertical"
+      value={editIdx}
+      onValueChange={setEditIdx}
     >
-      <div className="flex flex-row gap-4">
+      <div className="flex gap-2">
+        {hasInputs ? (
+          <TabsList>
+            {output.shader_inputs?.map((input, idx) => {
+              return (
+                <TabsTrigger
+                  value={idx.toString()}
+                  onClick={() => setEditIdx(idx.toString())}
+                  key={input.id || idx}
+                >
+                  {idx}
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
+        ) : (
+          <></>
+        )}
         <AddShaderInputDialog
+          bufferName={bufferName}
           onSave={(idx) => {
-            setEditIdx(idx);
+            setEditIdx(idx.toString());
             forceUpdate((prev) => prev + 1);
           }}
-        />
-        <TabsList>
-          {shaderDataRef.current.shader_inputs.map((input, idx) => {
-            return (
-              <TabsTrigger
-                value={idx.toString()}
-                onClick={() => setEditIdx(idx)}
-                key={input.name}
-              >
-                {idx}
-              </TabsTrigger>
-            );
-          })}
-        </TabsList>
+        >
+          <Button variant="secondary">
+            <Plus />
+          </Button>
+        </AddShaderInputDialog>
       </div>
-      {shaderDataRef.current.shader_inputs.map((input, idx) => {
-        return (
-          <TabsContent key={idx} value={idx.toString()}>
-            <EditIChannel idx={input.idx} key={input.name} input={input} />
-          </TabsContent>
-        );
-      })}
+      {hasInputs ? (
+        output.shader_inputs?.map((input, idx) => {
+          return (
+            <TabsContent key={idx} value={idx.toString()}>
+              <EditIChannel
+                onDelete={() => {
+                  setEditIdx("0");
+                  forceUpdate((prev) => prev + 1);
+                }}
+                idx={input.idx}
+                key={input.id || idx}
+                input={input}
+                bufferName={output.name as BufferName}
+              />
+            </TabsContent>
+          );
+        })
+      ) : (
+        <></>
+      )}
     </Tabs>
   );
 };

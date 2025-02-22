@@ -12,7 +12,7 @@ import {
   TextureWrap,
   BufferName,
   ShaderOutputName,
-  ShaderInput,
+  ShaderOutputFull,
 } from "@/types/shader";
 import { createErrorResult, createSuccessResult } from "../util";
 import { webgl2Utils, WebGL2Utils } from "./Util";
@@ -23,10 +23,11 @@ export const getPreviewImgFile = async (
   return new Promise(async (resolve) => {
     const renderer = createRenderer();
     const canvas = document.createElement("canvas");
-    shaderData.shader_inputs.sort((a, b) => a.idx - b.idx);
+    for (const out of shaderData.shader_outputs) {
+      out.shader_inputs?.sort((a, b) => a.idx - b.idx);
+    }
     await renderer.initialize({
       canvas: canvas,
-      shaderInputs: shaderData.shader_inputs,
       shaderOutputs: shaderData.shader_outputs,
     });
 
@@ -332,6 +333,9 @@ class RenderTarget {
     height: number,
     doubleBuffer: boolean,
   ) {
+    if (width == 0 || height == 0) {
+      throw new Error("no width or height for rendertarget!");
+    }
     this.doubleBuffer = doubleBuffer;
     this.textures = [];
     this.currentTextureIndex = 0;
@@ -351,12 +355,19 @@ class RenderTarget {
   }
 
   #bindAndSetTex(gl: WebGL2RenderingContext) {
+    const tex = this.textures[this.currentTextureIndex];
+    if (!tex) {
+      throw new Error("no texture when binding");
+    }
+    if (tex.width == 0 || tex.height == 0) {
+      throw new Error("texture has no dimensions!");
+    }
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.fbo);
     gl.framebufferTexture2D(
       gl.FRAMEBUFFER,
       gl.COLOR_ATTACHMENT0,
       gl.TEXTURE_2D,
-      this.textures[this.currentTextureIndex]!.texture,
+      tex.texture,
       0,
     );
     if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) {
@@ -522,6 +533,7 @@ class RenderPass {
   uniformLocs: FragShaderUniforms;
   type: ShaderInputType = "buffer";
   renderTarget: RenderTarget;
+  shader_inputs: (BufferIChannel | Texture | null)[];
   constructor(
     gl: WebGL2RenderingContext,
     program: WebGLProgram,
@@ -532,6 +544,7 @@ class RenderPass {
     if (program == 0) {
       throw new Error("Invalid program");
     }
+    this.shader_inputs = [];
     this.program = program;
     this.uniformLocs = new FragShaderUniforms(program, gl);
     this.renderTarget = new RenderTarget(gl, width, height, doubleBuffer);
@@ -563,7 +576,10 @@ const webGL2Renderer = () => {
 
   let util: WebGL2Utils;
 
-  const bindUniforms = (uniforms: FragShaderUniforms) => {
+  const bindUniforms = (
+    outputName: BufferName,
+    uniforms: FragShaderUniforms,
+  ) => {
     gl.uniform3f(
       uniforms.iResolution,
       canvas.width,
@@ -578,8 +594,13 @@ const webGL2Renderer = () => {
       currTime,
       currTime,
     ]);
-    for (let i = 0; i < state.iChannels.length; i++) {
-      const iChannel = state.iChannels[i];
+    const output = state.outputs[outputName];
+    if (!output) {
+      throw new Error("no output found when binding uniforms");
+    }
+
+    for (let i = 0; i < output.shader_inputs.length; i++) {
+      const iChannel = output.shader_inputs[i];
       const dims: [number, number] = [canvas.width, canvas.height];
       if (iChannel instanceof Texture) {
         dims[0] = iChannel.width;
@@ -628,9 +649,16 @@ const webGL2Renderer = () => {
     ];
   };
 
-  const bindIChannels = (uniforms: FragShaderUniforms) => {
-    for (let i = 0; i < state.iChannels.length; i++) {
-      const iChannel = state.iChannels[i];
+  const bindIChannels = (
+    outputName: BufferName,
+    uniforms: FragShaderUniforms,
+  ) => {
+    const output = state.outputs[outputName];
+    if (!output) {
+      throw new Error("no output when binding iChannels");
+    }
+    for (let i = 0; i < output.shader_inputs.length; i++) {
+      const iChannel = output.shader_inputs[i];
       if (!iChannel || !uniforms.iChannels[i]) {
         continue;
       }
@@ -642,29 +670,25 @@ const webGL2Renderer = () => {
         if (output === null) {
           throw new Error("Invalid state");
         }
-        bindTexture(
-          uniforms.iChannels[i]!,
-          output.renderTarget.getPrevTex()!,
-          i,
-        );
+        if (output.renderTarget.getPrevTex()) {
+          bindTexture(
+            uniforms.iChannels[i]!,
+            output.renderTarget.getPrevTex()!,
+            i,
+          );
+        }
       }
     }
   };
 
   const renderInternal = (outFBO: WebGLFramebuffer | null) => {
-    const finalImagePass = state.outputs.Image;
-    if (!finalImagePass) {
-      throw new Error("Invalid state");
-    }
-    const bufferOutputs = getBufferOutputs();
-
-    for (const output of bufferOutputs) {
+    for (const { output, name: bufferName } of getBufferOutputsWithNames()) {
       if (output === null) {
         continue;
       }
       gl.useProgram(output.program);
       const uniforms = output.uniformLocs;
-      bindUniforms(uniforms);
+      bindUniforms(bufferName, uniforms);
       gl.bindFramebuffer(gl.FRAMEBUFFER, output.renderTarget.fbo);
       gl.framebufferTexture2D(
         gl.FRAMEBUFFER,
@@ -675,20 +699,24 @@ const webGL2Renderer = () => {
       );
       gl.clearColor(0.0, 0.0, 0.0, 1.0);
       gl.clear(gl.COLOR_BUFFER_BIT);
-      bindIChannels(uniforms);
+      bindIChannels(bufferName, uniforms);
 
       gl.drawArrays(gl.TRIANGLES, 0, 3);
     }
 
+    const finalImagePass = state.outputs.Image;
+    if (!finalImagePass) {
+      throw new Error("Invalid state");
+    }
     gl.useProgram(finalImagePass.program);
-    bindUniforms(finalImagePass.uniformLocs);
+    bindUniforms("Image", finalImagePass.uniformLocs);
     gl.bindFramebuffer(gl.FRAMEBUFFER, outFBO);
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
     gl.clear(gl.COLOR_BUFFER_BIT);
-    bindIChannels(finalImagePass.uniformLocs);
+    bindIChannels("Image", finalImagePass.uniformLocs);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
 
-    for (const output of bufferOutputs) {
+    for (const output of getBufferOutputs()) {
       if (output === null) {
         continue;
       }
@@ -747,7 +775,9 @@ const webGL2Renderer = () => {
       const displayWidth = canvas.clientWidth;
       const displayHeight = canvas.clientHeight;
       if (canvas.width != displayWidth || canvas.height != displayHeight) {
-        console.log("on resize");
+        if (canvas.width == 0 || canvas.height == 0) {
+          return false;
+        }
         onResize(displayWidth, displayHeight, true);
       }
     }
@@ -790,9 +820,8 @@ ${commonBufferText}
   };
 
   const state: {
-    // finalImagePass: RRenderPass | null;
-    iChannels: (BufferIChannel | Texture | null)[];
     outputs: {
+      Common: null;
       "Buffer A": RenderPass | null;
       "Buffer B": RenderPass | null;
       "Buffer C": RenderPass | null;
@@ -800,11 +829,9 @@ ${commonBufferText}
       "Buffer E": RenderPass | null;
       Image: RenderPass | null;
     };
-    // outputs: (RRenderPass | null)[];
   } = {
-    // finalImagePass: null,
-    iChannels: [],
     outputs: {
+      Common: null,
       "Buffer A": null,
       "Buffer B": null,
       "Buffer C": null,
@@ -814,10 +841,10 @@ ${commonBufferText}
     },
   };
 
-  // TODO: 3d textures?
   const addImageIChannel = (
     url: string,
-    idx: number,
+    outputname: ShaderOutputName,
+    inputIdx: number,
     props?: TextureProps,
   ): Promise<void> => {
     return new Promise((resolve, reject) => {
@@ -826,7 +853,7 @@ ${commonBufferText}
       texture.create(gl, TextureType.D2);
       const image = new Image();
       image.src = url;
-      image.crossOrigin = "";
+      image.crossOrigin = "Anonymous";
       image.addEventListener("load", () => {
         try {
           const properties = props || DefaultTextureProps;
@@ -857,20 +884,31 @@ ${commonBufferText}
       image.addEventListener("error", (e) => {
         reject(new Error(`Failed to load image from ${url}: ${e.message}`));
       });
-      state.iChannels.splice(idx, 0, texture);
+      if (!state.outputs[outputname]) {
+        throw new Error("invalid state");
+      } else {
+        state.outputs[outputname].shader_inputs.splice(inputIdx, 0, texture);
+      }
     });
   };
-  const setTextureData = (idx: number, url: string): Promise<void> => {
+  const setTextureData = (
+    outputName: BufferName,
+    idx: number,
+    url: string,
+  ): Promise<void> => {
     return new Promise((resolve, reject) => {
-      if (idx < 0 || idx >= state.iChannels.length) {
+      if (!state.outputs[outputName]) {
+        throw new Error("output not existent");
+      }
+      if (idx < 0 || idx >= state.outputs[outputName].shader_inputs.length) {
         reject(new Error("Invalid pass index, out of range"));
         return;
       }
-      const texture = state.iChannels[idx];
+      const texture = state.outputs[outputName].shader_inputs[idx];
       if (texture instanceof Texture) {
         const image = new Image();
-        image.src = url;
-        image.crossOrigin = "";
+        image.src = url + "?not-from-cache-please";
+        image.crossOrigin = "anonymous";
         image.addEventListener("load", () => {
           texture.bind(gl);
           // TODO: use properties
@@ -897,141 +935,198 @@ ${commonBufferText}
     });
   };
 
-  const removeBufferIChannel = (idx: number) => {
-    if (idx < 0 || idx >= state.iChannels.length) {
+  const removeBufferIChannel = (outputName: BufferName, idx: number) => {
+    const output = state.outputs[outputName];
+    if (!output) {
+      throw new Error("output not existent");
+    }
+    if (idx < 0 || idx >= output.shader_inputs.length) {
       throw new Error("Invalid pass index, out of range");
     }
 
     // TODO: need to delete render pass?
-    state.iChannels.splice(idx, 1);
+    output.shader_inputs.splice(idx, 1);
   };
 
-  const removeImageIChannel = (idx: number) => {
-    if (idx < 0 || idx >= state.iChannels.length) {
+  const removeImageIChannel = (outputName: BufferName, idx: number) => {
+    const output = state.outputs[outputName];
+    if (!output) {
+      throw new Error("output not existent");
+    }
+    if (idx < 0 || idx >= output.shader_inputs.length) {
       throw new Error("Invalid pass index, out of range");
     }
-    const channel = state.iChannels[idx];
+    const channel = output.shader_inputs[idx];
     if (!(channel instanceof Texture)) {
       throw new Error("Invalid channel type");
     }
     channel.destroy(gl);
-    state.iChannels.splice(idx, 1);
+    output.shader_inputs.splice(idx, 1);
   };
-  const removeIChannel = (input: ShaderInput) => {
-    if (input.type === "buffer") {
-      removeBufferIChannel(input.idx);
-    } else if (input.type === "texture") {
-      removeImageIChannel(input.idx);
+  const removeIChannel = (
+    outputName: BufferName,
+    inputType: ShaderInputType,
+    idx: number,
+  ) => {
+    if (inputType === "buffer") {
+      removeBufferIChannel(outputName, idx);
+    } else if (inputType === "texture") {
+      removeImageIChannel(outputName, idx);
     } else {
       throw new Error("Invalid input type");
     }
   };
 
-  const addBufferIChannel = (name: BufferName, idx: number) => {
-    state.iChannels.splice(idx, 0, new BufferIChannel(name));
+  const setBufferIChannel = (
+    outputName: BufferName,
+    name: BufferName,
+    idx: number,
+  ) => {
+    const input = getShaderInput(outputName, idx);
+    if (!input) {
+      throw new Error("input not existent");
+    }
+    if (input instanceof BufferIChannel) {
+      input.bufferName = name;
+    } else {
+      throw new Error("invalid type for input");
+    }
+  };
+  const addBufferIChannel = (
+    outputName: BufferName,
+    name: BufferName,
+    idx: number,
+  ) => {
+    const output = state.outputs[outputName];
+    if (!output) {
+      throw new Error("output not existent");
+    }
+    output.shader_inputs.splice(idx, 0, new BufferIChannel(name));
   };
 
   const resizeBuffers = () => {
     if (!initialized || !canvas) {
       return;
     }
+    if (canvas.width == 0 || canvas.height == 0) {
+      return;
+    }
     // for each buffer, need to make new textures, copy the old data over
-    for (const iChannel of state.iChannels) {
-      if (!(iChannel instanceof BufferIChannel)) {
-        continue;
-      }
-      const output = state.outputs[iChannel.bufferName];
-      if (!output) {
-        throw new Error(
-          "Invalid state: iChannel refers to output that doesn't exist",
+    for (const output of getBufferOutputs()) {
+      if (!output) continue;
+      for (const iChannel of output?.shader_inputs) {
+        if (!(iChannel instanceof BufferIChannel)) {
+          continue;
+        }
+        const output = state.outputs[iChannel.bufferName];
+        if (!output) {
+          throw new Error(
+            "Invalid state: iChannel refers to output that doesn't exist",
+          );
+        }
+
+        if (checkGLError(gl)) {
+          throw new Error("GL error");
+        }
+        const newRenderTarget = new RenderTarget(
+          gl,
+          canvas.width,
+          canvas.height,
+          output.renderTarget.doubleBuffer,
         );
-      }
 
-      if (checkGLError(gl)) {
-        throw new Error("GL error");
-      }
-      const newRenderTarget = new RenderTarget(
-        gl,
-        canvas.width,
-        canvas.height,
-        output.renderTarget.doubleBuffer,
-      );
-
-      if (singleTextureShader) {
-        singleTextureShader.bind(gl);
-        if (!output.renderTarget.doubleBuffer) {
-          throw new Error("Invalid state");
-        }
-
-        const newDims = [canvas.width, canvas.height];
-        const oldDims = [
-          output.renderTarget.getCurrTex()!.width,
-          output.renderTarget.getCurrTex()!.height,
-        ];
-
-        if (oldDims[0] > 0 && oldDims[1] > 0) {
-          gl.bindFramebuffer(gl.FRAMEBUFFER, newRenderTarget.fbo);
-          {
-            // draw previous
-            bindTexture(
-              singleTextureShader.uniformLocs.locs.get("tex")!,
-              output.renderTarget.getPrevTex()!,
-              0,
-            );
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-            gl.uniform2f(
-              singleTextureShader.uniformLocs.locs.get("iResolution")!,
-              newDims[0],
-              newDims[1],
-            );
-
-            gl.clearColor(0.0, 0.0, 0.0, 1.0);
-            gl.clear(gl.COLOR_BUFFER_BIT);
-            gl.framebufferTexture2D(
-              gl.FRAMEBUFFER,
-              gl.COLOR_ATTACHMENT0,
-              gl.TEXTURE_2D,
-              newRenderTarget.getPrevTex()!.texture,
-              0,
-            );
-            gl.drawArrays(gl.TRIANGLES, 0, 3);
-          }
-          // draw current
-          {
-            bindTexture(
-              singleTextureShader.uniformLocs.locs.get("tex")!,
-              output.renderTarget.getCurrTex()!,
-              0,
-            );
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-            gl.uniform2f(
-              singleTextureShader.uniformLocs.locs.get("iResolution")!,
-              newDims[0],
-              newDims[1],
-            );
-            gl.clearColor(0.0, 0.0, 0.0, 1.0);
-            gl.clear(gl.COLOR_BUFFER_BIT);
-            gl.framebufferTexture2D(
-              gl.FRAMEBUFFER,
-              gl.COLOR_ATTACHMENT0,
-              gl.TEXTURE_2D,
-              newRenderTarget.getCurrTex()!.texture,
-              0,
-            );
-            gl.drawArrays(gl.TRIANGLES, 0, 3);
+        if (singleTextureShader) {
+          singleTextureShader.bind(gl);
+          if (!output.renderTarget.doubleBuffer) {
+            throw new Error("Invalid state");
           }
 
-          gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+          const newDims = [canvas.width, canvas.height];
+          const oldDims = [
+            output.renderTarget.getCurrTex()!.width,
+            output.renderTarget.getCurrTex()!.height,
+          ];
+
+          if (oldDims[0] > 0 && oldDims[1] > 0) {
+            gl.bindFramebuffer(gl.FRAMEBUFFER, newRenderTarget.fbo);
+            {
+              // draw previous
+              bindTexture(
+                singleTextureShader.uniformLocs.locs.get("tex")!,
+                output.renderTarget.getPrevTex()!,
+                0,
+              );
+              gl.texParameteri(
+                gl.TEXTURE_2D,
+                gl.TEXTURE_MIN_FILTER,
+                gl.NEAREST,
+              );
+              gl.texParameteri(
+                gl.TEXTURE_2D,
+                gl.TEXTURE_MAG_FILTER,
+                gl.NEAREST,
+              );
+              gl.uniform2f(
+                singleTextureShader.uniformLocs.locs.get("iResolution")!,
+                newDims[0],
+                newDims[1],
+              );
+
+              gl.clearColor(0.0, 0.0, 0.0, 1.0);
+              gl.clear(gl.COLOR_BUFFER_BIT);
+              gl.framebufferTexture2D(
+                gl.FRAMEBUFFER,
+                gl.COLOR_ATTACHMENT0,
+                gl.TEXTURE_2D,
+                newRenderTarget.getPrevTex()!.texture,
+                0,
+              );
+              gl.drawArrays(gl.TRIANGLES, 0, 3);
+            }
+            // draw current
+            {
+              bindTexture(
+                singleTextureShader.uniformLocs.locs.get("tex")!,
+                output.renderTarget.getCurrTex()!,
+                0,
+              );
+              gl.texParameteri(
+                gl.TEXTURE_2D,
+                gl.TEXTURE_MIN_FILTER,
+                gl.NEAREST,
+              );
+              gl.texParameteri(
+                gl.TEXTURE_2D,
+                gl.TEXTURE_MAG_FILTER,
+                gl.NEAREST,
+              );
+              gl.uniform2f(
+                singleTextureShader.uniformLocs.locs.get("iResolution")!,
+                newDims[0],
+                newDims[1],
+              );
+              gl.clearColor(0.0, 0.0, 0.0, 1.0);
+              gl.clear(gl.COLOR_BUFFER_BIT);
+              gl.framebufferTexture2D(
+                gl.FRAMEBUFFER,
+                gl.COLOR_ATTACHMENT0,
+                gl.TEXTURE_2D,
+                newRenderTarget.getCurrTex()!.texture,
+                0,
+              );
+              gl.drawArrays(gl.TRIANGLES, 0, 3);
+            }
+
+            gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+          }
         }
+
+        const oldRenderTarget = output.renderTarget;
+        output.renderTarget = newRenderTarget;
+
+        oldRenderTarget.cleanup(gl);
+        output.renderTarget.swapTextures(gl);
       }
-
-      const oldRenderTarget = output.renderTarget;
-      output.renderTarget = newRenderTarget;
-
-      oldRenderTarget.cleanup(gl);
-      output.renderTarget.swapTextures(gl);
     }
   };
   const actualDims = [0, 0];
@@ -1087,22 +1182,36 @@ ${commonBufferText}
   };
   let shaderTime = 0;
   let lastRealTime = 0;
+  const getShaderInput = (outputName: ShaderOutputName, idx: number) => {
+    const output = state.outputs[outputName];
+    if (!output) {
+      throw new Error("output not existent: " + outputName);
+    }
+    if (idx < 0 || idx >= output.shader_inputs.length) {
+      throw new Error(
+        "shader input idx out of range: " + idx + " for output: " + outputName,
+      );
+    }
+    return output.shader_inputs[idx];
+  };
   return {
-    setTextureWrap: (idx: number, mode: TextureWrap) => {
-      if (idx < 0 || idx >= state.iChannels.length) {
-        throw new Error("Invalid pass index, out of range");
-      }
-      const iChannel = state.iChannels[idx];
+    setTextureWrap: (
+      outputName: ShaderOutputName,
+      idx: number,
+      mode: TextureWrap,
+    ) => {
+      const iChannel = getShaderInput(outputName, idx);
       if (iChannel instanceof Texture) {
         iChannel.bind(gl);
         iChannel.setWrapMode(gl, mode);
       }
     },
-    setTextureFilter: (idx: number, mode: FilterMode) => {
-      if (idx < 0 || idx >= state.iChannels.length) {
-        throw new Error("Invalid pass index, out of range");
-      }
-      const iChannel = state.iChannels[idx];
+    setTextureFilter: (
+      outputName: ShaderOutputName,
+      idx: number,
+      mode: FilterMode,
+    ) => {
+      const iChannel = getShaderInput(outputName, idx);
       if (iChannel instanceof Texture) {
         iChannel.bind(gl);
         iChannel.setFilterMode(gl, mode);
@@ -1112,6 +1221,7 @@ ${commonBufferText}
 
     addImageIChannel,
     addBufferIChannel,
+    setBufferIChannel,
     removeIChannel,
     setShaderTime: (t: number) => {
       shaderTime = t;
@@ -1153,23 +1263,26 @@ ${commonBufferText}
       shaderTime = 0;
       lastRealTime = 0;
       wasPaused = true;
-      for (const iChannel of state.iChannels) {
-        if (!(iChannel instanceof BufferIChannel)) {
-          continue;
-        }
-        const output = state.outputs[iChannel.bufferName];
-        if (!output) {
-          throw new Error(
-            "Invalid state: iChannel refers to output that doesn't exist",
+      for (const output of getBufferOutputs()) {
+        if (!output) continue;
+        for (const iChannel of output.shader_inputs) {
+          if (!(iChannel instanceof BufferIChannel)) {
+            continue;
+          }
+          const output = state.outputs[iChannel.bufferName];
+          if (!output) {
+            throw new Error(
+              "Invalid state: iChannel refers to output that doesn't exist",
+            );
+          }
+          output.renderTarget.cleanup(gl);
+          output.renderTarget = new RenderTarget(
+            gl,
+            canvas.width,
+            canvas.height,
+            true,
           );
         }
-        output.renderTarget.cleanup(gl);
-        output.renderTarget = new RenderTarget(
-          gl,
-          canvas.width,
-          canvas.height,
-          true,
-        );
       }
     },
     shutdown: () => {
@@ -1286,25 +1399,11 @@ ${commonBufferText}
         return;
       }
 
-      const { shaderInputs, shaderOutputs } = params;
-
-      const imageLoadPromises: Promise<void>[] = [];
-      for (let i = 0; i < shaderInputs.length; i++) {
-        const input = shaderInputs[i];
-        if (input.type === "texture") {
-          imageLoadPromises.push(
-            addImageIChannel(input.url!, i, input.properties),
-          );
-        } else {
-          addBufferIChannel(input.name as BufferName, i);
+      const { shaderOutputs } = params;
+      for (const out of shaderOutputs) {
+        if (out.shader_inputs === null) {
+          out.shader_inputs = [];
         }
-      }
-
-      try {
-        await Promise.all(imageLoadPromises);
-      } catch (e) {
-        console.error("error loading images", e);
-        return;
       }
 
       //get the common output if exists
@@ -1344,10 +1443,17 @@ ${commonBufferText}
         }
 
         let doubleBuffer = false;
-        for (const ichannel of state.iChannels) {
+        const output = shaderOutputs.find(
+          (output: ShaderOutputFull) => output.name === task.name,
+        );
+        if (!output) {
+          throw new Error("invalid state");
+        }
+        for (const input of output.shader_inputs || []) {
           if (
-            ichannel instanceof BufferIChannel &&
-            ichannel.bufferName === task.name
+            input.properties &&
+            "name" in input.properties &&
+            input.properties.name === task.name
           ) {
             doubleBuffer = true;
             break;
@@ -1364,10 +1470,54 @@ ${commonBufferText}
           canvas.height,
           doubleBuffer,
         );
+        if (checkGLError(gl)) {
+          throw new Error("GL error");
+        }
         state.outputs[task.name] = pass;
       }
+
       if (checkGLError(gl)) {
         throw new Error("GL error");
+      }
+
+      const imageLoadPromises: Promise<void>[] = [];
+
+      for (let outputIdx = 0; outputIdx < shaderOutputs.length; outputIdx++) {
+        const output = shaderOutputs[outputIdx];
+        for (
+          let inputIdx = 0;
+          inputIdx < output.shader_inputs!.length;
+          inputIdx++
+        ) {
+          if (output.name === "Common" && output.shader_inputs!.length > 0) {
+            throw new Error("common buffer can't have shader inputs");
+          }
+          if (output.name === "Common") continue;
+          const input = output.shader_inputs![inputIdx];
+          if (input.type === "texture") {
+            imageLoadPromises.push(
+              addImageIChannel(
+                input.url!,
+                output.name,
+                inputIdx,
+                input.properties as TextureProps,
+              ),
+            );
+          } else {
+            if ("name" in input.properties) {
+              addBufferIChannel(output.name, input.properties.name, inputIdx);
+            } else {
+              throw new Error("incorrect properties type");
+            }
+          }
+        }
+      }
+
+      try {
+        await Promise.all(imageLoadPromises);
+      } catch (e) {
+        console.error("error loading images", e);
+        return;
       }
 
       {

@@ -124,7 +124,6 @@ const ShaderRenderer = ({
     const initializeRenderer = async () => {
       await renderer.initialize({
         canvas: canvas,
-        shaderInputs: shaderDataRef.current.shader_inputs,
         shaderOutputs: shaderDataRef.current.shader_outputs,
       });
     };

@@ -43,7 +43,7 @@ func RegisterHandlers(r *gin.RouterGroup, service domain.ShaderService) {
 
 	r.POST("/shaders/output", middleware.Auth(), h.createShaderOutput)
 	r.POST("/shaders/input", middleware.Auth(), h.createShaderInput)
-	r.DELETE("/shaders/input/:id", middleware.Auth(), h.deleteShaderOutput)
+	r.DELETE("/shaders/input/:id", middleware.Auth(), h.deleteShaderInput)
 	r.DELETE("/shaders/output/:id", middleware.Auth(), h.deleteShaderOutput)
 	r.GET("/shadertoy/:id", h.getShadertoyShader)
 }
@@ -242,10 +242,14 @@ func (h ShaderHandler) deleteShaderInput(c *gin.Context) {
 
 	err = h.service.DeleteShaderInput(c, inputID)
 	if err != nil {
+		if err == e.ErrNotFound {
+			util.SetNotFound(c)
+			return
+		}
 		util.SetInternalServiceErrorResponse(c)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "Input deleted"})
+	c.Status(http.StatusNoContent)
 }
 
 func (h ShaderHandler) deleteShaderOutput(c *gin.Context) {
@@ -266,7 +270,7 @@ func (h ShaderHandler) deleteShaderOutput(c *gin.Context) {
 		util.SetInternalServiceErrorResponse(c)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "Output deleted"})
+	c.Status(http.StatusNoContent)
 }
 
 func (h ShaderHandler) deleteShader(c *gin.Context) {
@@ -291,7 +295,7 @@ func (h ShaderHandler) deleteShader(c *gin.Context) {
 		util.SetInternalServiceErrorResponse(c)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "Shader deleted"})
+	c.Status(http.StatusNoContent)
 }
 
 func (h ShaderHandler) getShadertoyShader(c *gin.Context) {

@@ -31,13 +31,13 @@ import {
 } from "@codemirror/view";
 import { useRendererCtx } from "@/context/RendererContext";
 import { ErrorWidget } from "./ErrorWidget";
-import { ErrMsg, ShaderOutput, ShaderOutputName } from "@/types/shader";
+import { ErrMsg, ShaderOutputFull, ShaderOutputName } from "@/types/shader";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useResolvedTheme } from "@/hooks/hooks";
 import ShaderInputEdit from "./ShaderInputEdit";
 import { Button } from "@/components/ui/button";
-import { Plus, Settings } from "lucide-react";
+import { CircleHelp, Plus, Settings } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -209,8 +209,8 @@ const Editor = React.memo((props: Props2) => {
 Editor.displayName = "Editor2";
 
 export const MultiBufferEditor = React.memo(() => {
-  const [editorHelpValue, setEditorHelpValue] = useState("keybinds");
   const [shaderOutputName, setShaderOutputName] = useState("Image");
+  const [codeInputEditFocus, setCodeInputEditFocus] = useState("code");
   // const [renderPassEditIdx, setRenderPassEditIdx] = useState();
   const [errMsgs, setErrMsgs] = useState<Map<
     ShaderOutputName,
@@ -276,7 +276,7 @@ export const MultiBufferEditor = React.memo(() => {
     [shaderDataRef],
   );
   const afterCreateShaderOutput = useCallback(
-    (shaderOutput: ShaderOutput) => {
+    (shaderOutput: ShaderOutputFull) => {
       shaderDataRef.current.shader_outputs.push(shaderOutput);
       codeDirtyRef.current.set(shaderOutput.name, false);
       shaderDataRef.current.shader_outputs.sort((a, b) =>
@@ -290,7 +290,7 @@ export const MultiBufferEditor = React.memo(() => {
     onError: () => {
       toast.error("Failed to create shader output");
     },
-    onSuccess: (shaderOutput: ShaderOutput) => {
+    onSuccess: (shaderOutput: ShaderOutputFull) => {
       afterCreateShaderOutput(shaderOutput);
     },
   });
@@ -300,9 +300,10 @@ export const MultiBufferEditor = React.memo(() => {
     async (name: ShaderOutputName) => {
       const type = name === "Common" ? "common" : "buffer";
       const shaderID = shaderDataRef.current.shader.id || "";
-      const newOutput: ShaderOutput = {
+      const newOutput: ShaderOutputFull = {
         name,
         type: type,
+        shader_inputs: [],
         code:
           name === "Common"
             ? defaultCommonBufferCode
@@ -319,164 +320,182 @@ export const MultiBufferEditor = React.memo(() => {
     },
     [afterCreateShaderOutput, shaderDataRef, createShaderOutputMut],
   );
+  const [showHelp, setShowHelp] = useState(false);
+  const onHelpClick = useCallback(() => {
+    setShowHelp((prev) => !prev);
+  }, []);
   return (
-    <div className=" flex flex-col w-full h-full">
+    <div className="flex flex-col w-full h-full">
       <Tabs
-        defaultValue="1"
-        className="flex flex-col w-full h-full bg-background"
+        defaultValue={shaderOutputName}
+        onValueChange={(value) => setShaderOutputName(value)}
+        className=""
       >
-        <TabsList>
-          <TabsTrigger value="0">Inputs</TabsTrigger>
-          <TabsTrigger value="1">Outputs</TabsTrigger>
-          <TabsTrigger value="2">Help</TabsTrigger>
-        </TabsList>
-        <TabsContent value="0">
-          <ShaderInputEdit />
-        </TabsContent>
-        <TabsContent value="1">
-          <Tabs
-            defaultValue={shaderOutputName}
-            onValueChange={(value) => setShaderOutputName(value)}
-            className=""
-          >
-            <div className="flex flex-row gap-4 justify-between">
-              <div className="flex gap-4">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button className="h-9 inline-flex items-center justify-center ">
-                      <Plus className="" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent>
-                    <DropdownMenuLabel>Add Shader Output</DropdownMenuLabel>
-                    {shaderOutputNames.map((name) =>
-                      hasBuffer(name) ? null : (
-                        <DropdownMenuItem
-                          onClick={() => handleAddShaderOutput(name)}
-                          key={name}
-                        >
-                          {name}
-                        </DropdownMenuItem>
-                      ),
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                <TabsList>
-                  {shaderDataRef.current.shader_outputs.map((output) => (
-                    <TabsTrigger
-                      value={output.name}
-                      // onClick={() => setRenderPassEditIdx(idx)}
-                      key={output.name}
-                    >
-                      {output.name}
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
-              </div>
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button variant="secondary">
-                    <Settings />
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogTitle>Editor</DialogTitle>
-                  <DialogDescription>
-                    Change editor settings here.
-                  </DialogDescription>
-                  <EditorSettingsForm />
-                </DialogContent>
-              </Dialog>
-            </div>
-            {shaderDataRef.current.shader_outputs.map((output) => (
-              <TabsContent
-                forceMount={true}
-                value={output.name}
-                key={output.name}
-                className={cn(
-                  shaderOutputName === output.name ? "" : "hidden",
-                  "bg-background m-0",
-                )}
-              >
-                <Editor
-                  errMsgs={!errMsgs ? null : errMsgs.get(output.name)}
-                  name={output.name}
-                  visible={shaderOutputName === output.name}
-                  text={output.code}
-                  onTextChange={onTextUpdate}
-                />
-              </TabsContent>
-            ))}
-          </Tabs>
-        </TabsContent>
-        <TabsContent value="2">
-          <Tabs
-            defaultValue={editorHelpValue}
-            onValueChange={(value) => setEditorHelpValue(value)}
-          >
+        <div className="flex justify-between">
+          <div className="flex gap-4">
             <TabsList>
-              <TabsTrigger value="keybinds">Keybinds</TabsTrigger>
-              <TabsTrigger value="shaders">Shaders</TabsTrigger>
+              {shaderDataRef.current.shader_outputs.map((output) => (
+                <TabsTrigger value={output.name} key={output.name}>
+                  {output.name}
+                </TabsTrigger>
+              ))}
+              <TabsTrigger className="hidden" value="help"></TabsTrigger>
             </TabsList>
-            <TabsContent value="keybinds">
-              <div className="flex flex-col gap-2 ">
-                <h3 className="pb-4">Keybinds</h3>
-                <ul className="list-disc pl-4">
-                  {Object.entries(keyBindsMap).map(([action, keybind]) => (
-                    <li key={action}>
-                      <span className="font-bold">{keybind.name}:</span>{" "}
-                      {keybind.alt ? "Alt + " : ""}
-                      {keybind.key}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </TabsContent>
-            <TabsContent value="shaders">
-              <h3 className="pb-4">Shaders</h3>
-              <div className="flex flex-col gap-4">
-                <div>
-                  <h5 className="font-semibold">Buffers and iChannels</h5>
-                  <p>
-                    Buffers A-E allow you to read and write to textures that can
-                    be read from in subsequent passes, as well as the final
-                    image. Each is effectively its own render pass, running its
-                    own shader. If a buffer is enabled, a corresponding input
-                    should also be enabled so the final image or following
-                    buffers can read from it.
-                  </p>
-                  <p>
-                    A shader input can be sampled by index using{" "}
-                    <code>iChannelX</code> with the corresponding sampler:
-                  </p>
-                  <pre className="bg-secondary p-2 rounded-md">
-                    <code>
-                      {`fragColor = vec4(texture(iChannel0, fragCoord / iResolution.xy).xyz, 1.0);`}
-                    </code>
-                  </pre>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="secondary"
+                  className="h-9 inline-flex items-center"
+                >
+                  <Plus />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuLabel>Add Shader Output</DropdownMenuLabel>
+                {shaderOutputNames.map((name) =>
+                  hasBuffer(name) ? null : (
+                    <DropdownMenuItem
+                      onClick={() => handleAddShaderOutput(name)}
+                      key={name}
+                    >
+                      {name}
+                    </DropdownMenuItem>
+                  ),
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          <Button variant="secondary" onClick={onHelpClick}>
+            {!showHelp ? <CircleHelp /> : "Hide Help"}
+          </Button>
+        </div>
+        {showHelp ? (
+          <div className="mt-2 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+            <HelpTabs />
+          </div>
+        ) : (
+          shaderDataRef.current.shader_outputs.map((output) => (
+            <TabsContent
+              forceMount={true}
+              value={output.name}
+              key={output.name}
+              className={cn(
+                shaderOutputName === output.name ? "" : "hidden",
+                "bg-background",
+              )}
+            >
+              <Tabs
+                value={codeInputEditFocus}
+                onValueChange={setCodeInputEditFocus}
+              >
+                <div className="flex flex-row justify-between">
+                  <TabsList>
+                    <TabsTrigger value="code">Code</TabsTrigger>
+                    <TabsTrigger value="inputs">Inputs</TabsTrigger>
+                  </TabsList>
+                  {codeInputEditFocus === "code" && (
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button variant="secondary">
+                          <Settings />
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogTitle>Editor</DialogTitle>
+                        <DialogDescription>
+                          Change editor settings here.
+                        </DialogDescription>
+                        <EditorSettingsForm />
+                      </DialogContent>
+                    </Dialog>
+                  )}
                 </div>
-
-                <div>
-                  <h5 className="font-semibold">mainImage Function</h5>
-                  <p>
-                    Use this function for buffers A-E and the final image
-                    shader. You must set <code>fragColor</code> to a{" "}
-                    <strong>vec4</strong>.
-                  </p>
-                  <pre className="bg-secondary p-2 rounded-md">
-                    <code>
-                      {`void mainImage(out vec4 fragColor, in vec2 fragCoord) {
-    fragColor = vec4(1.0);
-}`}
-                    </code>
-                  </pre>
-                </div>
-              </div>
+                <TabsContent value="code">
+                  <Editor
+                    errMsgs={!errMsgs ? null : errMsgs.get(output.name)}
+                    name={output.name}
+                    visible={shaderOutputName === output.name}
+                    text={output.code}
+                    onTextChange={onTextUpdate}
+                  />
+                </TabsContent>
+                <TabsContent value="inputs">
+                  {output.name != "Common" &&
+                    shaderOutputName === output.name && (
+                      <ShaderInputEdit bufferName={output.name} />
+                    )}
+                </TabsContent>
+              </Tabs>
             </TabsContent>
-          </Tabs>
-        </TabsContent>
+          ))
+        )}
       </Tabs>
     </div>
   );
 });
+
 MultiBufferEditor.displayName = "MultiBufferEditor";
+
+function HelpTabs() {
+  return (
+    <Tabs defaultValue="keybinds">
+      <TabsList>
+        <TabsTrigger value="keybinds">Keybinds</TabsTrigger>
+        <TabsTrigger value="shaders">Shaders</TabsTrigger>
+      </TabsList>
+      <TabsContent value="keybinds">
+        <div className="flex flex-col gap-2 ">
+          <h3 className="pb-4">Keybinds</h3>
+          <ul className="list-disc pl-4">
+            {Object.entries(keyBindsMap).map(([action, keybind]) => (
+              <li key={action}>
+                <span className="font-bold">{keybind.name}:</span>{" "}
+                {keybind.alt ? "Alt + " : ""}
+                {keybind.key}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </TabsContent>
+      <TabsContent value="shaders">
+        <h3 className="pb-4">Shaders</h3>
+        <div className="flex flex-col gap-4">
+          <div>
+            <h5 className="font-semibold">Buffers and iChannels</h5>
+            <p>
+              Buffers A-E allow you to read and write to textures that can be
+              read from in subsequent passes, as well as the final image. Each
+              is effectively its own render pass, running its own shader. If a
+              buffer is enabled, a corresponding input should also be enabled so
+              the final image or following buffers can read from it.
+            </p>
+            <p>
+              A shader input can be sampled by index using{" "}
+              <code>iChannelX</code> with the corresponding sampler:
+            </p>
+            <pre className="bg-secondary p-2 rounded-md">
+              <code>
+                {`fragColor = vec4(texture(iChannel0, fragCoord / iResolution.xy).xyz, 1.0);`}
+              </code>
+            </pre>
+          </div>
+
+          <div>
+            <h5 className="font-semibold">mainImage Function</h5>
+            <p>
+              Use this function for buffers A-E and the final image shader. You
+              must set <code>fragColor</code> to a <strong>vec4</strong>.
+            </p>
+            <pre className="bg-secondary p-2 rounded-md">
+              <code>
+                {`void mainImage(out vec4 fragColor, in vec2 fragCoord) {
+    fragColor = vec4(1.0);
+}`}
+              </code>
+            </pre>
+          </div>
+        </div>
+      </TabsContent>
+    </Tabs>
+  );
+}

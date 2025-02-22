@@ -14,17 +14,17 @@ import (
 
 const createShaderInput = `-- name: CreateShaderInput :one
 INSERT INTO shader_inputs (
-    shader_id, url, type, name, idx, properties
+    shader_id, output_id,url, type, idx, properties
 ) VALUES (
     $1, $2, $3, $4, $5, $6
-) RETURNING id, shader_id, url, type, name, idx, properties
+) RETURNING id, shader_id, output_id, url, type, idx, properties
 `
 
 type CreateShaderInputParams struct {
 	ShaderID   uuid.UUID
+	OutputID   uuid.UUID
 	Url        pgtype.Text
 	Type       string
-	Name       string
 	Idx        int32
 	Properties []byte
 }
@@ -32,9 +32,9 @@ type CreateShaderInputParams struct {
 func (q *Queries) CreateShaderInput(ctx context.Context, arg CreateShaderInputParams) (ShaderInput, error) {
 	row := q.db.QueryRow(ctx, createShaderInput,
 		arg.ShaderID,
+		arg.OutputID,
 		arg.Url,
 		arg.Type,
-		arg.Name,
 		arg.Idx,
 		arg.Properties,
 	)
@@ -42,9 +42,9 @@ func (q *Queries) CreateShaderInput(ctx context.Context, arg CreateShaderInputPa
 	err := row.Scan(
 		&i.ID,
 		&i.ShaderID,
+		&i.OutputID,
 		&i.Url,
 		&i.Type,
-		&i.Name,
 		&i.Idx,
 		&i.Properties,
 	)
@@ -116,7 +116,7 @@ func (q *Queries) GetShaderCount(ctx context.Context) (int64, error) {
 }
 
 const getShaderDetailed = `-- name: GetShaderDetailed :one
-SELECT id, title, description, user_id, access_level, preview_img_url, created_at, updated_at, inputs, outputs
+SELECT id, title, description, user_id, access_level, preview_img_url, created_at, updated_at, outputs
 FROM 
   shader_details s
 WHERE 
@@ -135,7 +135,6 @@ func (q *Queries) GetShaderDetailed(ctx context.Context, id uuid.UUID) (ShaderDe
 		&i.PreviewImgUrl,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.Inputs,
 		&i.Outputs,
 	)
 	return i, err
@@ -143,7 +142,7 @@ func (q *Queries) GetShaderDetailed(ctx context.Context, id uuid.UUID) (ShaderDe
 
 const getShaderDetailedList = `-- name: GetShaderDetailedList :many
 SELECT 
-  s.id, s.title, s.description, s.user_id, s.access_level, s.preview_img_url, s.created_at, s.updated_at, s.inputs, s.outputs
+  s.id, s.title, s.description, s.user_id, s.access_level, s.preview_img_url, s.created_at, s.updated_at, s.outputs
 FROM shader_details s
 WHERE s.access_level = $3
 ORDER BY s.updated_at DESC
@@ -174,85 +173,6 @@ func (q *Queries) GetShaderDetailedList(ctx context.Context, arg GetShaderDetail
 			&i.PreviewImgUrl,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-			&i.Inputs,
-			&i.Outputs,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const getShaderDetailedList22 = `-- name: GetShaderDetailedList22 :many
-SELECT 
-    s.id, s.title, s.description, s.user_id, s.access_level, s.preview_img_url, s.created_at, s.updated_at,
-    JSON_AGG(DISTINCT JSONB_BUILD_OBJECT(
-        'id', si.id, 
-        'shader_id', si.shader_id,
-        'url', si.url,
-        'type', si.type, 
-        'name', si.name,
-        'idx', si.idx,
-        'properties', si.properties
-    )) FILTER (WHERE si.id IS NOT NULL) AS inputs,
-    JSON_AGG(DISTINCT JSONB_BUILD_OBJECT(
-        'id', so.id,
-        'shader_id', so.shader_id,
-        'code', so.code,
-        'name', so.name,
-        'type', so.type
-    )) FILTER (WHERE so.id IS NOT NULL) AS outputs
-FROM shaders s
-LEFT JOIN shader_inputs si ON si.shader_id = s.id
-LEFT JOIN shader_outputs so ON so.shader_id = s.id
-WHERE s.access_level = $3
-GROUP BY s.id
-ORDER BY s.updated_at DESC
-LIMIT $1 OFFSET $2
-`
-
-type GetShaderDetailedList22Params struct {
-	Limit       int32
-	Offset      int32
-	AccessLevel int16
-}
-
-type GetShaderDetailedList22Row struct {
-	ID            uuid.UUID
-	Title         string
-	Description   pgtype.Text
-	UserID        uuid.UUID
-	AccessLevel   int16
-	PreviewImgUrl pgtype.Text
-	CreatedAt     pgtype.Timestamptz
-	UpdatedAt     pgtype.Timestamptz
-	Inputs        []byte
-	Outputs       []byte
-}
-
-func (q *Queries) GetShaderDetailedList22(ctx context.Context, arg GetShaderDetailedList22Params) ([]GetShaderDetailedList22Row, error) {
-	rows, err := q.db.Query(ctx, getShaderDetailedList22, arg.Limit, arg.Offset, arg.AccessLevel)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GetShaderDetailedList22Row
-	for rows.Next() {
-		var i GetShaderDetailedList22Row
-		if err := rows.Scan(
-			&i.ID,
-			&i.Title,
-			&i.Description,
-			&i.UserID,
-			&i.AccessLevel,
-			&i.PreviewImgUrl,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.Inputs,
 			&i.Outputs,
 		); err != nil {
 			return nil, err
@@ -267,7 +187,7 @@ func (q *Queries) GetShaderDetailedList22(ctx context.Context, arg GetShaderDeta
 
 const getShaderDetailedWithUser = `-- name: GetShaderDetailedWithUser :one
 SELECT 
-  sd.id, sd.title, sd.description, sd.user_id, sd.access_level, sd.preview_img_url, sd.created_at, sd.updated_at, sd.inputs, sd.outputs, 
+  sd.id, sd.title, sd.description, sd.user_id, sd.access_level, sd.preview_img_url, sd.created_at, sd.updated_at, sd.outputs, 
   u.username
 FROM shader_details sd
 JOIN users u ON sd.user_id = u.id
@@ -283,7 +203,6 @@ type GetShaderDetailedWithUserRow struct {
 	PreviewImgUrl pgtype.Text
 	CreatedAt     pgtype.Timestamptz
 	UpdatedAt     pgtype.Timestamptz
-	Inputs        []byte
 	Outputs       []byte
 	Username      string
 }
@@ -300,7 +219,6 @@ func (q *Queries) GetShaderDetailedWithUser(ctx context.Context, id uuid.UUID) (
 		&i.PreviewImgUrl,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.Inputs,
 		&i.Outputs,
 		&i.Username,
 	)
@@ -309,7 +227,7 @@ func (q *Queries) GetShaderDetailedWithUser(ctx context.Context, id uuid.UUID) (
 
 const getShaderDetailedWithUserList = `-- name: GetShaderDetailedWithUserList :many
 SELECT 
-  sd.id, sd.title, sd.description, sd.user_id, sd.access_level, sd.preview_img_url, sd.created_at, sd.updated_at, sd.inputs, sd.outputs, 
+  sd.id, sd.title, sd.description, sd.user_id, sd.access_level, sd.preview_img_url, sd.created_at, sd.updated_at, sd.outputs, 
   u.username
 FROM shader_details sd
 JOIN users u ON sd.user_id = u.id
@@ -333,7 +251,6 @@ type GetShaderDetailedWithUserListRow struct {
 	PreviewImgUrl pgtype.Text
 	CreatedAt     pgtype.Timestamptz
 	UpdatedAt     pgtype.Timestamptz
-	Inputs        []byte
 	Outputs       []byte
 	Username      string
 }
@@ -356,7 +273,6 @@ func (q *Queries) GetShaderDetailedWithUserList(ctx context.Context, arg GetShad
 			&i.PreviewImgUrl,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-			&i.Inputs,
 			&i.Outputs,
 			&i.Username,
 		); err != nil {
@@ -371,7 +287,7 @@ func (q *Queries) GetShaderDetailedWithUserList(ctx context.Context, arg GetShad
 }
 
 const getShaderInput = `-- name: GetShaderInput :one
-SELECT id, shader_id, url, type, name, idx, properties FROM shader_inputs
+SELECT id, shader_id, output_id, url, type, idx, properties FROM shader_inputs
 WHERE id = $1
 `
 
@@ -381,9 +297,9 @@ func (q *Queries) GetShaderInput(ctx context.Context, id uuid.UUID) (ShaderInput
 	err := row.Scan(
 		&i.ID,
 		&i.ShaderID,
+		&i.OutputID,
 		&i.Url,
 		&i.Type,
-		&i.Name,
 		&i.Idx,
 		&i.Properties,
 	)
@@ -409,7 +325,7 @@ func (q *Queries) GetShaderOutput(ctx context.Context, id uuid.UUID) (ShaderOutp
 }
 
 const listShaderInputs = `-- name: ListShaderInputs :many
-SELECT id, shader_id, url, type, name, idx, properties FROM shader_inputs
+SELECT id, shader_id, output_id, url, type, idx, properties FROM shader_inputs
 WHERE shader_id = $1
 `
 
@@ -425,9 +341,9 @@ func (q *Queries) ListShaderInputs(ctx context.Context, shaderID uuid.UUID) ([]S
 		if err := rows.Scan(
 			&i.ID,
 			&i.ShaderID,
+			&i.OutputID,
 			&i.Url,
 			&i.Type,
-			&i.Name,
 			&i.Idx,
 			&i.Properties,
 		); err != nil {
@@ -476,17 +392,15 @@ const updateShaderInput = `-- name: UpdateShaderInput :one
 UPDATE shader_inputs
 SET url = COALESCE(NULLIF($2::TEXT,''), url),
     type = COALESCE(NULLIF($3::TEXT,''), type),
-    name = COALESCE(NULLIF($4::TEXT,''), name),
-    idx = COALESCE($5, idx),
-    properties = COALESCE($6, properties)
-WHERE id = $1 RETURNING id, shader_id, url, type, name, idx, properties
+    idx = COALESCE($4, idx),
+    properties = COALESCE($5, properties)
+WHERE id = $1 RETURNING id, shader_id, output_id, url, type, idx, properties
 `
 
 type UpdateShaderInputParams struct {
 	ID         uuid.UUID
 	Column2    string
 	Column3    string
-	Column4    string
 	Idx        int32
 	Properties []byte
 }
@@ -496,7 +410,6 @@ func (q *Queries) UpdateShaderInput(ctx context.Context, arg UpdateShaderInputPa
 		arg.ID,
 		arg.Column2,
 		arg.Column3,
-		arg.Column4,
 		arg.Idx,
 		arg.Properties,
 	)
@@ -504,9 +417,9 @@ func (q *Queries) UpdateShaderInput(ctx context.Context, arg UpdateShaderInputPa
 	err := row.Scan(
 		&i.ID,
 		&i.ShaderID,
+		&i.OutputID,
 		&i.Url,
 		&i.Type,
-		&i.Name,
 		&i.Idx,
 		&i.Properties,
 	)

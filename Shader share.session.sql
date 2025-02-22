@@ -1,5 +1,3 @@
-DROP VIEW IF EXISTS shader_details;
-CREATE VIEW shader_details AS
 WITH aggregated_inputs AS (
     SELECT si.output_id,
         JSON_AGG(
@@ -14,6 +12,8 @@ WITH aggregated_inputs AS (
                 si.url,
                 'type',
                 si.type,
+                'name',
+                si.name,
                 'idx',
                 si.idx,
                 'properties',

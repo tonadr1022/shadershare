@@ -24,19 +24,20 @@ type (
 	ShaderInput struct {
 		ID         uuid.UUID              `json:"id"`
 		ShaderID   uuid.UUID              `json:"shader_id"`
+		OutputID   uuid.UUID              `json:"output_id"`
 		Url        string                 `json:"url"`
 		Type       string                 `json:"type"`
 		Idx        int                    `json:"idx"`
-		Name       string                 `json:"name"`
 		Properties map[string]interface{} `json:"properties"`
 	}
 
 	ShaderOutput struct {
-		ID       uuid.UUID `json:"id"`
-		ShaderID uuid.UUID `json:"shader_id"`
-		Code     string    `json:"code"`
-		Name     string    `json:"name"`
-		Type     string    `json:"type"`
+		ID           uuid.UUID     `json:"id"`
+		ShaderID     uuid.UUID     `json:"shader_id"`
+		Code         string        `json:"code"`
+		Name         string        `json:"name"`
+		Type         string        `json:"type"`
+		ShaderInputs []ShaderInput `json:"shader_inputs"`
 	}
 
 	UpdateShaderInputPayload struct {
@@ -44,17 +45,16 @@ type (
 		Url        *string                 `json:"url,omitempty"`
 		Type       *string                 `json:"type,omitempty"`
 		Idx        *int                    `json:"idx,omitempty"`
-		Name       *string                 `json:"name,omitempty"`
 		Properties *map[string]interface{} `json:"properties,omitempty"`
 	}
 
 	CreateShaderInputPayload struct {
 		ShaderID   uuid.UUID               `json:"shader_id" binding:"required"`
+		OutputID   uuid.UUID               `json:"output_id,omitempty"`
 		Url        *string                 `json:"url,omitempty"`
 		Type       string                  `json:"type" binding:"required"`
-		Idx        int                     `json:"idx" binding:"required"`
-		Name       string                  `json:"name" binding:"required"`
-		Properties *map[string]interface{} `json:"properties,omitempty"`
+		Idx        int                     `json:"idx"`
+		Properties *map[string]interface{} `json:"properties" binding:"required"`
 	}
 
 	UpdateShaderOutputPayload struct {
@@ -65,10 +65,11 @@ type (
 	}
 
 	CreateShaderOutputPayload struct {
-		ShaderID uuid.UUID `json:"shader_id" binding:"required"`
-		Code     string    `json:"code" binding:"required"`
-		Name     string    `json:"name" binding:"required"`
-		Type     string    `json:"type" binding:"required"`
+		ShaderID     uuid.UUID                  `json:"shader_id" binding:"required"`
+		Code         string                     `json:"code" binding:"required"`
+		Name         string                     `json:"name" binding:"required"`
+		Type         string                     `json:"type" binding:"required"`
+		ShaderInputs []CreateShaderInputPayload `json:"shader_inputs" binding:"required"`
 	}
 	UpdateShaderPayload struct {
 		ID            uuid.UUID                   `json:"id" binding:"required"`
@@ -86,19 +87,16 @@ type (
 		Description   string                      `json:"description" binding:"required"`
 		PreviewImgURL string                      `json:"preview_img_url"`
 		AccessLevel   AccessLevel                 `json:"access_level" binding:"required"`
-		ShaderInputs  []CreateShaderInputPayload  `json:"shader_inputs" binding:"required"`
 		ShaderOutputs []CreateShaderOutputPayload `json:"shader_outputs" binding:"required"`
 	}
 
 	ShaderDetailed struct {
 		Shader        Shader         `json:"shader"`
-		ShaderInputs  []ShaderInput  `json:"shader_inputs"`
 		ShaderOutputs []ShaderOutput `json:"shader_outputs"`
 	}
 
 	ShaderDetailedResponse struct {
 		Shader        Shader          `json:"shader"`
-		ShaderInputs  json.RawMessage `json:"shader_inputs"`
 		ShaderOutputs json.RawMessage `json:"shader_outputs"`
 	}
 

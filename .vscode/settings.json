@@ -9,6 +9,13 @@
       "username": "postgres",
       "password": "postgres",
       "connectString": "postgres://postgres:password@localhost:5432/postgres?sslmode=disable"
+    },
+    {
+      "previewLimit": 50,
+      "server": "localhost",
+      "driver": "PostgreSQL",
+      "name": "Shadershareprod",
+      "connectString": "postgres://u3femblg15n03v:p529303f1210596e0e64ff83dab1ce9812443cd7c1a1d0d41156a4ee21f29aa24@c9uss87s9bdb8n.cluster-czrs8kj4isg7.us-east-1.rds.amazonaws.com:5432/db3at2u2velun3?sslmode=disable"
     }
   ]
 }
