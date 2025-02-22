@@ -38,7 +38,7 @@ const ShaderRendererEmbed = ({ shaderId }: Props) => {
         <p>{errMsg}</p>
       ) : (
         <RendererProvider username={data.username} initialShaderData={data}>
-          <ShaderRenderer keepAspectRatio={false} isEmbedded />
+          <ShaderRenderer keepAspectRatio={false} isEmbedded hoverOnlyPlay />
         </RendererProvider>
       )}
     </div>

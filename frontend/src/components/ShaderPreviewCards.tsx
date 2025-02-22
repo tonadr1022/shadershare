@@ -27,7 +27,6 @@ const ShaderPreviewCards = ({ data, show }: Props) => {
             height={180}
             className="w-full h-auto rounded-md"
           />
-          <div>{shader.shader_outputs[0].shader_id}</div>
           <div className="flex flex-row justify-between">
             <p className="font-bold">{shader.shader.title}</p>
             {(!show || show.usernames) && (

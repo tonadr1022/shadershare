@@ -730,12 +730,12 @@ const webGL2Renderer = () => {
       URL.revokeObjectURL(url);
     }, 0);
   };
-  const render = (options?: { checkResize?: boolean; dt: number }) => {
+  const render = (options?: { checkResize?: boolean; dt: number }): boolean => {
     if (!initialized || !gl || !canvas) {
-      return;
+      return false;
     }
     if (!validPipelines) {
-      return;
+      return false;
     }
     timeDelta = options?.dt || 0;
     fpsCounter.addTime(timeDelta);
@@ -757,6 +757,7 @@ const webGL2Renderer = () => {
     renderInternal(null);
 
     currFrame++;
+    return true;
   };
 
   type CompileShaderResult = {

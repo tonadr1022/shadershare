@@ -15,6 +15,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_BASE_URL || "https://localhost:3000",
+  ),
   title: "Shader Share",
   description: "Share and discover shaders",
   openGraph: {
