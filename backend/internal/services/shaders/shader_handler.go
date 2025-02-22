@@ -1,7 +1,11 @@
 package shaders
 
 import (
+	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
+	"os"
 	"shadershare/internal/domain"
 	"shadershare/internal/e"
 	"shadershare/internal/middleware"
@@ -15,7 +19,8 @@ import (
 )
 
 type ShaderHandler struct {
-	service domain.ShaderService
+	service         domain.ShaderService
+	shadertoyApiKey string
 }
 
 func randomFileName(ext string) string {
@@ -29,7 +34,7 @@ var (
 )
 
 func RegisterHandlers(r *gin.RouterGroup, service domain.ShaderService) {
-	h := &ShaderHandler{service}
+	h := &ShaderHandler{service, os.Getenv("SHADERTOY_API_KEY")}
 	r.GET("/shaders", h.getShaderList)
 	r.GET("/shaders/:id", h.getShader)
 	r.POST("/shaders", middleware.Auth(), h.createShader)
@@ -40,6 +45,7 @@ func RegisterHandlers(r *gin.RouterGroup, service domain.ShaderService) {
 	r.POST("/shaders/input", middleware.Auth(), h.createShaderInput)
 	r.DELETE("/shaders/input/:id", middleware.Auth(), h.deleteShaderOutput)
 	r.DELETE("/shaders/output/:id", middleware.Auth(), h.deleteShaderOutput)
+	r.GET("/shadertoy/:id", h.getShadertoyShader)
 }
 
 func (h ShaderHandler) updateShader(c *gin.Context) {
@@ -286,4 +292,26 @@ func (h ShaderHandler) deleteShader(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Shader deleted"})
+}
+
+func (h ShaderHandler) getShadertoyShader(c *gin.Context) {
+	fmt.Println("id: ", c.Param("id"))
+	resp, err := http.Get(fmt.Sprintf("https://www.shadertoy.com/api/v1/shaders/%s?key=rdHlhm", c.Param("id")))
+	if resp.StatusCode == http.StatusForbidden || err != nil {
+		util.SetInternalServiceErrorResponse(c)
+		return
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		util.SetInternalServiceErrorResponse(c)
+		return
+	}
+	var jsonData map[string]interface{}
+	if err := json.Unmarshal(body, &jsonData); err != nil {
+		util.SetInternalServiceErrorResponse(c)
+		return
+	}
+	fmt.Println(resp.StatusCode, resp.Body, jsonData)
+	c.JSON(resp.StatusCode, jsonData)
 }

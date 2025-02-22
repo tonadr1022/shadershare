@@ -6,6 +6,7 @@ import {
   ShaderInput,
   ShaderMetadata,
   ShaderOutput,
+  ShaderToyShader,
   ShaderUpdateCreatePayload,
 } from "@/types/shader";
 import axiosInstance from "./api";
@@ -119,5 +120,12 @@ export const getShaders = async (
       limit: limit || 10,
     },
   });
+  return res.data;
+};
+
+export const getShadertoyShader = async (
+  id: string,
+): Promise<ShaderToyShader> => {
+  const res = await axiosInstance.get(`/shadertoy/${id}`);
   return res.data;
 };

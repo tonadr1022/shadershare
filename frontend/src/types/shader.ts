@@ -121,3 +121,48 @@ export type ShaderUpdateCreatePayload = {
   shader_inputs?: ShaderInput[];
   shader_outputs?: ShaderOutput[];
 };
+
+export type ShadertoyInput = {
+  channel: number;
+  ctype: string;
+  id: number;
+  sampler: {
+    filter: "linear" | "nearest";
+    vflip: boolean;
+    wrap: "clamp" | "repeat";
+  };
+};
+
+export type ShadertoyOutput = {
+  channel: number;
+  id: number;
+};
+
+export type ShadertoyRenderPass = {
+  code: string;
+  description: string;
+  name: string;
+  type: string;
+  inputs: ShadertoyInput[];
+  outputs: ShadertoyOutput[];
+};
+
+export type ShaderToyShader = {
+  Shader: {
+    info: {
+      date: Date;
+      description: string;
+      flags: number;
+      hasliked: number;
+      id: string;
+      likes: number;
+      name: string;
+      published: number;
+      tags: string[];
+      usePreview: number;
+      username: string;
+      viewed: number;
+    };
+    renderpass: ShadertoyRenderPass[];
+  };
+};

@@ -35,7 +35,7 @@ services:
       - AWS_ACCESS_KEY_ID=admin
       - AWS_ACCESS_KEY_SECRET=password
       - S3_ENDPOINT_URL=http://minio:9000
-      - AWS_REGION=us-east-1
+      - SHADERTOY_API_KEY=${SHADERTOY_API_KEY}
     networks:
       - localnet
   minio:
