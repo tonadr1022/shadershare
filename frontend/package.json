@@ -36,6 +36,7 @@
     "@uiw/codemirror-extensions-basic-setup": "^4.23.7",
     "@uiw/codemirror-extensions-line-numbers-relative": "^4.23.8",
     "@uiw/react-codemirror": "^4.23.7",
+    "@vercel/analytics": "^1.5.0",
     "axios": "^1.7.9",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
