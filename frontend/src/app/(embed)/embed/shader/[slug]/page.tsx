@@ -1,12 +1,11 @@
-"use client";
-import { useParams } from "next/navigation";
 import ShaderRendererEmbed from "./_components/ShaderRendererEmbed";
 
+export const dynamic = "force-static";
+export async function generateStaticParams() {
+  return [];
+}
 const ShaderEmbed = () => {
-  const params = useParams();
-  const { slug: shaderId } = params;
-  if (!shaderId) return <p>No shader found</p>;
-  return <ShaderRendererEmbed shaderId={shaderId as string} />;
+  return <ShaderRendererEmbed />;
 };
 
 export default ShaderEmbed;

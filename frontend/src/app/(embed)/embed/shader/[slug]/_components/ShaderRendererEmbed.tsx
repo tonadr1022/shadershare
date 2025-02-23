@@ -1,21 +1,19 @@
 "use client";
 import ShaderRenderer from "@/app/(mainapp)/view/components/renderer/ShaderRenderer";
-import React from "react";
+import React, { useState } from "react";
 import { RendererProvider } from "@/context/RendererContext";
 import { useQuery } from "@tanstack/react-query";
 import { getShaderWithUsername } from "@/api/shader-api";
 import { Spinner } from "@/components/ui/spinner";
+import { useParams } from "next/navigation";
 
-type Props = {
-  shaderId: string;
-};
-
-const ShaderRendererEmbed = ({ shaderId }: Props) => {
-  const [errMsg, setErrMsg] = React.useState("");
+const ShaderRendererEmbed = () => {
+  const params = useParams();
+  const { slug: shaderId } = params;
+  const [errMsg, setErrMsg] = useState("");
   const { data, isPending, isError } = useQuery({
-    queryFn: async () => {
-      return getShaderWithUsername(shaderId);
-    },
+    queryFn: () =>
+      getShaderWithUsername((shaderId as string | undefined) || ""),
     retry: (failureCount, error) => {
       if (error.message.includes("404")) {
         setErrMsg("Shader not found D:");
@@ -28,6 +26,7 @@ const ShaderRendererEmbed = ({ shaderId }: Props) => {
     },
     queryKey: ["shaders", shaderId],
   });
+  if (!shaderId) return <p>No shader found</p>;
   return (
     <div className="w-screen h-screen flex  justify-center items-center align-middle">
       {isError ? (

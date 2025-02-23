@@ -1,3 +1,4 @@
+"use client";
 export const apiBaseURL = process.env.NEXT_PUBLIC_API_URL;
 export const apiPath = "/api/v1";
 export const fullAPIPath = `${apiBaseURL}${apiPath}`;
