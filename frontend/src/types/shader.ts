@@ -11,6 +11,15 @@ export type BufferName =
   | "Image";
 export type ShaderOutputName = BufferName | "Common";
 
+export const shaderOutputNamesStrs = [
+  "Common",
+  "Buffer A",
+  "Buffer B",
+  "Buffer C",
+  "Buffer D",
+  "Buffer E",
+  "Image",
+];
 export const shaderOutputNames: ShaderOutputName[] = [
   "Common",
   "Buffer A",
@@ -155,6 +164,7 @@ export type ShadertoyInput = {
   channel: number;
   ctype: string;
   id: number;
+  src: string;
   sampler: {
     filter: "linear" | "nearest";
     vflip: boolean;
@@ -177,21 +187,23 @@ export type ShadertoyRenderPass = {
 };
 
 export type ShaderToyShader = {
-  Shader: {
-    info: {
-      date: Date;
-      description: string;
-      flags: number;
-      hasliked: number;
-      id: string;
-      likes: number;
-      name: string;
-      published: number;
-      tags: string[];
-      usePreview: number;
-      username: string;
-      viewed: number;
-    };
-    renderpass: ShadertoyRenderPass[];
+  info: {
+    date: Date;
+    description: string;
+    flags: number;
+    hasliked: number;
+    id: string;
+    likes: number;
+    name: string;
+    published: number;
+    tags: string[];
+    usePreview: number;
+    username: string;
+    viewed: number;
   };
+  renderpass: ShadertoyRenderPass[];
+};
+
+export type ShaderToyShaderResp = {
+  Shader: ShaderToyShader;
 };

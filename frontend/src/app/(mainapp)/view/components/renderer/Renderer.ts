@@ -906,28 +906,39 @@ ${commonBufferText}
       }
       const texture = state.outputs[outputName].shader_inputs[idx];
       if (texture instanceof Texture) {
-        const image = new Image();
-        image.src = url + "?not-from-cache-please";
-        image.crossOrigin = "anonymous";
-        image.addEventListener("load", () => {
-          texture.bind(gl);
-          // TODO: use properties
-          gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
-          gl.texImage2D(
-            gl.TEXTURE_2D,
-            0,
-            gl.RGBA,
-            gl.RGBA,
-            gl.UNSIGNED_BYTE,
-            image,
-          );
-          // TODO: if mipmap make them
-          resolve();
-        });
+        fetch(url, { mode: "cors" })
+          .then((resp) => resp.blob())
+          .then((blob) => {
+            console.log({ blob });
+            const img = new Image();
+            img.src = URL.createObjectURL(blob);
+            // image.crossOrigin = "Anonymous";
+            img.addEventListener("load", () => {
+              texture.bind(gl);
+              // TODO: use properties
+              gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+              gl.texImage2D(
+                gl.TEXTURE_2D,
+                0,
+                gl.RGBA,
+                gl.RGBA,
+                gl.UNSIGNED_BYTE,
+                img,
+              );
+              // TODO: if mipmap make them
+              resolve();
+            });
 
-        image.addEventListener("error", (e) => {
-          reject(new Error(`Failed to load image from ${url}: ${e.message}`));
-        });
+            img.addEventListener("error", (e) => {
+              reject(
+                new Error(`Failed to load image from ${url}: ${e.message}`),
+              );
+            });
+          })
+          .catch((e) => {
+            console.error("//////////////" + e);
+            reject(e);
+          });
       } else {
         reject(new Error("Invalid pass index, out of range"));
         return;
