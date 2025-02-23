@@ -31,7 +31,7 @@ const EmbedShaderText = ({ link }: Props) => {
   height="360"
   style="border: none"
   src="${link}"
-/>`);
+></iframe>`);
   const handleCopy = useCallback(async () => {
     await navigator.clipboard.writeText(embedCode);
   }, [embedCode]);
