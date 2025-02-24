@@ -1,5 +1,4 @@
 import {
-  DefaultTextureProps,
   ErrMsg,
   FilterMode,
   IRendererInitPararms,
@@ -12,6 +11,7 @@ import {
   TextureWrap,
   BufferName,
   ShaderOutputName,
+  ShaderOutputFull,
 } from "@/types/shader";
 import { createErrorResult, createSuccessResult } from "../util";
 import { webgl2Utils, WebGL2Utils } from "./Util";
@@ -142,7 +142,7 @@ const vertexCode = `#version 300 es
 precision highp float;
 precision highp int;
 // precision highp sampler3D;
-precision mediump sampler2D;
+precision highp sampler2D;
 #endif
 void main() {
     vec2 out_uv = vec2((gl_VertexID << 1) & 2, gl_VertexID & 2);
@@ -150,16 +150,7 @@ void main() {
 }`;
 
 const singleTextureFragmentCode = `#version 300 es
-precision highp float;
-uniform sampler2D tex;
-
-out vec4 fC;
-
-uniform vec2 iResolution;
-void main() {
-    fC = textureLod(tex, gl_FragCoord.xy / iResolution, 0.0);
-}
-`;
+precision highp float; uniform sampler2D tex; out vec4 fC; void main() { fC = texelFetch(tex, ivec2(gl_FragCoord.xy),0); }`;
 
 const fragmentHeader = `#version 300 es
 #ifdef GL_ES
@@ -307,7 +298,10 @@ class RenderTarget {
   currentTextureIndex: number;
   doubleBuffer: boolean;
   getPrevTex(): Texture | null {
-    return this.textures[1 - this.currentTextureIndex];
+    if (this.doubleBuffer) {
+      return this.textures[1 - this.currentTextureIndex];
+    }
+    return this.textures[0];
   }
   getCurrTex(): Texture | null {
     return this.textures[this.currentTextureIndex];
@@ -426,6 +420,7 @@ class Texture {
   filterMode: FilterMode = "nearest";
   wrapMode: TextureWrap = "clamp";
   texture: WebGLTexture = 0;
+  vFlipOnLoad: boolean = true;
   type: TextureType = TextureType.D2;
   width: number = 0;
   height: number = 0;
@@ -435,10 +430,12 @@ class Texture {
     type: TextureType,
     width: number = 0,
     height: number = 0,
+    vFlipOnLoad: boolean = true,
   ) {
     if (this.texture !== 0) {
       throw new Error("Texture already initialized");
     }
+    this.vFlipOnLoad = vFlipOnLoad;
     this.width = width;
     this.height = height;
     this.texture = gl.createTexture();
@@ -575,10 +572,7 @@ const webGL2Renderer = () => {
 
   let util: WebGL2Utils;
 
-  const bindUniforms = (
-    outputName: BufferName,
-    uniforms: FragShaderUniforms,
-  ) => {
+  const bindUniforms = (output: RenderPass, uniforms: FragShaderUniforms) => {
     gl.uniform3f(
       uniforms.iResolution,
       canvas.width,
@@ -593,11 +587,6 @@ const webGL2Renderer = () => {
       currTime,
       currTime,
     ]);
-    const output = state.outputs[outputName];
-    if (!output) {
-      throw new Error("no output found when binding uniforms");
-    }
-
     for (let i = 0; i < output.shader_inputs.length; i++) {
       const iChannel = output.shader_inputs[i];
       const dims: [number, number] = [canvas.width, canvas.height];
@@ -645,17 +634,11 @@ const webGL2Renderer = () => {
       state.outputs["Buffer C"],
       state.outputs["Buffer D"],
       state.outputs["Buffer E"],
+      state.outputs["Image"],
     ];
   };
 
-  const bindIChannels = (
-    outputName: BufferName,
-    uniforms: FragShaderUniforms,
-  ) => {
-    const output = state.outputs[outputName];
-    if (!output) {
-      throw new Error("no output when binding iChannels");
-    }
+  const bindIChannels = (output: RenderPass, uniforms: FragShaderUniforms) => {
     for (let i = 0; i < output.shader_inputs.length; i++) {
       const iChannel = output.shader_inputs[i];
       if (!iChannel || !uniforms.iChannels[i]) {
@@ -667,8 +650,9 @@ const webGL2Renderer = () => {
       } else if (iChannel instanceof BufferIChannel) {
         const output = state.outputs[iChannel.bufferName];
         if (output === null) {
-          throw new Error("Invalid state");
+          continue;
         }
+
         if (output.renderTarget.getPrevTex()) {
           bindTexture(
             uniforms.iChannels[i]!,
@@ -677,42 +661,6 @@ const webGL2Renderer = () => {
           );
         }
       }
-    }
-  };
-
-  const renderInternal = (outFBO: WebGLFramebuffer | null) => {
-    for (const { output, name: bufferName } of getBufferOutputsWithNames()) {
-      if (output === null) {
-        continue;
-      }
-      gl.useProgram(output.program);
-      const uniforms = output.uniformLocs;
-      bindUniforms(bufferName, uniforms);
-      output.renderTarget.bindAndSetTex(gl);
-      gl.clearColor(0.0, 0.0, 0.0, 1.0);
-      gl.clear(gl.COLOR_BUFFER_BIT);
-      bindIChannels(bufferName, uniforms);
-
-      gl.drawArrays(gl.TRIANGLES, 0, 3);
-    }
-
-    const finalImagePass = state.outputs.Image;
-    if (!finalImagePass) {
-      throw new Error("Invalid state");
-    }
-    gl.useProgram(finalImagePass.program);
-    bindUniforms("Image", finalImagePass.uniformLocs);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, outFBO);
-    gl.clearColor(0.0, 0.0, 0.0, 1.0);
-    gl.clear(gl.COLOR_BUFFER_BIT);
-    bindIChannels("Image", finalImagePass.uniformLocs);
-    gl.drawArrays(gl.TRIANGLES, 0, 3);
-
-    for (const output of getBufferOutputs()) {
-      if (output === null) {
-        continue;
-      }
-      output.renderTarget.swapTextures(gl);
     }
   };
 
@@ -774,13 +722,39 @@ const webGL2Renderer = () => {
       }
     }
 
-    gl.viewport(0, 0, canvas.width, canvas.height);
+    for (const { output, name: bufferName } of getBufferOutputsWithNames()) {
+      if (output === null) {
+        continue;
+      }
+      if (bufferName === "Image") {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      } else {
+        output.renderTarget.bindAndSetTex(gl);
+      }
+      gl.viewport(0, 0, canvas.width, canvas.height);
+      gl.useProgram(output.program);
+      const uniforms = output.uniformLocs;
+      bindUniforms(output, uniforms);
+      gl.clearColor(0.0, 0.0, 0.0, 1.0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      bindIChannels(output, uniforms);
+      drawScreen();
+    }
 
-    renderInternal(null);
+    for (const output of getBufferOutputs()) {
+      if (output === null) {
+        continue;
+      }
+      output.renderTarget.swapTextures(gl);
+    }
 
     currFrame++;
     return true;
   };
+
+  function drawScreen() {
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  }
 
   type CompileShaderResult = {
     program: WebGLProgram;
@@ -837,7 +811,7 @@ ${commonBufferText}
     url: string,
     outputname: ShaderOutputName,
     inputIdx: number,
-    props?: TextureProps,
+    props: TextureProps,
   ): Promise<void> => {
     return new Promise((resolve, reject) => {
       // TODO: wait on rendering until images are loaded fully
@@ -848,11 +822,11 @@ ${commonBufferText}
       image.crossOrigin = "Anonymous";
       image.addEventListener("load", () => {
         try {
-          const properties = props || DefaultTextureProps;
           texture.bind(gl);
           texture.width = image.width;
           texture.height = image.height;
-          if (!props || props.vflip) {
+          texture.vFlipOnLoad = props.vflip;
+          if (props.vflip) {
             gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
           }
           gl.texImage2D(
@@ -863,8 +837,8 @@ ${commonBufferText}
             gl.UNSIGNED_BYTE,
             image,
           );
-          texture.setWrapMode(gl, properties.wrap);
-          texture.setFilterMode(gl, properties.filter);
+          texture.setWrapMode(gl, props.wrap);
+          texture.setFilterMode(gl, props.filter);
           // TODO: only mipmap if needed
           gl.generateMipmap(gl.TEXTURE_2D);
           resolve();
@@ -907,8 +881,9 @@ ${commonBufferText}
             // image.crossOrigin = "Anonymous";
             img.addEventListener("load", () => {
               texture.bind(gl);
-              // TODO: use properties
-              gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+              if (texture.vFlipOnLoad) {
+                gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+              }
               gl.texImage2D(
                 gl.TEXTURE_2D,
                 0,
@@ -917,7 +892,7 @@ ${commonBufferText}
                 gl.UNSIGNED_BYTE,
                 img,
               );
-              // TODO: if mipmap make them
+              gl.generateMipmap(gl.TEXTURE_2D);
               resolve();
             });
 
@@ -1051,29 +1026,19 @@ ${commonBufferText}
             gl.bindFramebuffer(gl.FRAMEBUFFER, newRenderTarget.fbo);
             if (output.renderTarget.doubleBuffer) {
               // draw previous
+              const tex = output.renderTarget.getPrevTex()!;
               bindTexture(
                 singleTextureShader.uniformLocs.locs.get("tex")!,
-                output.renderTarget.getPrevTex()!,
+                tex,
                 0,
               );
-              gl.texParameteri(
-                gl.TEXTURE_2D,
-                gl.TEXTURE_MIN_FILTER,
-                gl.NEAREST,
-              );
-              gl.texParameteri(
-                gl.TEXTURE_2D,
-                gl.TEXTURE_MAG_FILTER,
-                gl.NEAREST,
-              );
+              tex.setFilterMode(gl, "nearest");
               gl.uniform2f(
                 singleTextureShader.uniformLocs.locs.get("iResolution")!,
                 newDims[0],
                 newDims[1],
               );
 
-              gl.clearColor(0.0, 0.0, 0.0, 1.0);
-              gl.clear(gl.COLOR_BUFFER_BIT);
               gl.framebufferTexture2D(
                 gl.FRAMEBUFFER,
                 gl.COLOR_ATTACHMENT0,
@@ -1081,32 +1046,27 @@ ${commonBufferText}
                 newRenderTarget.getPrevTex()!.texture,
                 0,
               );
-              gl.drawArrays(gl.TRIANGLES, 0, 3);
+              drawScreen();
             }
-            // draw current
-            {
+            if (
+              output.renderTarget.getCurrTex() &&
+              output.renderTarget.getCurrTex() !==
+                output.renderTarget.getPrevTex()
+            ) {
+              const tex = output.renderTarget.getCurrTex()!;
               bindTexture(
                 singleTextureShader.uniformLocs.locs.get("tex")!,
-                output.renderTarget.getCurrTex()!,
+                tex,
                 0,
               );
-              gl.texParameteri(
-                gl.TEXTURE_2D,
-                gl.TEXTURE_MIN_FILTER,
-                gl.NEAREST,
-              );
-              gl.texParameteri(
-                gl.TEXTURE_2D,
-                gl.TEXTURE_MAG_FILTER,
-                gl.NEAREST,
-              );
+              tex.setFilterMode(gl, "nearest");
               gl.uniform2f(
                 singleTextureShader.uniformLocs.locs.get("iResolution")!,
                 newDims[0],
                 newDims[1],
               );
-              gl.clearColor(0.0, 0.0, 0.0, 1.0);
-              gl.clear(gl.COLOR_BUFFER_BIT);
+              // gl.clearColor(0.0, 0.0, 0.0, 1.0);
+              // gl.clear(gl.COLOR_BUFFER_BIT);
               gl.framebufferTexture2D(
                 gl.FRAMEBUFFER,
                 gl.COLOR_ATTACHMENT0,
@@ -1114,7 +1074,7 @@ ${commonBufferText}
                 newRenderTarget.getCurrTex()!.texture,
                 0,
               );
-              gl.drawArrays(gl.TRIANGLES, 0, 3);
+              drawScreen();
             }
 
             gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -1262,6 +1222,7 @@ ${commonBufferText}
       currTime = 0;
       shaderTime = 0;
       lastRealTime = 0;
+      currFrame = 0;
       wasPaused = true;
       for (const output of getBufferOutputs()) {
         if (!output) continue;
@@ -1443,7 +1404,22 @@ ${commonBufferText}
           return;
         }
 
-        const doubleBuffer = task.name !== "Image";
+        let doubleBuffer = false;
+        const output = shaderOutputs.find(
+          (output: ShaderOutputFull) => output.name === task.name,
+        );
+        if (!output) {
+          throw new Error("invalid state");
+        }
+        for (const input of output.shader_inputs || []) {
+          if (
+            "name" in input.properties &&
+            input.properties.name === task.name
+          ) {
+            doubleBuffer = true;
+            break;
+          }
+        }
         if (checkGLError(gl)) {
           throw new Error("GL error");
         }
@@ -1514,7 +1490,7 @@ ${commonBufferText}
           console.error("error creating shader program", res.message);
           return;
         }
-        singleTextureShader = new Shader(gl, res.data!, ["iResolution"]);
+        singleTextureShader = new Shader(gl, res.data!);
       }
       validPipelines = true;
       initialized = true;
