@@ -116,7 +116,17 @@ export type ShaderData = {
 export type ShaderDataWithUser = ShaderData & {
   username?: string;
 };
-export type ShaderDataWithUsernameResponse = {
+
+export type ShaderWithUser = ShaderMetadata & {
+  username?: string;
+};
+
+export type ShaderListResp = {
+  shaders: ShaderWithUser[];
+  total: number;
+};
+
+export type ShaderListDetailedResp = {
   shaders: ShaderDataWithUser[];
   total: number;
 };

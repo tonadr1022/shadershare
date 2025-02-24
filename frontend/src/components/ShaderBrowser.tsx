@@ -1,6 +1,5 @@
 "use client";
-import { getShadersWithUsernames } from "@/api/shader-api";
-import { generatePagination } from "@/lib/utils";
+import { getShadersWithUsernames, getUserShaders } from "@/api/shader-api";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import React, { useCallback } from "react";
@@ -13,18 +12,28 @@ import { useRouter } from "next/navigation";
 type Props = {
   show: { usernames: boolean };
   urlPath: string;
+  userID?: string;
 };
-const ShaderBrowser = ({ show = { usernames: false }, urlPath }: Props) => {
+
+const ShaderBrowser = ({
+  show = { usernames: false },
+  urlPath,
+  userID,
+}: Props) => {
   const searchParams = useSearchParams();
   const page = parseInt(searchParams.get("page") || "1");
+  const perPage = 10;
 
   const {
     data: data,
     isPending,
     isError,
   } = useQuery({
-    queryKey: ["shaders", { page }],
-    queryFn: () => getShadersWithUsernames((page - 1) * 10, 10),
+    queryKey: ["shaders", { isUserShaders: userID !== undefined }, page],
+    queryFn: () =>
+      userID !== undefined
+        ? getUserShaders(userID, (page - 1) * perPage, perPage)
+        : getShadersWithUsernames(false, (page - 1) * perPage, perPage),
   });
 
   const router = useRouter();
@@ -41,11 +50,8 @@ const ShaderBrowser = ({ show = { usernames: false }, urlPath }: Props) => {
       <div className="flex items-center gap-2">
         <p>Results: ({data ? data.total : 0}):</p>
         <PaginationButtons
+          perPage={perPage}
           onClick={onPageButtonClick}
-          pageNumbers={generatePagination(
-            page,
-            Math.ceil((data?.total || 0) / 10),
-          )}
           page={page}
           totalDataLength={data?.total || 0}
         />

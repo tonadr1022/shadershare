@@ -134,7 +134,6 @@ func (s *s3FileStore) UploadFile(file *multipart.FileHeader) (string, error) {
 	if s.isProd {
 		return fmt.Sprintf("https://media.shader-share.com/%s", file.Filename), nil
 	}
-	// TODO: in prod need s3 url!
 	minioURL := fmt.Sprintf("http://%s/%s/%s", "localhost:9000", s.bucketName, file.Filename)
 	return minioURL, nil
 }

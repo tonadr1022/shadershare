@@ -14,7 +14,7 @@ import (
 
 const createShaderInput = `-- name: CreateShaderInput :one
 INSERT INTO shader_inputs (
-    shader_id, output_id,url, type, idx, properties
+    shader_id, output_id, url, type, idx, properties
 ) VALUES (
     $1, $2, $3, $4, $5, $6
 ) RETURNING id, shader_id, output_id, url, type, idx, properties
@@ -322,6 +322,63 @@ func (q *Queries) GetShaderOutput(ctx context.Context, id uuid.UUID) (ShaderOutp
 		&i.Type,
 	)
 	return i, err
+}
+
+const getShadersWithUser = `-- name: GetShadersWithUser :many
+SELECT s.id, s.title, s.description, s.user_id, s.access_level, s.preview_img_url, s.created_at, s.updated_at, u.username 
+FROM shaders s 
+JOIN users u ON s.user_id = u.id 
+WHERE s.access_level = $3
+ORDER BY s.updated_at DESC
+LIMIT $1 OFFSET $2
+`
+
+type GetShadersWithUserParams struct {
+	Limit       int32
+	Offset      int32
+	AccessLevel int16
+}
+
+type GetShadersWithUserRow struct {
+	ID            uuid.UUID
+	Title         string
+	Description   pgtype.Text
+	UserID        uuid.UUID
+	AccessLevel   int16
+	PreviewImgUrl pgtype.Text
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+	Username      string
+}
+
+func (q *Queries) GetShadersWithUser(ctx context.Context, arg GetShadersWithUserParams) ([]GetShadersWithUserRow, error) {
+	rows, err := q.db.Query(ctx, getShadersWithUser, arg.Limit, arg.Offset, arg.AccessLevel)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetShadersWithUserRow
+	for rows.Next() {
+		var i GetShadersWithUserRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Description,
+			&i.UserID,
+			&i.AccessLevel,
+			&i.PreviewImgUrl,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Username,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listShaderInputs = `-- name: ListShaderInputs :many

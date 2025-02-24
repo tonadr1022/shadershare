@@ -1,19 +1,24 @@
 "use client";
 import React from "react";
 import { Button } from "./ui/button";
+import { generatePagination } from "@/lib/utils";
 
 type Props = {
   page: number;
-  pageNumbers: number[];
   totalDataLength: number;
+  perPage: number;
   onClick: (page: number) => void;
 };
 const PaginationButtons = ({
   page,
-  pageNumbers,
   totalDataLength,
+  perPage,
   onClick,
 }: Props) => {
+  const pageNumbers = generatePagination(
+    page,
+    Math.ceil(totalDataLength / perPage),
+  );
   return (
     <div className="flex flex-row gap-2">
       <Button
@@ -49,7 +54,7 @@ const PaginationButtons = ({
         variant="outline"
         size="sm"
         disabled={
-          totalDataLength === 0 || page === Math.ceil(totalDataLength / 10)
+          totalDataLength === 0 || page === Math.ceil(totalDataLength / perPage)
         }
         onClick={() => {
           onClick(page + 1);

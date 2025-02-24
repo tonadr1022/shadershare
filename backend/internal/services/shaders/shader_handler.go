@@ -133,11 +133,37 @@ func (h ShaderHandler) createShader(c *gin.Context) {
 func (h ShaderHandler) getShaderList(c *gin.Context) {
 	sort := c.DefaultQuery("sort", "popularity")
 	var err error
-	limit, err := com.DefaultQueryIntCheck(c, "limit", 10)
+	detailed := com.StrToBool(c.DefaultQuery("detailed", "false"))
+
+	userIDStr := c.Query("user_id")
+	var userID *uuid.UUID
+	if userIDStr != "" {
+		id, err := uuid.Parse(userIDStr)
+		if err != nil {
+			util.SetErrorResponse(c, http.StatusBadRequest, "Invalid user ID")
+			return
+		}
+		userID = &id
+	}
+	var maxLimit int
+	if detailed {
+		maxLimit = 20
+	} else {
+		maxLimit = 200
+	}
+	var defaultLimit int
+	if detailed {
+		defaultLimit = 10
+	} else {
+		defaultLimit = 100
+	}
+
+	limit, err := com.DefaultQueryIntCheck(c, "limit", defaultLimit)
 	if err != nil {
 		return
 	}
-	limit = min(limit, 20)
+	limit = min(limit, maxLimit)
+
 	offset, err := com.DefaultQueryIntCheck(c, "offset", 0)
 	if err != nil {
 		return
@@ -147,11 +173,24 @@ func (h ShaderHandler) getShaderList(c *gin.Context) {
 	includeQuery := c.DefaultQuery("include", "")
 	includes := strings.Split(includeQuery, ",")
 	var shaders interface{}
-	// TODO: refactor service?
 	if slices.Contains(includes, "username") {
-		shaders, err = h.service.GetShadersDetailedWithUsernames(c, sort, limit, offset, domain.AccessLevelPublic)
+		if userID != nil {
+			util.SetErrorResponse(c, http.StatusBadRequest, "Cannot specify user_id and include username")
+			return
+		}
+		if detailed {
+			shaders, err = h.service.GetShadersDetailedWithUsernames(c, sort, limit, offset, domain.AccessLevelPublic)
+		} else {
+			shaders, err = h.service.GetShadersWithUsernames(c, sort, limit, offset, domain.AccessLevelPublic)
+		}
 	} else {
-		shaders, err = h.service.GetShadersListDetailed(c, sort, limit, offset, domain.AccessLevelPublic)
+		if detailed {
+			util.SetErrorResponse(c, http.StatusBadRequest, "Detailed shaders are not supported without username include")
+			return
+		} else {
+			shaders, err = h.service.GetShaderList(c, sort, limit, offset, userID, domain.AccessLevelPublic)
+			fmt.Println("shaders: ", shaders)
+		}
 	}
 	if err != nil {
 		util.SetInternalServiceErrorResponse(c)

@@ -1,5 +1,5 @@
 "use client";
-import { getShadersWithUsernames } from "@/api/shader-api";
+import { getShadersWithUsernamesDetailed } from "@/api/shader-api";
 import { Spinner } from "@/components/ui/spinner";
 import { RendererProvider } from "@/context/RendererContext";
 import { ShaderDataWithUser } from "@/types/shader";
@@ -47,7 +47,7 @@ const ShaderRenderPreviewCard = ({ data: shader, show }: Props) => {
 const MainPageShaders = () => {
   const { data, isPending, isError } = useQuery({
     queryKey: ["randomShaders"],
-    queryFn: () => getShadersWithUsernames(0, 1),
+    queryFn: () => getShadersWithUsernamesDetailed(0, 1),
   });
   if (isError) return <p>Error loading shaders.</p>;
   if (isPending) return <Spinner />;
@@ -55,6 +55,7 @@ const MainPageShaders = () => {
 
   return (
     <div className="w-full max-w-xl h-full">
+      <p>Here&apos;s a random shader...</p>
       <ShaderRenderPreviewCard data={data.shaders[0]} />
     </div>
   );

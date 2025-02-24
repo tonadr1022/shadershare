@@ -4,8 +4,9 @@ import {
   ColumnDef,
   flexRender,
   getCoreRowModel,
-  getPaginationRowModel,
   getSortedRowModel,
+  OnChangeFn,
+  PaginationState,
   SortingState,
   useReactTable,
 } from "@tanstack/react-table";
@@ -34,6 +35,8 @@ import { useDeleteShader } from "@/hooks/hooks";
 
 type Props = {
   data: ShaderMetadata[];
+  onPaginationChange: OnChangeFn<PaginationState>;
+  initialPaginationState: PaginationState;
 };
 const SortableHeader = ({
   column,
@@ -165,15 +168,22 @@ function ActionDropdown({ shader }: { shader: ShaderMetadata }) {
   );
 }
 
-const ShaderTable = ({ data }: Props) => {
+const ShaderTable = ({
+  data,
+  onPaginationChange,
+  initialPaginationState,
+}: Props) => {
   const [sorting, setSorting] = useState<SortingState>([]);
   const table = useReactTable({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    onPaginationChange,
     onSortingChange: setSorting,
+    initialState: {
+      pagination: initialPaginationState,
+    },
     state: {
       sorting,
     },

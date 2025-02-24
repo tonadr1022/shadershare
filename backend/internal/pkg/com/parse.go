@@ -19,6 +19,10 @@ func DefaultQueryIntCheck(c *gin.Context, key string, defaultValue int) (int, er
 	return value, nil
 }
 
+func StrToBool(str string) bool {
+	return str == "true"
+}
+
 func IntQueryCheck(c *gin.Context, key string) (int, error) {
 	valueStr := c.Query(key)
 	if valueStr == "" {

@@ -149,9 +149,8 @@ const ShaderRenderer = ({
     const canvas = canvasRef.current;
     if (!canvas || !renderer) return;
     const bestAttemptFallback = function () {
-      const devicePixelRatio = window.devicePixelRatio || 1;
-      const xres = Math.round(canvas.offsetWidth * devicePixelRatio) | 0;
-      const yres = Math.round(canvas.offsetHeight * devicePixelRatio) | 0;
+      const xres = Math.round(canvas.width);
+      const yres = Math.round(canvas.height);
       setCanvasDims({ width: xres, height: yres });
       renderer.onResize(xres, yres);
     };
@@ -169,9 +168,13 @@ const ShaderRenderer = ({
         bestAttemptFallback();
         window.addEventListener("resize", bestAttemptFallback);
       } else {
+        // For now, not rendering at high DPI, too slow
         const box = entry.devicePixelContentBoxSize[0];
-
-        setCanvasDims({ width: box.inlineSize, height: box.blockSize });
+        const dpr = window.devicePixelRatio || 1;
+        setCanvasDims({
+          width: Math.floor(box.inlineSize / dpr),
+          height: Math.floor(box.blockSize / dpr),
+        });
         renderer.onResize(box.inlineSize, box.blockSize);
       }
     });

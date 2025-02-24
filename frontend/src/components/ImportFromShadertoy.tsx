@@ -8,6 +8,7 @@ import {
   shaderToyToShader,
 } from "@/utils/shadertoy-utils";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { File, FileUp } from "lucide-react";
 
 import React, { useCallback } from "react";
 import Dropzone, { DropzoneState } from "shadcn-dropzone";
@@ -79,7 +80,9 @@ const ImportFromShadertoy = () => {
               <h6 className="">Drop Here</h6>
             ) : (
               <div className="flex items-center flex-col gap-1.5">
-                <h6>Drop or Click to Upload and Import Shadertoy JSON files</h6>
+                <h6 className="flex gap-2">
+                  Import Shadertoy JSON files <FileUp />
+                </h6>
               </div>
             )}
           </div>

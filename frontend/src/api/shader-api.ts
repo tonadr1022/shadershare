@@ -2,9 +2,9 @@
 import {
   ShaderData,
   ShaderDataWithUser,
-  ShaderDataWithUsernameResponse,
   ShaderInput,
-  ShaderMetadata,
+  ShaderListDetailedResp,
+  ShaderListResp,
   ShaderOutputFull,
   ShaderToyShaderResp,
   ShaderUpdateCreatePayload,
@@ -71,24 +71,60 @@ export const deleteShader = async (id: string) => {
   return res.data;
 };
 
-export const getUserShaders = async (): Promise<ShaderMetadata[]> => {
-  const res = await axiosInstance.get("/profile?show=shaders");
-  return res.data;
-};
-
-// TODO: combine with other getshaders?
-export const getShadersWithUsernames = async (
+const getShadersWithUsernamesImpl = async (
+  detailed: boolean,
+  user_id?: string,
   offset?: number,
   limit?: number,
-): Promise<ShaderDataWithUsernameResponse> => {
+): Promise<ShaderListResp | ShaderListDetailedResp> => {
   const res = await axiosInstance.get("/shaders", {
     params: {
-      include: "username",
+      include: user_id ? undefined : "username",
       offset: offset || 0,
       limit: limit || 10,
+      user_id,
+      detailed,
     },
   });
   return res.data;
+};
+
+export const getUserShaders = async (
+  user_id: string,
+  offset?: number,
+  limit?: number,
+): Promise<ShaderListResp> => {
+  return getShadersWithUsernamesImpl(
+    false,
+    user_id,
+    offset,
+    limit,
+  ) as Promise<ShaderListResp>;
+};
+
+export const getShadersWithUsernamesDetailed = async (
+  offset?: number,
+  limit?: number,
+): Promise<ShaderListDetailedResp> => {
+  return getShadersWithUsernamesImpl(
+    true,
+    undefined,
+    offset,
+    limit,
+  ) as Promise<ShaderListDetailedResp>;
+};
+
+export const getShadersWithUsernames = async (
+  detailed: boolean,
+  offset?: number,
+  limit?: number,
+): Promise<ShaderListResp> => {
+  return getShadersWithUsernamesImpl(
+    detailed,
+    undefined,
+    offset,
+    limit,
+  ) as Promise<ShaderListResp>;
 };
 
 export const deleteShaderInput = async (id: string) => {

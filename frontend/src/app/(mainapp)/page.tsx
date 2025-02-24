@@ -31,7 +31,6 @@ export default function Home() {
         <br />
         <br />
         <br />
-        <p>Here&apos;s a random shader...</p>
         <MainPageShaders />
       </div>
     </div>

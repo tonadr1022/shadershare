@@ -573,12 +573,7 @@ const webGL2Renderer = () => {
   let util: WebGL2Utils;
 
   const bindUniforms = (output: RenderPass, uniforms: FragShaderUniforms) => {
-    gl.uniform3f(
-      uniforms.iResolution,
-      canvas.width,
-      canvas.height,
-      window.devicePixelRatio,
-    );
+    gl.uniform3f(uniforms.iResolution, canvas.width, canvas.height, 1);
     gl.uniform1f(uniforms.iTime, shaderTime);
     gl.uniform1f(uniforms.iTimeDelta, timeDelta);
     gl.uniform1fv(uniforms.iChannelTimes, [
@@ -594,11 +589,7 @@ const webGL2Renderer = () => {
         dims[0] = iChannel.width;
         dims[1] = iChannel.height;
       }
-      gl.uniform3fv(uniforms.iChannelResolutions[i], [
-        dims[0],
-        dims[1],
-        window.devicePixelRatio,
-      ]);
+      gl.uniform3fv(uniforms.iChannelResolutions[i], [dims[0], dims[1], 1]);
     }
     gl.uniform1i(uniforms.iFrame, currFrame);
     gl.uniform4f(uniforms.iMouse, 0, 0, 0, 0);
@@ -1094,7 +1085,7 @@ ${commonBufferText}
     if (!initialized || !canvas) {
       return;
     }
-    const scale = window.devicePixelRatio;
+    const scale = 1;
     canvas.width = Math.floor(width * scale);
     canvas.height = Math.floor(height * scale);
     if (

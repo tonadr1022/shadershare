@@ -17,6 +17,10 @@ type shaderService struct {
 	fileStore filestore.FileStore
 }
 
+func (s shaderService) GetShadersWithUsernames(ctx context.Context, sort string, limit int, offset int, accessLevel domain.AccessLevel) (*domain.ShadersWithUsernamesResp, error) {
+	return s.repo.GetShadersWithUsernames(ctx, sort, limit, offset, accessLevel)
+}
+
 func NewShaderService(repo domain.ShaderRepository, userRepo domain.UserRepository, fileStore filestore.FileStore) domain.ShaderService {
 	return &shaderService{repo, userRepo, fileStore}
 }
@@ -55,8 +59,8 @@ func (s shaderService) UpdateShader(ctx context.Context, userID uuid.UUID, shade
 	return shader, nil
 }
 
-func (s shaderService) GetShaderList(ctx context.Context, sort string, limit int, offset int, accessLevel domain.AccessLevel) ([]domain.Shader, error) {
-	return s.repo.GetShaderList(ctx, sort, limit, offset, accessLevel)
+func (s shaderService) GetShaderList(ctx context.Context, sort string, limit int, offset int, userID *uuid.UUID, accessLevel domain.AccessLevel) (*domain.GetShaderListResp, error) {
+	return s.repo.GetShaderList(ctx, sort, limit, offset, userID, accessLevel)
 }
 
 func (s shaderService) CreateShader(ctx context.Context, userID uuid.UUID, shaderPayload domain.CreateShaderPayload, file *multipart.FileHeader) (*domain.ShaderDetailed, error) {
@@ -94,7 +98,7 @@ func (s shaderService) DeleteShaderOutput(ctx context.Context, outputID uuid.UUI
 	return s.repo.DeleteShaderOutput(ctx, outputID)
 }
 
-func (s shaderService) GetShadersDetailedWithUsernames(ctx context.Context, sort string, limit int, offset int, accessLevel domain.AccessLevel) (*domain.ShadersDetailedWithUsernames, error) {
+func (s shaderService) GetShadersDetailedWithUsernames(ctx context.Context, sort string, limit int, offset int, accessLevel domain.AccessLevel) (*domain.ShadersDetailedWithUsernamesResp, error) {
 	result, err := s.repo.GetShadersDetailedWithUsernames(ctx, sort, limit, offset, accessLevel)
 	if err != nil {
 		return nil, err
@@ -115,6 +119,6 @@ func (s shaderService) GetShaderCount(ctx context.Context) (int64, error) {
 	return s.repo.GetShaderCount(ctx)
 }
 
-func (s shaderService) GetShaderWithUser(ctx context.Context, shaderID uuid.UUID) (*domain.ShaderWithUser, error) {
+func (s shaderService) GetShaderWithUser(ctx context.Context, shaderID uuid.UUID) (*domain.ShaderDetailedWithUser, error) {
 	return s.repo.GetShaderWithUser(ctx, shaderID)
 }
