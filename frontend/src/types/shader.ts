@@ -162,11 +162,13 @@ export type ShaderUpdateCreatePayload = {
 
 export type ShadertoyInput = {
   channel: number;
-  ctype: string;
+  ctype: string | undefined;
+  type: string | undefined;
   id: number;
-  src: string;
+  src: string | undefined;
+  filepath: string | undefined;
   sampler: {
-    filter: "linear" | "nearest";
+    filter: "linear" | "nearest" | "mipmap";
     vflip: boolean;
     wrap: "clamp" | "repeat";
   };

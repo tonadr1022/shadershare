@@ -12,7 +12,6 @@ import {
   TextureWrap,
   BufferName,
   ShaderOutputName,
-  ShaderOutputFull,
 } from "@/types/shader";
 import { createErrorResult, createSuccessResult } from "../util";
 import { webgl2Utils, WebGL2Utils } from "./Util";
@@ -351,10 +350,10 @@ class RenderTarget {
     }
 
     this.fbo = gl.createFramebuffer();
-    this.#bindAndSetTex(gl);
+    this.bindAndSetTex(gl);
   }
 
-  #bindAndSetTex(gl: WebGL2RenderingContext) {
+  bindAndSetTex(gl: WebGL2RenderingContext) {
     const tex = this.textures[this.currentTextureIndex];
     if (!tex) {
       throw new Error("no texture when binding");
@@ -378,7 +377,7 @@ class RenderTarget {
   swapTextures(gl: WebGL2RenderingContext) {
     if (this.doubleBuffer) {
       this.currentTextureIndex = 1 - this.currentTextureIndex;
-      this.#bindAndSetTex(gl);
+      this.bindAndSetTex(gl);
     }
   }
 }
@@ -689,14 +688,7 @@ const webGL2Renderer = () => {
       gl.useProgram(output.program);
       const uniforms = output.uniformLocs;
       bindUniforms(bufferName, uniforms);
-      gl.bindFramebuffer(gl.FRAMEBUFFER, output.renderTarget.fbo);
-      gl.framebufferTexture2D(
-        gl.FRAMEBUFFER,
-        gl.COLOR_ATTACHMENT0,
-        gl.TEXTURE_2D,
-        output.renderTarget.getCurrTex()!.texture,
-        0,
-      );
+      output.renderTarget.bindAndSetTex(gl);
       gl.clearColor(0.0, 0.0, 0.0, 1.0);
       gl.clear(gl.COLOR_BUFFER_BIT);
       bindIChannels(bufferName, uniforms);
@@ -1048,9 +1040,6 @@ ${commonBufferText}
 
         if (singleTextureShader) {
           singleTextureShader.bind(gl);
-          if (!output.renderTarget.doubleBuffer) {
-            throw new Error("Invalid state");
-          }
 
           const newDims = [canvas.width, canvas.height];
           const oldDims = [
@@ -1060,7 +1049,7 @@ ${commonBufferText}
 
           if (oldDims[0] > 0 && oldDims[1] > 0) {
             gl.bindFramebuffer(gl.FRAMEBUFFER, newRenderTarget.fbo);
-            {
+            if (output.renderTarget.doubleBuffer) {
               // draw previous
               bindTexture(
                 singleTextureShader.uniformLocs.locs.get("tex")!,
@@ -1297,6 +1286,7 @@ ${commonBufferText}
       }
     },
     shutdown: () => {
+      console.log("shutdown");
       if (!initialized) return;
       initialized = false;
       const ext = gl.getExtension("WEBGL_lose_context");
@@ -1453,23 +1443,7 @@ ${commonBufferText}
           return;
         }
 
-        let doubleBuffer = false;
-        const output = shaderOutputs.find(
-          (output: ShaderOutputFull) => output.name === task.name,
-        );
-        if (!output) {
-          throw new Error("invalid state");
-        }
-        for (const input of output.shader_inputs || []) {
-          if (
-            input.properties &&
-            "name" in input.properties &&
-            input.properties.name === task.name
-          ) {
-            doubleBuffer = true;
-            break;
-          }
-        }
+        const doubleBuffer = task.name !== "Image";
         if (checkGLError(gl)) {
           throw new Error("GL error");
         }

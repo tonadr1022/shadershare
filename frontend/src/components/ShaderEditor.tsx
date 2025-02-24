@@ -12,6 +12,7 @@ import { RendererProvider } from "@/context/RendererContext";
 import { ShaderData } from "@/types/shader";
 import ShaderMetadata from "@/app/(mainapp)/view/components/editor/ShaderMetadata";
 import LocalSettingsProvider from "@/context/LocalSettingsContext";
+import Image from "next/image";
 
 type Props = {
   shaderData?: ShaderData;
@@ -37,6 +38,13 @@ const ShaderEditor = ({ shaderData, editable }: Props) => {
 
           <div className="self-center">
             <DownloadPreviewImageDialog />
+
+            <Image
+              width={320}
+              height={180}
+              alt="preview"
+              src={shaderData?.shader.preview_img_url || ""}
+            />
           </div>
         </ResizablePanel>
         <ResizableHandle withHandle />
