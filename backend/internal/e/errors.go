@@ -12,4 +12,5 @@ var (
 	ErrEmailAlreadyExists    = errors.New("user with this username already exists")
 	ErrUserNotFound          = errors.New("user not found")
 	ErrShaderWithTitleExists = errors.New("shader with title exists")
+	ErrInvalidSort           = errors.New("invalid sort")
 )

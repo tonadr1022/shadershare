@@ -20,6 +20,8 @@ const ProfileShaders = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const page = parseInt(searchParams.get("page") || "1");
+  const sort = searchParams.get("sort");
+  const sortDesc = searchParams.get("sortdesc");
   const view = searchParams.get("view") || "table";
   const perPage = parseInt(searchParams.get("perpage") || "25");
   if (!perPages.includes(perPage)) {

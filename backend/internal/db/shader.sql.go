@@ -381,19 +381,33 @@ SELECT s.id, s.title, s.description, s.user_id, s.access_level, s.preview_img_ur
 FROM shader_with_user s
 WHERE 
   (s.access_level = $1 OR $1 IS NULL)
-ORDER BY s.updated_at DESC
-LIMIT $3::int
-OFFSET $2::int
+ORDER BY CASE
+    WHEN NOT $2::boolean AND $3::text = 'updated_at' THEN updated_at
+    WHEN NOT $2::boolean AND $3::text = 'title' THEN title
+END ASC, CASE 
+    WHEN $2::boolean AND $3::text = 'updated_at' THEN updated_at
+    WHEN $2::boolean AND $3::text = 'title' THEN title
+END DESC
+LIMIT $5::int
+OFFSET $4::int
 `
 
 type ListShadersWithUserParams struct {
 	AccessLevel pgtype.Int2
+	Reverse     bool
+	OrderBy     string
 	Off         int32
 	Lim         pgtype.Int4
 }
 
 func (q *Queries) ListShadersWithUser(ctx context.Context, arg ListShadersWithUserParams) ([]ShaderWithUser, error) {
-	rows, err := q.db.Query(ctx, listShadersWithUser, arg.AccessLevel, arg.Off, arg.Lim)
+	rows, err := q.db.Query(ctx, listShadersWithUser,
+		arg.AccessLevel,
+		arg.Reverse,
+		arg.OrderBy,
+		arg.Off,
+		arg.Lim,
+	)
 	if err != nil {
 		return nil, err
 	}

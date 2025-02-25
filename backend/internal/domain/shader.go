@@ -108,11 +108,11 @@ type (
 
 	ShaderListReq struct {
 		ShaderReqBase
-		Sort    string
-		SortAsc bool
-		Limit   int
-		Offset  int
-		Filter  GetShaderFilter
+		Sort        string
+		SortReverse bool
+		Limit       int
+		Offset      int
+		Filter      GetShaderFilter
 	}
 
 	ShaderResponse struct {

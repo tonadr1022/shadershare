@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS shaders (
 );
 
 CREATE INDEX IF NOT EXISTS idx_shader_access_level ON shaders (access_level);
-CREATE INDEX IF NOT EXISTS idx_shader_user_id ON shaders(user_id)
+CREATE INDEX IF NOT EXISTS idx_shader_user_id ON shaders(user_id);
 CREATE INDEX IF NOT EXISTS idx_shader_user_access ON shaders (user_id, access_level);
 
 CREATE TABLE IF NOT EXISTS shader_outputs (

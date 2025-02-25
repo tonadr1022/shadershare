@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"shadershare/internal/auth"
 	"shadershare/internal/domain"
+	"shadershare/internal/e"
 	"shadershare/internal/middleware"
 	"shadershare/internal/pkg/com"
 	"shadershare/internal/util"
@@ -94,10 +95,10 @@ func (h userHandler) getUserShaders(c *gin.Context) {
 	}
 
 	getShadersReq := domain.ShaderListReq{
-		Limit:   limit,
-		Offset:  offset,
-		Sort:    c.Query("sort"),
-		SortAsc: com.StrToBool(c.DefaultQuery("asc", "false")),
+		Limit:       limit,
+		Offset:      offset,
+		Sort:        c.Query("sort"),
+		SortReverse: com.StrToBool(c.DefaultQuery("desc", "false")),
 		Filter: domain.GetShaderFilter{
 			UserID:      userctx.ID,
 			AccessLevel: domain.AccessLevelNull,
@@ -109,8 +110,13 @@ func (h userHandler) getUserShaders(c *gin.Context) {
 	}
 	shaders, err := h.shaderService.GetShaders(c, getShadersReq)
 	if err != nil {
-		util.SetInternalServiceErrorResponse(c)
-		return
+		if err == e.ErrInvalidSort {
+			util.SetErrorResponse(c, http.StatusBadRequest, e.ErrInvalidSort.Error())
+			return
+		} else {
+			util.SetInternalServiceErrorResponse(c)
+			return
+		}
 	}
 	c.JSON(http.StatusOK, shaders)
 }

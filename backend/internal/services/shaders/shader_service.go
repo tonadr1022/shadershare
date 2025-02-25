@@ -5,7 +5,9 @@ import (
 	"log"
 	"mime/multipart"
 	"shadershare/internal/domain"
+	"shadershare/internal/e"
 	"shadershare/internal/filestore"
+	"slices"
 	"strings"
 
 	"github.com/google/uuid"
@@ -75,7 +77,13 @@ func transformLimit(limit int, detailed bool) int {
 	return limit
 }
 
+var shaderOrderBys = []string{"created_at", "updated_at", "title"}
+
 func (s shaderService) GetShaders(ctx context.Context, req domain.ShaderListReq) (*domain.ShaderResponse, error) {
+	if !slices.Contains(shaderOrderBys, req.Sort) {
+		return nil, e.ErrInvalidSort
+	}
+
 	req.Offset = max(req.Offset, 0)
 	if req.Filter.UserID == uuid.Nil {
 		req.Limit = transformLimit(req.Limit, req.Detailed)

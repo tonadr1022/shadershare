@@ -437,6 +437,8 @@ func (r shaderRepository) GetShaders(ctx context.Context, req domain.ShaderListR
 			dbShaders, err = r.queries.ListShadersWithUser(ctx, db.ListShadersWithUserParams{
 				Lim:         offLimToPgType(req.Limit),
 				Off:         int32(req.Offset),
+				OrderBy:     req.Sort,
+				Reverse:     req.SortReverse,
 				AccessLevel: accessLevelToPgInt(req.Filter.AccessLevel),
 			})
 		} else {

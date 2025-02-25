@@ -130,7 +130,6 @@ func (h ShaderHandler) createShader(c *gin.Context) {
 }
 
 func (h ShaderHandler) getShaderList(c *gin.Context) {
-	sort := c.DefaultQuery("sort", "popularity")
 	var err error
 	detailed := com.StrToBool(c.DefaultQuery("detailed", "false"))
 
@@ -159,9 +158,10 @@ func (h ShaderHandler) getShaderList(c *gin.Context) {
 	includes := strings.Split(includeQuery, ",")
 	includeUser := slices.Contains(includes, "username")
 	getShadersReq := domain.ShaderListReq{
-		Sort:   sort,
-		Limit:  limit,
-		Offset: offset,
+		Sort:        c.Query("sort"),
+		SortReverse: com.StrToBool(c.DefaultQuery("desc", "false")),
+		Limit:       limit,
+		Offset:      offset,
 		Filter: domain.GetShaderFilter{
 			UserID:      userID,
 			AccessLevel: domain.AccessLevelPublic,
@@ -173,8 +173,13 @@ func (h ShaderHandler) getShaderList(c *gin.Context) {
 	}
 	shaders, err := h.service.GetShaders(c, getShadersReq)
 	if err != nil {
-		util.SetInternalServiceErrorResponse(c)
-		return
+		if err == e.ErrInvalidSort {
+			util.SetErrorResponse(c, http.StatusBadRequest, e.ErrInvalidSort.Error())
+			return
+		} else {
+			util.SetInternalServiceErrorResponse(c)
+			return
+		}
 	}
 	c.JSON(http.StatusOK, shaders)
 }

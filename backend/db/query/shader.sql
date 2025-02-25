@@ -27,7 +27,13 @@ SELECT s.*
 FROM shader_with_user s
 WHERE 
   (s.access_level = sqlc.narg(access_level) OR sqlc.narg(access_level) IS NULL)
-ORDER BY s.updated_at DESC
+ORDER BY CASE
+    WHEN NOT @reverse::boolean AND @order_by::text = 'updated_at' THEN updated_at
+    WHEN NOT @reverse::boolean AND @order_by::text = 'title' THEN title
+END ASC, CASE 
+    WHEN @reverse::boolean AND @order_by::text = 'updated_at' THEN updated_at
+    WHEN @reverse::boolean AND @order_by::text = 'title' THEN title
+END DESC
 LIMIT sqlc.narg(lim)::int
 OFFSET @off::int;
 

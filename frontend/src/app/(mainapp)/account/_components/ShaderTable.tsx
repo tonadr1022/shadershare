@@ -99,12 +99,6 @@ const columns: ColumnDef<ShaderMetadata>[] = [
   {
     accessorKey: "created_at",
     header: ({ column }) => <SortableHeader column={column} name="Created" />,
-    sortingFn: (rowA, rowB) => {
-      return (
-        new Date(rowA.getValue("created_at")).getTime() -
-        new Date(rowB.getValue("created_at")).getTime()
-      );
-    },
     cell: ({ row }) => {
       const date = new Date(row.getValue("created_at"));
       return <div className="">{date.toLocaleString()}</div>;
@@ -164,17 +158,13 @@ type Props = {
   data: ShaderMetadata[];
 };
 const ShaderTable = ({ data }: Props) => {
-  const [sorting, setSorting] = useState<SortingState>([]);
   const table = useReactTable({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     manualPagination: true,
-    onSortingChange: setSorting,
-    state: {
-      sorting,
-    },
+    manualSorting: true,
   });
   return (
     <Table>
