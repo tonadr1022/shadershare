@@ -71,7 +71,7 @@ func Run() {
 
 	allowedOrigins := []string{baseClientUrl}
 	if environment == "dev" {
-		allowedOrigins = append(allowedOrigins, "http://localhost:3000", "http://localhost:8080")
+		allowedOrigins = append(allowedOrigins, "http://localhost:8080")
 	}
 	fmt.Println("allowed origins", allowedOrigins)
 

@@ -48,3 +48,16 @@ FROM shaders s
     LEFT JOIN shader_outputs so ON so.shader_id = s.id
     LEFT JOIN aggregated_inputs ai ON ai.output_id = so.id
 GROUP BY s.id;
+
+CREATE VIEW shader_details_with_user AS 
+SELECT 
+  sd.*, 
+  u.username
+FROM shader_details sd
+JOIN users u ON sd.user_id = u.id;
+
+
+CREATE VIEW shader_with_user AS 
+SELECT s.*, u.username
+FROM shaders s
+JOIN users u ON s.user_id = u.id;

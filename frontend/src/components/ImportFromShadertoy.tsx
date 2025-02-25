@@ -2,13 +2,13 @@
 import { createShaderWithPreview } from "@/api/shader-api";
 import { getPreviewImgFile } from "@/app/(mainapp)/view/components/renderer/Renderer";
 import { toastAxiosErrors } from "@/lib/utils";
-import { AccessLevel, ShaderData } from "@/types/shader";
+import { AccessLevel, ShaderData, ShaderMetadata } from "@/types/shader";
 import {
   getShadertoyShaders,
   shaderToyToShader,
 } from "@/utils/shadertoy-utils";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { File, FileUp } from "lucide-react";
+import { FileUp } from "lucide-react";
 
 import React, { useCallback } from "react";
 import Dropzone, { DropzoneState } from "shadcn-dropzone";
@@ -19,8 +19,9 @@ const ImportFromShadertoy = () => {
   const createShaderMut = useMutation({
     mutationFn: createShaderWithPreview,
     onError: toastAxiosErrors,
-    onSuccess: () => {
+    onSuccess: (data: ShaderMetadata) => {
       queryClient.invalidateQueries({ queryKey: ["shaders"] });
+      toast.success("Successfully imported shader: " + data.title);
     },
   });
   const addTestShader = useCallback(
@@ -32,8 +33,8 @@ const ImportFromShadertoy = () => {
       }
       createShaderMut.mutate({
         data: {
-          title: shader.shader.title,
-          description: shader.shader.description,
+          title: shader.title,
+          description: shader.description,
           access_level: AccessLevel.PRIVATE,
           shader_outputs: shader.shader_outputs,
         },
@@ -66,7 +67,6 @@ const ImportFromShadertoy = () => {
       for (const shader of newShaders) {
         await addTestShader(shader);
       }
-      console.log(newShaders);
     },
     [addTestShader],
   );

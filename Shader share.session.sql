@@ -1,2 +1,1 @@
-DELETE *
-FROM shaders;
+DELETE FROM shaders;

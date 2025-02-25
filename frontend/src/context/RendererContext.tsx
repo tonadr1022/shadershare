@@ -58,17 +58,7 @@ export const RendererProvider: React.FC<RendererProviderProps> = ({
     for (const name of shaderOutputNames) {
       codeDirtyRef.current.set(name, false);
     }
-    // const fe = async () => {
-    //   fetch(
-    //     "https://www.shadertoy.com/media/a/0c7bf5fe9462d5bffbd11126e82908e39be3ce56220d900f633d58fb432e56f5.png",
-    //     { mode: "no-cors" },
-    //   )
-    //     .then((resp) => console.log("////////////////succ"))
-    //     .catch((e) => console.error("//////////////" + e));
-    // };
-    // fe();
 
-    console.log(shaderDataRef.current);
     const outputs = shaderDataRef.current.shader_outputs;
     if (outputs) {
       outputs.sort((a, b) => a.name.localeCompare(b.name));

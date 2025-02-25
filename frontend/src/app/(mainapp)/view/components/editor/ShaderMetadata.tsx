@@ -9,8 +9,8 @@ type Props = {
 const ShaderMetadata = ({ shaderData }: Props) => {
   return (
     <div>
-      <h2>{shaderData.shader.title}</h2>
-      <p>{shaderData.shader.description}</p>
+      <h2>{shaderData.title}</h2>
+      <p>{shaderData.description}</p>
     </div>
   );
 };

@@ -52,16 +52,24 @@ export const updateShaderWithPreview = async ({
   return res.data;
 };
 
-export const getShader = async (id: string): Promise<ShaderData> => {
-  const res = await axiosInstance.get(`/shaders/${id}`);
+export const getShader = async (
+  id: string,
+  detailed: boolean,
+): Promise<ShaderData> => {
+  const res = await axiosInstance.get(`/shaders/${id}`, {
+    params: {
+      detailed,
+    },
+  });
   return res.data;
 };
 
 export const getShaderWithUsername = async (
   id: string,
+  detailed?: boolean,
 ): Promise<ShaderDataWithUser> => {
   const res = await axiosInstance.get(`/shaders/${id}`, {
-    params: { include: "username" },
+    params: { include: "username", detailed },
   });
   return res.data;
 };
@@ -80,8 +88,8 @@ const getShadersWithUsernamesImpl = async (
   const res = await axiosInstance.get("/shaders", {
     params: {
       include: user_id ? undefined : "username",
-      offset: offset || 0,
-      limit: limit || 10,
+      offset,
+      limit,
       user_id,
       detailed,
     },
@@ -90,16 +98,14 @@ const getShadersWithUsernamesImpl = async (
 };
 
 export const getUserShaders = async (
-  user_id: string,
-  offset?: number,
-  limit?: number,
+  offset: number,
+  limit: number,
+  detailed?: boolean,
 ): Promise<ShaderListResp> => {
-  return getShadersWithUsernamesImpl(
-    false,
-    user_id,
-    offset,
-    limit,
-  ) as Promise<ShaderListResp>;
+  const res = await axiosInstance.get("/me/shaders", {
+    params: { detailed, offset, limit },
+  });
+  return res.data;
 };
 
 export const getShadersWithUsernamesDetailed = async (

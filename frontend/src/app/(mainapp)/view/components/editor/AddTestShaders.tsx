@@ -11,6 +11,7 @@ import { toastAxiosErrors } from "@/lib/utils";
 
 const AddTestShaders = () => {
   const [val, setVal] = React.useState("0");
+  const [hidden, setHidden] = React.useState(false);
 
   const queryClient = useQueryClient();
   const createShaderMut = useMutation({
@@ -24,8 +25,8 @@ const AddTestShaders = () => {
     const previewFile = await getPreviewImgFile(shader);
     createShaderMut.mutate({
       data: {
-        title: shader.shader.title + val,
-        description: shader.shader.description,
+        title: shader.title + val,
+        description: shader.description,
         access_level: AccessLevel.PUBLIC,
         shader_outputs: shader.shader_outputs,
       },
@@ -35,34 +36,38 @@ const AddTestShaders = () => {
   };
 
   return (
-    <div className="flex flex-col gap-8">
-      <div className="flex flex-row gap-8">
-        <Input
-          value={val}
-          className="w-24"
-          type="number"
-          onChange={(e) => setVal(e.target.value)}
-        />
-        <Button
-          onClick={() => {
-            for (const shader of Examples) {
-              addTestShader(shader);
-            }
-          }}
-        >
-          add test shaders
-        </Button>
-      </div>
-      <div className="flex flex-col">
-        {Examples.map((shader) => (
-          <Button
-            key={shader.shader.title}
-            onClick={() => addTestShader(shader)}
-          >
-            Add: {shader.shader.title}
-          </Button>
-        ))}
-      </div>
+    <div className="flex flex-col gap-8 w-fit items-center">
+      <Button onClick={() => setHidden(!hidden)}>
+        {hidden ? "Show Add Test shaders" : "Hide"}
+      </Button>
+      {!hidden && (
+        <>
+          <div className="flex flex-row gap-8">
+            <Input
+              value={val}
+              className="w-24"
+              type="number"
+              onChange={(e) => setVal(e.target.value)}
+            />
+            <Button
+              onClick={() => {
+                for (const shader of Examples) {
+                  addTestShader(shader);
+                }
+              }}
+            >
+              add test shaders
+            </Button>
+          </div>
+          <div className="flex flex-col">
+            {Examples.map((shader) => (
+              <Button key={shader.title} onClick={() => addTestShader(shader)}>
+                Add: {shader.title}
+              </Button>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 };

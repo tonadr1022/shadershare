@@ -15,10 +15,10 @@ type Props = {
 const ShaderRenderPreviewCard = ({ data: shader, show }: Props) => {
   const router = useRouter();
   const handleClick = useCallback(() => {
-    router.push(`/view/${shader.shader.id}`);
-  }, [router, shader.shader.id]);
+    router.push(`/view/${shader.id}`);
+  }, [router, shader.id]);
   return (
-    <div className="w-full h-auto" key={shader.shader.id}>
+    <div className="w-full h-auto" key={shader.id}>
       <RendererProvider username={shader.username} initialShaderData={shader}>
         <div className="cursor-pointer" onClick={handleClick}>
           <ShaderRenderer
@@ -31,7 +31,7 @@ const ShaderRenderPreviewCard = ({ data: shader, show }: Props) => {
       <div className="flex flex-row justify-between">
         <div className="flex flex-row gap-2 items-center">
           <p className="font-bold cursor-pointer" onClick={handleClick}>
-            {shader.shader.title}
+            {shader.title}
           </p>
           {(!show || show.usernames) && (
             <p className="text-sm">

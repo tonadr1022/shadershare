@@ -6,4 +6,5 @@ const (
 	AccessLevelPrivate AccessLevel = iota
 	AccessLevelPublic
 	AccessLevelUnlisted
+	AccessLevelNull
 )

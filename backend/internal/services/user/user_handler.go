@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"shadershare/internal/auth"
 	"shadershare/internal/domain"
-	"shadershare/internal/e"
 	"shadershare/internal/middleware"
 	"shadershare/internal/pkg/com"
 	"shadershare/internal/util"
@@ -28,7 +27,11 @@ func RegisterHandlers(baseUrl string, e *gin.Engine, r *gin.RouterGroup, shaderS
 
 	r.PUT("/profile", middleware.Auth(), h.updateProfile)
 	r.GET("/profile", middleware.Auth(), h.profile)
+	// me := r.Group("/me", middleware.Auth())
+	// me.GET("/", h.me)
+	// me.GET("/shaders", h.getUserShaders)
 	r.GET("/me", middleware.Auth(), h.me)
+	r.GET("/me/shaders", middleware.Auth(), h.getUserShaders)
 	r.POST("/logout", h.logout)
 }
 
@@ -70,44 +73,46 @@ func (h userHandler) loginWithProvider(c *gin.Context) {
 }
 
 func (h userHandler) profile(c *gin.Context) {
+	util.SetErrorResponse(c, http.StatusBadRequest, "Invalid category")
+}
+
+func (h userHandler) getUserShaders(c *gin.Context) {
 	userctx, ok := middleware.CurrentUser(c)
 	if !ok {
 		util.SetInternalServiceErrorResponse(c)
 		return
 	}
 
-	category := c.Query("show")
-
-	if category == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "show parameter is required"})
+	detailed := com.StrToBool(c.DefaultQuery("detailed", "false"))
+	limit, err := com.DefaultQueryIntCheck(c, "limit", -1)
+	if err != nil {
 		return
 	}
-	if category == "shaders" {
-		limit, err := com.IntQueryCheck(c, "limit")
-		if err != nil {
-			util.SetErrorResponse(c, http.StatusBadRequest, "Invalid limit")
-			return
-		}
-		if limit == 0 {
-			limit = 100000
-		}
-		offset, err := com.DefaultQueryIntCheck(c, "offset", 0)
-		if err != nil {
-			util.SetErrorResponse(c, http.StatusBadRequest, "Invalid offset")
-			return
-		}
-
-		shaders, err := h.shaderService.GetUserShaderList(c, userctx.ID, limit, offset)
-		if err != nil {
-			if err != e.ErrNotFound {
-				util.SetErrorResponse(c, http.StatusInternalServerError, "Internal Server Error")
-				return
-			}
-		}
-		c.JSON(http.StatusOK, shaders)
+	offset, err := com.DefaultQueryIntCheck(c, "offset", 0)
+	if err != nil {
 		return
 	}
-	util.SetErrorResponse(c, http.StatusBadRequest, "Invalid category")
+
+	getShadersReq := domain.ShaderListReq{
+		Limit:   limit,
+		Offset:  offset,
+		Sort:    c.Query("sort"),
+		SortAsc: com.StrToBool(c.DefaultQuery("asc", "false")),
+		Filter: domain.GetShaderFilter{
+			UserID:      userctx.ID,
+			AccessLevel: domain.AccessLevelNull,
+		},
+		ShaderReqBase: domain.ShaderReqBase{
+			Detailed:        detailed,
+			IncludeUserData: false,
+		},
+	}
+	shaders, err := h.shaderService.GetShaders(c, getShadersReq)
+	if err != nil {
+		util.SetInternalServiceErrorResponse(c)
+		return
+	}
+	c.JSON(http.StatusOK, shaders)
 }
 
 func (h userHandler) me(c *gin.Context) {
@@ -118,7 +123,7 @@ func (h userHandler) me(c *gin.Context) {
 	}
 	user, err := h.userService.GetUserByID(c, userctx.ID)
 	if err != nil {
-		fmt.Println("err getting user", err)
+		fmt.Println("get user err", err)
 		util.SetErrorResponse(c, http.StatusInternalServerError, "Internal Server Error")
 		return
 	}

@@ -299,7 +299,7 @@ export const MultiBufferEditor = React.memo(() => {
   const handleAddShaderOutput = useCallback(
     async (name: ShaderOutputName) => {
       const type = name === "Common" ? "common" : "buffer";
-      const shaderID = shaderDataRef.current.shader.id || "";
+      const shaderID = shaderDataRef.current.id || "";
       const newOutput: ShaderOutputFull = {
         name,
         type: type,

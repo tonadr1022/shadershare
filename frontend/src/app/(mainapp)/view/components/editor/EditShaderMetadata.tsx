@@ -59,13 +59,13 @@ const EditShaderMetadata = ({ initialData }: Props) => {
 
   let accessLevel = AccessLevel.PRIVATE;
   if (initialData) {
-    accessLevel = initialData.shader.access_level;
+    accessLevel = initialData.access_level;
   }
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      title: initialData?.shader.title || "",
-      description: initialData?.shader.description || "",
+      title: initialData?.title || "",
+      description: initialData?.description || "",
       access_level: accessLevel.toString(),
     },
   });
@@ -76,7 +76,7 @@ const EditShaderMetadata = ({ initialData }: Props) => {
     onError: toastAxiosErrors,
     onSuccess: (data: ShaderData) => {
       queryClient.invalidateQueries({ queryKey: ["shaders"] });
-      router.push(`/view/${data.shader.id}`);
+      router.push(`/view/${data.id}`);
     },
   });
 
@@ -106,15 +106,15 @@ const EditShaderMetadata = ({ initialData }: Props) => {
         return;
       }
 
-      const isUpdate = initialData?.shader.id;
+      const isUpdate = initialData?.id;
 
       const payload: ShaderUpdateCreatePayload = {
         title: values.title,
         description: values.description,
       };
       if (isUpdate) {
-        payload.id = initialData.shader.id;
-        payload.user_id = initialData.shader.user_id;
+        payload.id = initialData.id;
+        payload.user_id = initialData.user_id;
         const dirtyRenderPasses = shaderDataRef.current.shader_outputs.filter(
           (output) => codeDirtyRef.current.get(output.name),
         );
@@ -132,7 +132,7 @@ const EditShaderMetadata = ({ initialData }: Props) => {
       let previewFile: File | null = null;
       const needNewPreview = (shaderDirty && isUpdate) || !isUpdate;
       if (shaderDirty && isUpdate) {
-        payload.preview_img_url = initialData.shader.preview_img_url;
+        payload.preview_img_url = initialData.preview_img_url;
       }
 
       payload.shader_inputs = [];
@@ -154,10 +154,8 @@ const EditShaderMetadata = ({ initialData }: Props) => {
         }
       }
 
-      // TODO: invalidate queries for browse?
       payload.access_level = parseInt(values.access_level) as AccessLevel;
       if (isUpdate) {
-        console.log(payload, "pp");
         updateShaderMut.mutate({ data: payload, previewFile: previewFile });
       } else {
         createShaderMut.mutate({ data: payload, previewFile: previewFile! });
@@ -241,7 +239,7 @@ const EditShaderMetadata = ({ initialData }: Props) => {
           />
           <div className="flex flex-row items-center justify-center gap-2">
             <DeleteShaderDialog
-              shaderId={shaderDataRef.current.shader.id}
+              shaderId={shaderDataRef.current.id}
               redirectUrl="/"
             >
               <Button variant="destructive">

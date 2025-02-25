@@ -19,30 +19,59 @@ type shaderRepository struct {
 	db      *pgxpool.Pool
 }
 
-func (r shaderRepository) GetShadersWithUsernames(ctx context.Context, sort string, limit int, offset int, accessLevel domain.AccessLevel) (*domain.ShadersWithUsernamesResp, error) {
-	shaders, err := r.queries.GetShadersWithUser(ctx, db.GetShadersWithUserParams{Limit: int32(limit), Offset: int32(offset), AccessLevel: int16(accessLevel)})
-	if err != nil {
-		return nil, err
+func mapShaderFields(row interface{}) domain.Shader {
+	res := domain.Shader{}
+	switch r := row.(type) {
+	case db.ShaderDetail:
+		res.PreviewImgURL = r.PreviewImgUrl.String
+		res.ID = r.ID
+		res.Title = r.Title
+		res.Description = r.Description.String
+		res.AccessLevel = domain.AccessLevel(r.AccessLevel)
+		res.UserID = r.UserID
+		res.CreatedAt = r.CreatedAt.Time
+		res.UpdatedAt = r.UpdatedAt.Time
+	case db.ShaderDetailsWithUser:
+		res.PreviewImgURL = r.PreviewImgUrl.String
+		res.ID = r.ID
+		res.Title = r.Title
+		res.Description = r.Description.String
+		res.AccessLevel = domain.AccessLevel(r.AccessLevel)
+		res.UserID = r.UserID
+		res.CreatedAt = r.CreatedAt.Time
+		res.UpdatedAt = r.UpdatedAt.Time
+	case db.Shader:
+		res.PreviewImgURL = r.PreviewImgUrl.String
+		res.ID = r.ID
+		res.Title = r.Title
+		res.Description = r.Description.String
+		res.AccessLevel = domain.AccessLevel(r.AccessLevel)
+		res.UserID = r.UserID
+		res.CreatedAt = r.CreatedAt.Time
+		res.UpdatedAt = r.UpdatedAt.Time
+	case db.ShaderWithUser:
+		res.PreviewImgURL = r.PreviewImgUrl.String
+		res.ID = r.ID
+		res.Title = r.Title
+		res.Description = r.Description.String
+		res.AccessLevel = domain.AccessLevel(r.AccessLevel)
+		res.UserID = r.UserID
+		res.CreatedAt = r.CreatedAt.Time
+		res.UpdatedAt = r.UpdatedAt.Time
 	}
-	resp := &domain.ShadersWithUsernamesResp{}
-	resp.Total = int64(len(shaders))
-	resp.Shaders = make([]domain.ShaderWithUsername, len(shaders))
-	for i, dbShader := range shaders {
-		resp.Shaders[i] = domain.ShaderWithUsername{
-			Shader: domain.Shader{
-				ID:            dbShader.ID,
-				Title:         dbShader.Title,
-				Description:   dbShader.Description.String,
-				AccessLevel:   domain.AccessLevel(dbShader.AccessLevel),
-				PreviewImgURL: dbShader.PreviewImgUrl.String,
-				UserID:        dbShader.UserID,
-				CreatedAt:     dbShader.CreatedAt.Time,
-				UpdatedAt:     dbShader.UpdatedAt.Time,
-			},
-			Username: dbShader.Username,
-		}
+	switch r := row.(type) {
+	case db.ShaderDetail:
+		res.ShaderOutput = r.Outputs
+	case db.ShaderDetailsWithUser:
+		res.ShaderOutput = r.Outputs
 	}
-	return resp, nil
+	switch r := row.(type) {
+	case db.ShaderDetailsWithUser:
+		res.Username = r.Username
+	case db.ShaderWithUser:
+		res.Username = r.Username
+	}
+	return res
 }
 
 func (r shaderRepository) DeleteShader(ctx context.Context, userID uuid.UUID, shaderID uuid.UUID) (*domain.Shader, error) {
@@ -149,7 +178,7 @@ func (r shaderRepository) shaderOutputFromDB(dbShaderOutput db.ShaderOutput) dom
 	}
 }
 
-func (r shaderRepository) CreateShader(ctx context.Context, userID uuid.UUID, shaderPayload domain.CreateShaderPayload) (*domain.ShaderDetailed, error) {
+func (r shaderRepository) CreateShader(ctx context.Context, userID uuid.UUID, shaderPayload domain.CreateShaderPayload) (*domain.Shader, error) {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
 		return nil, err
@@ -201,8 +230,13 @@ func (r shaderRepository) CreateShader(ctx context.Context, userID uuid.UUID, sh
 	if err != nil {
 		return nil, err
 	}
-	shaderWithRenderPasses := &domain.ShaderDetailed{Shader: r.ShaderFromDB(shader), ShaderOutputs: resultOutputs}
-	return shaderWithRenderPasses, nil
+	shaderWithRenderPasses := mapShaderFields(shader)
+	bytes, err := json.Marshal(resultOutputs)
+	if err != nil {
+		return nil, err
+	}
+	shaderWithRenderPasses.ShaderOutput = bytes
+	return &shaderWithRenderPasses, nil
 }
 
 func NewShaderRepository(db *pgxpool.Pool, queries *db.Queries) domain.ShaderRepository {
@@ -212,79 +246,25 @@ func NewShaderRepository(db *pgxpool.Pool, queries *db.Queries) domain.ShaderRep
 	}
 }
 
-func (r shaderRepository) GetShadersDetailedWithUsernames(ctx context.Context, sort string, limit int, offset int, accessLevel domain.AccessLevel) (*domain.ShadersDetailedWithUsernamesResp, error) {
-	res, err := r.queries.GetShaderDetailedWithUserList(ctx, db.GetShaderDetailedWithUserListParams{Limit: int32(limit), Offset: int32(offset), AccessLevel: int16(accessLevel)})
-	if err != nil {
-		return nil, err
+func toPGUUID(id uuid.UUID) pgtype.UUID {
+	if id == uuid.Nil {
+		return pgtype.UUID{Valid: false}
 	}
-
-	apiShaders := &domain.ShadersDetailedWithUsernamesResp{}
-	apiShaders.Shaders = make([]domain.ShaderDetailedWithUser, len(res))
-	for i, row := range res {
-		shaderDetailed := &domain.ShaderDetailedWithUser{
-			ShaderDetailedResponse: domain.ShaderDetailedResponse{
-				Shader: domain.Shader{
-					ID:            row.ID,
-					Title:         row.Title,
-					Description:   row.Description.String,
-					UserID:        row.UserID,
-					AccessLevel:   domain.AccessLevel(row.AccessLevel),
-					PreviewImgURL: row.PreviewImgUrl.String,
-					CreatedAt:     row.CreatedAt.Time,
-					UpdatedAt:     row.UpdatedAt.Time,
-				},
-				ShaderOutputs: row.Outputs,
-			},
-			Username: row.Username,
-		}
-
-		apiShaders.Shaders[i] = *shaderDetailed
-	}
-	return apiShaders, nil
+	return pgtype.UUID{Bytes: id, Valid: true}
 }
 
-func (r shaderRepository) GetShadersListDetailed(ctx context.Context, sort string, limit int, offset int, accessLevel domain.AccessLevel) ([]domain.ShaderDetailedResponse, error) {
-	detailedShaders, err := r.queries.GetShaderDetailedList(ctx, db.GetShaderDetailedListParams{Limit: int32(limit), Offset: int32(offset), AccessLevel: int16(accessLevel)})
-	if err != nil {
-		return nil, err
+func toPGInt2(v *int) pgtype.Int2 {
+	if v == nil {
+		return pgtype.Int2{Valid: false}
 	}
-	result := make([]domain.ShaderDetailedResponse, len(detailedShaders))
-	for i, row := range detailedShaders {
-		res := domain.ShaderDetailedResponse{
-			Shader: domain.Shader{
-				ID:            row.ID,
-				Title:         row.Title,
-				Description:   row.Description.String,
-				UserID:        row.UserID,
-				AccessLevel:   domain.AccessLevel(row.AccessLevel),
-				PreviewImgURL: row.PreviewImgUrl.String,
-				CreatedAt:     row.CreatedAt.Time,
-				UpdatedAt:     row.UpdatedAt.Time,
-			},
-			ShaderOutputs: row.Outputs,
-		}
-		result[i] = res
-	}
-	return result, nil
+	return pgtype.Int2{Valid: true, Int16: int16(*v)}
 }
 
-func (r shaderRepository) GetShaderList(ctx context.Context, sort string, limit int, offset int, userID *uuid.UUID, accessLevel domain.AccessLevel) (*domain.GetShaderListResp, error) {
-	var dbShaders []db.Shader
-	var err error
-
-	if userID != nil {
-		dbShaders, err = r.queries.GetUserShaderList(ctx, db.GetUserShaderListParams{UserID: *userID, Limit: int32(limit), Offset: int32(offset)})
-	} else {
-		dbShaders, err = r.queries.ListShaders(ctx, db.ListShadersParams{Limit: int32(limit), Offset: int32(offset), AccessLevel: int16(accessLevel)})
+func accessLevelToPgInt(access domain.AccessLevel) pgtype.Int2 {
+	if access == domain.AccessLevelNull {
+		return pgtype.Int2{Int16: 1, Valid: false}
 	}
-	if err != nil {
-		return nil, err
-	}
-	apiShaders := make([]domain.Shader, len(dbShaders))
-	for i, dbShader := range dbShaders {
-		apiShaders[i] = r.ShaderFromDB(dbShader)
-	}
-	return &domain.GetShaderListResp{Shaders: apiShaders, Total: int64(len(apiShaders))}, nil
+	return pgtype.Int2{Valid: true, Int16: int16(access)}
 }
 
 func (r shaderRepository) ShaderFromDB(dbShader db.Shader) domain.Shader {
@@ -298,15 +278,10 @@ func (r shaderRepository) ShaderFromDB(dbShader db.Shader) domain.Shader {
 		CreatedAt:     dbShader.CreatedAt.Time,
 		UpdatedAt:     dbShader.UpdatedAt.Time,
 	}
-
-	if dbShader.PreviewImgUrl.Valid {
-		shader.PreviewImgURL = dbShader.PreviewImgUrl.String
-	}
 	return shader
 }
 
 func (r shaderRepository) UpdateShader(ctx context.Context, userID uuid.UUID, shaderID uuid.UUID, updatePayload domain.UpdateShaderPayload) (*domain.Shader, error) {
-	fmt.Println(updatePayload)
 	params := db.UpdateShaderParams{
 		ID:     shaderID,
 		UserID: userID,
@@ -378,18 +353,6 @@ func (r shaderRepository) UpdateShader(ctx context.Context, userID uuid.UUID, sh
 	return &shader, nil
 }
 
-func (r shaderRepository) GetUserShaderList(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]domain.Shader, error) {
-	dbShaders, err := r.queries.GetUserShaderList(ctx, db.GetUserShaderListParams{UserID: userID, Limit: int32(limit), Offset: int32(offset)})
-	if err != nil {
-		return nil, err
-	}
-	apiShaders := make([]domain.Shader, len(dbShaders))
-	for i, dbShader := range dbShaders {
-		apiShaders[i] = r.ShaderFromDB(dbShader)
-	}
-	return apiShaders, nil
-}
-
 func (r shaderRepository) unmarshalShaderOutput(data []byte) ([]domain.ShaderOutput, error) {
 	if len(data) == 0 {
 		return []domain.ShaderOutput{}, nil
@@ -412,54 +375,99 @@ func (r shaderRepository) unmarshalShaderInput(data []byte) ([]domain.ShaderInpu
 	return shaderInputs, nil
 }
 
-func (r shaderRepository) GetShader(ctx context.Context, shaderID uuid.UUID) (*domain.ShaderDetailedResponse, error) {
-	row, err := r.queries.GetShaderDetailed(ctx, shaderID)
+func (r shaderRepository) GetShader(ctx context.Context, req domain.ShaderByIdReq) (*domain.Shader, error) {
+	var row interface{}
+	var err error
+	if req.Detailed {
+		if req.IncludeUserData {
+			row, err = r.queries.GetShaderDetailedWithUser(ctx, req.ID)
+		} else {
+			row, err = r.queries.GetShaderDetailed(ctx, req.ID)
+		}
+	} else {
+		if req.IncludeUserData {
+			row, err = r.queries.GetShaderWithUser(ctx, req.ID)
+		} else {
+			row, err = r.queries.GetShader(ctx, req.ID)
+		}
+	}
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, e.ErrNotFound
 		}
 	}
+	shader := mapShaderFields(row)
+	return &shader, nil
+}
 
-	res := &domain.ShaderDetailedResponse{
-		Shader: domain.Shader{
-			ID:            row.ID,
-			Title:         row.Title,
-			Description:   row.Description.String,
-			UserID:        row.UserID,
-			AccessLevel:   domain.AccessLevel(row.AccessLevel),
-			PreviewImgURL: row.PreviewImgUrl.String,
-			CreatedAt:     row.CreatedAt.Time,
-			UpdatedAt:     row.UpdatedAt.Time,
-		},
-		ShaderOutputs: row.Outputs,
+func (r shaderRepository) GetShaderCount(ctx context.Context, filter domain.GetShaderFilter) (int64, error) {
+	return r.queries.CountShaders(ctx, db.CountShadersParams{
+		UserID:      toPGUUID(filter.UserID),
+		AccessLevel: accessLevelToPgInt(filter.AccessLevel),
+	})
+}
+
+func offLimToPgType(val int) pgtype.Int4 {
+	if val < 0 {
+		return pgtype.Int4{Int32: -1, Valid: false}
 	}
-	return res, nil
+	return pgtype.Int4{Valid: true, Int32: int32(val)}
 }
 
-func (r shaderRepository) GetShaderCount(ctx context.Context) (int64, error) {
-	return r.queries.GetShaderCount(ctx)
-}
-
-func (r shaderRepository) GetShaderWithUser(ctx context.Context, shaderID uuid.UUID) (*domain.ShaderDetailedWithUser, error) {
-	row, err := r.queries.GetShaderDetailedWithUser(ctx, shaderID)
+func (r shaderRepository) GetShaders(ctx context.Context, req domain.ShaderListReq) ([]domain.Shader, error) {
+	var dbShaders interface{}
+	var err error
+	if req.Detailed {
+		if req.IncludeUserData {
+			dbShaders, err = r.queries.ListShadersDetailedWithUser(ctx, db.ListShadersDetailedWithUserParams{
+				Lim:         offLimToPgType(req.Limit),
+				Off:         offLimToPgType(req.Offset),
+				AccessLevel: accessLevelToPgInt(req.Filter.AccessLevel),
+			})
+		} else {
+			dbShaders, err = r.queries.ListShadersDetailed(ctx, db.ListShadersDetailedParams{
+				UserID:      toPGUUID(req.Filter.UserID),
+				AccessLevel: accessLevelToPgInt(req.Filter.AccessLevel),
+				Off:         int32(req.Offset),
+				Lim:         offLimToPgType(req.Limit),
+			})
+		}
+	} else {
+		if req.IncludeUserData {
+			dbShaders, err = r.queries.ListShadersWithUser(ctx, db.ListShadersWithUserParams{
+				Lim:         offLimToPgType(req.Limit),
+				Off:         int32(req.Offset),
+				AccessLevel: accessLevelToPgInt(req.Filter.AccessLevel),
+			})
+		} else {
+			dbShaders, err = r.queries.ListShaders4(ctx, db.ListShaders4Params{
+				Lim:         offLimToPgType(req.Limit),
+				Off:         int32(req.Offset),
+				AccessLevel: accessLevelToPgInt(req.Filter.AccessLevel),
+			})
+		}
+	}
 	if err != nil {
-		return nil, db.TransformErrNoRows(err)
+		return nil, err
 	}
-	shaderDetailed := &domain.ShaderDetailedWithUser{
-		ShaderDetailedResponse: domain.ShaderDetailedResponse{
-			Shader: domain.Shader{
-				ID:            row.ID,
-				Title:         row.Title,
-				Description:   row.Description.String,
-				UserID:        row.UserID,
-				AccessLevel:   domain.AccessLevel(row.AccessLevel),
-				PreviewImgURL: row.PreviewImgUrl.String,
-				CreatedAt:     row.CreatedAt.Time,
-				UpdatedAt:     row.UpdatedAt.Time,
-			},
-			ShaderOutputs: row.Outputs,
-		},
-		Username: row.Username,
+	switch v := dbShaders.(type) {
+	case []db.Shader:
+		return processShaders(v)
+	case []db.ShaderDetail:
+		return processShaders(v)
+	case []db.ShaderDetailsWithUser:
+		return processShaders(v)
+	case []db.ShaderWithUser:
+		return processShaders(v)
+	default:
+		return nil, fmt.Errorf("unexpected type: %T", dbShaders)
 	}
-	return shaderDetailed, nil
+}
+
+func processShaders[T any](shaders []T) ([]domain.Shader, error) {
+	result := make([]domain.Shader, len(shaders))
+	for i, shader := range shaders {
+		result[i] = mapShaderFields(shader)
+	}
+	return result, nil
 }

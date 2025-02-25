@@ -11,7 +11,7 @@ const ViewPage = () => {
   const meQuery = useGetMe();
   const params = useParams<{ shaderId: string }>();
   const dataQuery = useQuery({
-    queryFn: () => getShader(params.shaderId),
+    queryFn: () => getShader(params.shaderId, true),
     queryKey: ["shaders", params.shaderId],
   });
   const anyError = meQuery.isError || dataQuery.isError;

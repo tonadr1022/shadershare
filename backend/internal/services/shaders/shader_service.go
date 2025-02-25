@@ -17,10 +17,6 @@ type shaderService struct {
 	fileStore filestore.FileStore
 }
 
-func (s shaderService) GetShadersWithUsernames(ctx context.Context, sort string, limit int, offset int, accessLevel domain.AccessLevel) (*domain.ShadersWithUsernamesResp, error) {
-	return s.repo.GetShadersWithUsernames(ctx, sort, limit, offset, accessLevel)
-}
-
 func NewShaderService(repo domain.ShaderRepository, userRepo domain.UserRepository, fileStore filestore.FileStore) domain.ShaderService {
 	return &shaderService{repo, userRepo, fileStore}
 }
@@ -39,10 +35,6 @@ func (s shaderService) DeleteShader(ctx context.Context, userID uuid.UUID, shade
 	return err
 }
 
-func (s shaderService) GetUserShaderList(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]domain.Shader, error) {
-	return s.repo.GetUserShaderList(ctx, userID, limit, offset)
-}
-
 func (s shaderService) UpdateShader(ctx context.Context, userID uuid.UUID, shaderID uuid.UUID, updatePayload domain.UpdateShaderPayload, file *multipart.FileHeader) (*domain.Shader, error) {
 	shader, err := s.repo.UpdateShader(ctx, userID, shaderID, updatePayload)
 	if err != nil {
@@ -59,11 +51,50 @@ func (s shaderService) UpdateShader(ctx context.Context, userID uuid.UUID, shade
 	return shader, nil
 }
 
-func (s shaderService) GetShaderList(ctx context.Context, sort string, limit int, offset int, userID *uuid.UUID, accessLevel domain.AccessLevel) (*domain.GetShaderListResp, error) {
-	return s.repo.GetShaderList(ctx, sort, limit, offset, userID, accessLevel)
+const (
+	defaultDetailedShaderLim = 50
+	defaultShaderLim         = 100
+	maxShaderLim             = 100
+	maxDetailedShaderLim     = 50
+)
+
+func transformLimit(limit int, detailed bool) int {
+	var maxLim int
+	var defaultLim int
+	if detailed {
+		maxLim = maxDetailedShaderLim
+		defaultLim = defaultDetailedShaderLim
+	} else {
+		maxLim = maxShaderLim
+		defaultLim = defaultShaderLim
+	}
+	limit = min(limit, maxLim)
+	if limit < 0 {
+		limit = defaultLim
+	}
+	return limit
 }
 
-func (s shaderService) CreateShader(ctx context.Context, userID uuid.UUID, shaderPayload domain.CreateShaderPayload, file *multipart.FileHeader) (*domain.ShaderDetailed, error) {
+func (s shaderService) GetShaders(ctx context.Context, req domain.ShaderListReq) (*domain.ShaderResponse, error) {
+	req.Offset = max(req.Offset, 0)
+	if req.Filter.UserID == uuid.Nil {
+		req.Limit = transformLimit(req.Limit, req.Detailed)
+	}
+	count, err := s.repo.GetShaderCount(ctx, req.Filter)
+	if err != nil {
+		return nil, err
+	}
+	shaders, err := s.repo.GetShaders(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	if shaders == nil {
+		shaders = []domain.Shader{}
+	}
+	return &domain.ShaderResponse{Total: count, Shaders: shaders}, nil
+}
+
+func (s shaderService) CreateShader(ctx context.Context, userID uuid.UUID, shaderPayload domain.CreateShaderPayload, file *multipart.FileHeader) (*domain.Shader, error) {
 	file.Filename = randomFileName(".png")
 	fileUrl, err := s.fileStore.UploadFile(file)
 	if err != nil {
@@ -78,8 +109,8 @@ func (s shaderService) CreateShader(ctx context.Context, userID uuid.UUID, shade
 	return shader, nil
 }
 
-func (s shaderService) GetShader(ctx context.Context, shaderID uuid.UUID) (*domain.ShaderDetailedResponse, error) {
-	return s.repo.GetShader(ctx, shaderID)
+func (s shaderService) GetShader(ctx context.Context, req domain.ShaderByIdReq) (*domain.Shader, error) {
+	return s.repo.GetShader(ctx, req)
 }
 
 func (s shaderService) CreateShaderInput(ctx context.Context, input domain.CreateShaderInputPayload) (*domain.ShaderInput, error) {
@@ -98,27 +129,6 @@ func (s shaderService) DeleteShaderOutput(ctx context.Context, outputID uuid.UUI
 	return s.repo.DeleteShaderOutput(ctx, outputID)
 }
 
-func (s shaderService) GetShadersDetailedWithUsernames(ctx context.Context, sort string, limit int, offset int, accessLevel domain.AccessLevel) (*domain.ShadersDetailedWithUsernamesResp, error) {
-	result, err := s.repo.GetShadersDetailedWithUsernames(ctx, sort, limit, offset, accessLevel)
-	if err != nil {
-		return nil, err
-	}
-	// TODO: cache??
-	result.Total, err = s.repo.GetShaderCount(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
-}
-
-func (s shaderService) GetShadersListDetailed(ctx context.Context, sort string, limit int, offset int, accessLevel domain.AccessLevel) ([]domain.ShaderDetailedResponse, error) {
-	return s.repo.GetShadersListDetailed(ctx, sort, limit, offset, accessLevel)
-}
-
-func (s shaderService) GetShaderCount(ctx context.Context) (int64, error) {
-	return s.repo.GetShaderCount(ctx)
-}
-
-func (s shaderService) GetShaderWithUser(ctx context.Context, shaderID uuid.UUID) (*domain.ShaderDetailedWithUser, error) {
-	return s.repo.GetShaderWithUser(ctx, shaderID)
+func (s shaderService) GetShaderCount(ctx context.Context, filter domain.GetShaderFilter) (int64, error) {
+	return s.repo.GetShaderCount(ctx, filter)
 }

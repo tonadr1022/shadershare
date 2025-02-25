@@ -129,69 +129,49 @@ func (h ShaderHandler) createShader(c *gin.Context) {
 	c.JSON(http.StatusOK, shader)
 }
 
-// TODO: handle basic, not detailed
 func (h ShaderHandler) getShaderList(c *gin.Context) {
 	sort := c.DefaultQuery("sort", "popularity")
 	var err error
 	detailed := com.StrToBool(c.DefaultQuery("detailed", "false"))
 
+	userID := uuid.Nil
+
 	userIDStr := c.Query("user_id")
-	var userID *uuid.UUID
 	if userIDStr != "" {
 		id, err := uuid.Parse(userIDStr)
 		if err != nil {
 			util.SetErrorResponse(c, http.StatusBadRequest, "Invalid user ID")
 			return
 		}
-		userID = &id
-	}
-	var maxLimit int
-	if detailed {
-		maxLimit = 20
-	} else {
-		maxLimit = 200
-	}
-	var defaultLimit int
-	if detailed {
-		defaultLimit = 10
-	} else {
-		defaultLimit = 100
+		userID = id
 	}
 
-	limit, err := com.DefaultQueryIntCheck(c, "limit", defaultLimit)
+	limit, err := com.DefaultQueryIntCheck(c, "limit", -1)
 	if err != nil {
 		return
 	}
-	limit = min(limit, maxLimit)
-
 	offset, err := com.DefaultQueryIntCheck(c, "offset", 0)
 	if err != nil {
 		return
 	}
-
 	// includes query params is an array of strings
 	includeQuery := c.DefaultQuery("include", "")
 	includes := strings.Split(includeQuery, ",")
-	var shaders interface{}
-	if slices.Contains(includes, "username") {
-		if userID != nil {
-			util.SetErrorResponse(c, http.StatusBadRequest, "Cannot specify user_id and include username")
-			return
-		}
-		if detailed {
-			shaders, err = h.service.GetShadersDetailedWithUsernames(c, sort, limit, offset, domain.AccessLevelPublic)
-		} else {
-			shaders, err = h.service.GetShadersWithUsernames(c, sort, limit, offset, domain.AccessLevelPublic)
-		}
-	} else {
-		if detailed {
-			util.SetErrorResponse(c, http.StatusBadRequest, "Detailed shaders are not supported without username include")
-			return
-		} else {
-			shaders, err = h.service.GetShaderList(c, sort, limit, offset, userID, domain.AccessLevelPublic)
-			fmt.Println("shaders: ", shaders)
-		}
+	includeUser := slices.Contains(includes, "username")
+	getShadersReq := domain.ShaderListReq{
+		Sort:   sort,
+		Limit:  limit,
+		Offset: offset,
+		Filter: domain.GetShaderFilter{
+			UserID:      userID,
+			AccessLevel: domain.AccessLevelPublic,
+		},
+		ShaderReqBase: domain.ShaderReqBase{
+			Detailed:        detailed,
+			IncludeUserData: includeUser,
+		},
 	}
+	shaders, err := h.service.GetShaders(c, getShadersReq)
 	if err != nil {
 		util.SetInternalServiceErrorResponse(c)
 		return
@@ -205,14 +185,19 @@ func (h ShaderHandler) getShader(c *gin.Context) {
 		util.SetErrorResponse(c, http.StatusNotFound, "Shader not found")
 		return
 	}
+	detailed := com.StrToBool(c.DefaultQuery("detailed", "false"))
 	includeQuery := c.DefaultQuery("include", "")
 	includes := strings.Split(includeQuery, ",")
-	var shader interface{}
-	if slices.Contains(includes, "username") {
-		shader, err = h.service.GetShaderWithUser(c, shaderID)
-	} else {
-		shader, err = h.service.GetShader(c, shaderID)
+	includeUser := slices.Contains(includes, "username")
+
+	getShaderReq := domain.ShaderByIdReq{
+		ID: shaderID,
+		ShaderReqBase: domain.ShaderReqBase{
+			Detailed:        detailed,
+			IncludeUserData: includeUser,
+		},
 	}
+	shader, err := h.service.GetShader(c, getShaderReq)
 	if err != nil {
 		if err == e.ErrNotFound {
 			util.SetErrorResponse(c, http.StatusNotFound, "Shader not found")
@@ -338,7 +323,6 @@ func (h ShaderHandler) deleteShader(c *gin.Context) {
 }
 
 func (h ShaderHandler) getShadertoyShader(c *gin.Context) {
-	fmt.Println("id: ", c.Param("id"))
 	resp, err := http.Get(fmt.Sprintf("https://www.shadertoy.com/api/v1/shaders/%s?key=rdHlhm", c.Param("id")))
 	if resp.StatusCode == http.StatusForbidden || err != nil {
 		util.SetInternalServiceErrorResponse(c)

@@ -7,6 +7,57 @@ SELECT * FROM shaders
 WHERE access_level = $3
 ORDER BY id LIMIT $1 OFFSET $2;
 
+-- name: GetUserShaderList :many 
+SELECT * FROM shaders 
+WHERE user_id = $1
+LIMIT $2 OFFSET $3;
+
+-- name: ListShaders4 :many
+SELECT *
+FROM shaders
+WHERE 
+  (user_id = sqlc.narg(user_id) OR sqlc.narg(user_id) IS NULL) AND
+  (access_level = sqlc.narg(access_level) OR sqlc.narg(access_level) IS NULL)
+ORDER BY updated_at DESC
+LIMIT sqlc.narg(lim)::int
+OFFSET @off::int;
+
+-- name: ListShadersWithUser :many
+SELECT s.*
+FROM shader_with_user s
+WHERE 
+  (s.access_level = sqlc.narg(access_level) OR sqlc.narg(access_level) IS NULL)
+ORDER BY s.updated_at DESC
+LIMIT sqlc.narg(lim)::int
+OFFSET @off::int;
+
+-- name: ListShadersDetailed :many
+SELECT sd.*
+FROM shader_details sd
+WHERE 
+  (user_id = sqlc.narg(user_id) OR sqlc.narg(user_id) IS NULL) AND
+  (access_level = sqlc.narg(access_level) OR sqlc.narg(access_level) IS NULL)
+ORDER BY sd.updated_at DESC
+LIMIT sqlc.narg(lim)::int
+OFFSET @off::int;
+
+-- name: ListShadersDetailedWithUser :many
+SELECT 
+sd.* from shader_details_with_user sd
+JOIN users u ON sd.user_id = u.id
+WHERE 
+  (access_level = sqlc.narg(access_level) OR sqlc.narg(access_level) IS NULL)
+ORDER BY sd.updated_at DESC
+LIMIT sqlc.narg(lim)::int
+OFFSET sqlc.narg(off)::int;
+
+-- name: CountShaders :one
+SELECT COUNT(*)
+FROM shaders
+WHERE
+    (user_id = sqlc.narg('user_id') OR sqlc.narg('user_id') IS NULL) AND
+    (access_level = sqlc.narg('access_level') OR sqlc.narg('access_level') IS NULL);
+
 -- name: CreateShader :one
 INSERT INTO shaders (
     title, description, user_id, preview_img_url, access_level
@@ -16,10 +67,6 @@ INSERT INTO shaders (
 ON CONFLICT (title) DO NOTHING
 RETURNING *;
 
--- name: GetUserShaderList :many 
-SELECT * FROM shaders 
-WHERE user_id = $1
-LIMIT $2 OFFSET $3;
 
 -- name: UpdateShader :one
 UPDATE shaders 
@@ -35,6 +82,5 @@ DELETE FROM shaders
 WHERE id = $1 AND user_id = $2 RETURNING *;
 
 -- name: GetShaderWithUser :one 
-SELECT s.*, u.username FROM shaders s
-JOIN users u ON s.user_id = u.id
+SELECT * FROM shader_with_user s
 WHERE s.id = $1;

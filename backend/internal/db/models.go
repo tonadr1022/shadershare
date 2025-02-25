@@ -32,6 +32,19 @@ type ShaderDetail struct {
 	Outputs       []byte
 }
 
+type ShaderDetailsWithUser struct {
+	ID            uuid.UUID
+	Title         string
+	Description   pgtype.Text
+	UserID        uuid.UUID
+	AccessLevel   int16
+	PreviewImgUrl pgtype.Text
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+	Outputs       []byte
+	Username      string
+}
+
 type ShaderInput struct {
 	ID         uuid.UUID
 	ShaderID   uuid.UUID
@@ -48,6 +61,18 @@ type ShaderOutput struct {
 	Code     string
 	Name     string
 	Type     string
+}
+
+type ShaderWithUser struct {
+	ID            uuid.UUID
+	Title         string
+	Description   pgtype.Text
+	UserID        uuid.UUID
+	AccessLevel   int16
+	PreviewImgUrl pgtype.Text
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+	Username      string
 }
 
 type User struct {

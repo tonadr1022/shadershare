@@ -150,8 +150,8 @@ const AddShaderInputDialog = ({ children, onSave, bufferName }: Props) => {
       throw new Error("invalid type");
     }
     newInput.output_id = output.id;
-    if (shaderDataRef.current.shader.id) {
-      newInput.shader_id = shaderDataRef.current.shader.id;
+    if (shaderDataRef.current.id) {
+      newInput.shader_id = shaderDataRef.current.id;
       createShaderInputMut.mutate(newInput);
     } else {
       afterCreateShaderInput(newInput);

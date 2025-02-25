@@ -222,9 +222,7 @@ const ShaderRenderer = ({
           )}
         >
           <div className="px-2 w-full h-[40px] flex items-center">
-            <h6 className="text-sm">
-              {shaderDataRef.current.shader.title} &nbsp;
-            </h6>
+            <h6 className="text-sm">{shaderDataRef.current.title} &nbsp;</h6>
             <p className="text-xs">
               by {shaderDataRef.current.username || "uh oh no username D:"}
             </p>
@@ -355,7 +353,7 @@ const ShaderRenderer = ({
                         {isShaderEmbed && (
                           <Link
                             prefetch={false}
-                            href={`/view/${shaderDataRef.current.shader.id}`}
+                            href={`/view/${shaderDataRef.current.id}`}
                             target="_blank"
                           >
                             <DropdownMenuItem className="cursor-pointer">
@@ -365,7 +363,7 @@ const ShaderRenderer = ({
                         )}
                         <Link
                           prefetch={false}
-                          href={`/embed/shader/${shaderDataRef.current.shader.id}`}
+                          href={`/embed/shader/${shaderDataRef.current.id}`}
                           target="_blank"
                         >
                           <DropdownMenuItem className="cursor-pointer">
@@ -385,7 +383,7 @@ const ShaderRenderer = ({
 
                         {embedOpen && (
                           <EmbedShaderText
-                            link={`https://www.shader-share.com/embed/shader/${shaderDataRef.current.shader.id}`}
+                            link={`https://www.shader-share.com/embed/shader/${shaderDataRef.current.id}`}
                           />
                         )}
                         {hoverOnlyPlay && (

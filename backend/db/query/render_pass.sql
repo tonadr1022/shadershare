@@ -73,30 +73,13 @@ ORDER BY s.updated_at DESC
 LIMIT $1 OFFSET $2;
 
 -- name: GetShaderDetailedWithUser :one
-SELECT 
-  sd.*, 
-  u.username
-FROM shader_details sd
-JOIN users u ON sd.user_id = u.id
-WHERE sd.id = $1;
+SELECT * from shader_details_with_user
+WHERE id = $1;
+
 
 -- name: GetShaderDetailedWithUserList :many
-SELECT 
-  sd.*, 
-  u.username
-FROM shader_details sd
-JOIN users u ON sd.user_id = u.id
+SELECT sd.* from shader_details_with_user sd
+LEFT JOIN users u ON sd.user_id = id
 WHERE sd.access_level = $3
 ORDER BY sd.updated_at DESC
 LIMIT $1 OFFSET $2;
-
-
--- name: GetShadersWithUser :many 
-SELECT s.*, u.username 
-FROM shaders s 
-JOIN users u ON s.user_id = u.id 
-WHERE s.access_level = $3
-ORDER BY s.updated_at DESC
-LIMIT $1 OFFSET $2;
-
-

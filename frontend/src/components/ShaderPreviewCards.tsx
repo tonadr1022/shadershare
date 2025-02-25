@@ -1,12 +1,12 @@
 "use client";
 
-import { ShaderListResp } from "@/types/shader";
+import { ShaderWithUser } from "@/types/shader";
 import React from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 
 type Props = {
-  data: ShaderListResp;
+  data: ShaderWithUser[];
   show?: { usernames: boolean };
 };
 
@@ -14,7 +14,7 @@ const ShaderPreviewCards = ({ data, show }: Props) => {
   const router = useRouter();
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 justify-center gap-4">
-      {data.shaders.map((shader) => (
+      {data.map((shader) => (
         <div
           className="w-full h-full cursor-pointer"
           onClick={() => router.push(`/view/${shader.id}`)}

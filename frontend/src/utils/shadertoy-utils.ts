@@ -260,22 +260,21 @@ export const shaderToyToShader = (stShader: ShaderToyShader) => {
   }
 
   const info = stShader.info;
-  const newShader: ShaderData = {
-    shader: {
-      id: "",
-      user_id: "",
-      access_level: AccessLevel.PRIVATE,
-      created_at: "",
-      preview_img_url: "",
-      updated_at: "",
-      description: `Imported From Shadertoy.
-Shader authored by: ${info.username}.
-See original at https://shadertoy.com/view/${info.id}
-${info.description}
+  let description = "Imported From Shadertoy";
+  if (info.username) {
+    description += "Shader authored by: " + info.username;
+  }
+  description += `See original at https://shadertoy.com/view/${info.id}`;
 
-`,
-      title: `${info.name} [From Shadertoy, by ${info.username}]`,
-    },
+  const newShader: ShaderData = {
+    id: "",
+    user_id: "",
+    access_level: AccessLevel.PRIVATE,
+    created_at: "",
+    preview_img_url: "",
+    updated_at: "",
+    description,
+    title: `${info.name}`,
     shader_outputs,
   };
 

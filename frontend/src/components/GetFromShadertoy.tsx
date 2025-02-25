@@ -24,10 +24,12 @@ const GetFromShadertoy = () => {
     },
     enabled: false,
   });
+  console.log(data, error);
 
   const handleClick = async () => {
     try {
       await refetch();
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
       toast.error("Error fetching data");
     }

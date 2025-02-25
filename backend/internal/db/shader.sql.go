@@ -12,6 +12,26 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countShaders = `-- name: CountShaders :one
+SELECT COUNT(*)
+FROM shaders
+WHERE
+    (user_id = $1 OR $1 IS NULL) AND
+    (access_level = $2 OR $2 IS NULL)
+`
+
+type CountShadersParams struct {
+	UserID      pgtype.UUID
+	AccessLevel pgtype.Int2
+}
+
+func (q *Queries) CountShaders(ctx context.Context, arg CountShadersParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countShaders, arg.UserID, arg.AccessLevel)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createShader = `-- name: CreateShader :one
 INSERT INTO shaders (
     title, description, user_id, preview_img_url, access_level
@@ -100,26 +120,13 @@ func (q *Queries) GetShader(ctx context.Context, id uuid.UUID) (Shader, error) {
 }
 
 const getShaderWithUser = `-- name: GetShaderWithUser :one
-SELECT s.id, s.title, s.description, s.user_id, s.access_level, s.preview_img_url, s.created_at, s.updated_at, u.username FROM shaders s
-JOIN users u ON s.user_id = u.id
+SELECT id, title, description, user_id, access_level, preview_img_url, created_at, updated_at, username FROM shader_with_user s
 WHERE s.id = $1
 `
 
-type GetShaderWithUserRow struct {
-	ID            uuid.UUID
-	Title         string
-	Description   pgtype.Text
-	UserID        uuid.UUID
-	AccessLevel   int16
-	PreviewImgUrl pgtype.Text
-	CreatedAt     pgtype.Timestamptz
-	UpdatedAt     pgtype.Timestamptz
-	Username      string
-}
-
-func (q *Queries) GetShaderWithUser(ctx context.Context, id uuid.UUID) (GetShaderWithUserRow, error) {
+func (q *Queries) GetShaderWithUser(ctx context.Context, id uuid.UUID) (ShaderWithUser, error) {
 	row := q.db.QueryRow(ctx, getShaderWithUser, id)
-	var i GetShaderWithUserRow
+	var i ShaderWithUser
 	err := row.Scan(
 		&i.ID,
 		&i.Title,
@@ -205,6 +212,205 @@ func (q *Queries) ListShaders(ctx context.Context, arg ListShadersParams) ([]Sha
 			&i.PreviewImgUrl,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listShaders4 = `-- name: ListShaders4 :many
+SELECT id, title, description, user_id, access_level, preview_img_url, created_at, updated_at
+FROM shaders
+WHERE 
+  (user_id = $1 OR $1 IS NULL) AND
+  (access_level = $2 OR $2 IS NULL)
+ORDER BY updated_at DESC
+LIMIT $4::int
+OFFSET $3::int
+`
+
+type ListShaders4Params struct {
+	UserID      pgtype.UUID
+	AccessLevel pgtype.Int2
+	Off         int32
+	Lim         pgtype.Int4
+}
+
+func (q *Queries) ListShaders4(ctx context.Context, arg ListShaders4Params) ([]Shader, error) {
+	rows, err := q.db.Query(ctx, listShaders4,
+		arg.UserID,
+		arg.AccessLevel,
+		arg.Off,
+		arg.Lim,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Shader
+	for rows.Next() {
+		var i Shader
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Description,
+			&i.UserID,
+			&i.AccessLevel,
+			&i.PreviewImgUrl,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listShadersDetailed = `-- name: ListShadersDetailed :many
+SELECT sd.id, sd.title, sd.description, sd.user_id, sd.access_level, sd.preview_img_url, sd.created_at, sd.updated_at, sd.outputs
+FROM shader_details sd
+WHERE 
+  (user_id = $1 OR $1 IS NULL) AND
+  (access_level = $2 OR $2 IS NULL)
+ORDER BY sd.updated_at DESC
+LIMIT $4::int
+OFFSET $3::int
+`
+
+type ListShadersDetailedParams struct {
+	UserID      pgtype.UUID
+	AccessLevel pgtype.Int2
+	Off         int32
+	Lim         pgtype.Int4
+}
+
+func (q *Queries) ListShadersDetailed(ctx context.Context, arg ListShadersDetailedParams) ([]ShaderDetail, error) {
+	rows, err := q.db.Query(ctx, listShadersDetailed,
+		arg.UserID,
+		arg.AccessLevel,
+		arg.Off,
+		arg.Lim,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ShaderDetail
+	for rows.Next() {
+		var i ShaderDetail
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Description,
+			&i.UserID,
+			&i.AccessLevel,
+			&i.PreviewImgUrl,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Outputs,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listShadersDetailedWithUser = `-- name: ListShadersDetailedWithUser :many
+SELECT 
+sd.id, sd.title, sd.description, sd.user_id, sd.access_level, sd.preview_img_url, sd.created_at, sd.updated_at, sd.outputs, sd.username from shader_details_with_user sd
+JOIN users u ON sd.user_id = u.id
+WHERE 
+  (access_level = $1 OR $1 IS NULL)
+ORDER BY sd.updated_at DESC
+LIMIT $3::int
+OFFSET $2::int
+`
+
+type ListShadersDetailedWithUserParams struct {
+	AccessLevel pgtype.Int2
+	Off         pgtype.Int4
+	Lim         pgtype.Int4
+}
+
+func (q *Queries) ListShadersDetailedWithUser(ctx context.Context, arg ListShadersDetailedWithUserParams) ([]ShaderDetailsWithUser, error) {
+	rows, err := q.db.Query(ctx, listShadersDetailedWithUser, arg.AccessLevel, arg.Off, arg.Lim)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ShaderDetailsWithUser
+	for rows.Next() {
+		var i ShaderDetailsWithUser
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Description,
+			&i.UserID,
+			&i.AccessLevel,
+			&i.PreviewImgUrl,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Outputs,
+			&i.Username,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listShadersWithUser = `-- name: ListShadersWithUser :many
+SELECT s.id, s.title, s.description, s.user_id, s.access_level, s.preview_img_url, s.created_at, s.updated_at, s.username
+FROM shader_with_user s
+WHERE 
+  (s.access_level = $1 OR $1 IS NULL)
+ORDER BY s.updated_at DESC
+LIMIT $3::int
+OFFSET $2::int
+`
+
+type ListShadersWithUserParams struct {
+	AccessLevel pgtype.Int2
+	Off         int32
+	Lim         pgtype.Int4
+}
+
+func (q *Queries) ListShadersWithUser(ctx context.Context, arg ListShadersWithUserParams) ([]ShaderWithUser, error) {
+	rows, err := q.db.Query(ctx, listShadersWithUser, arg.AccessLevel, arg.Off, arg.Lim)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ShaderWithUser
+	for rows.Next() {
+		var i ShaderWithUser
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Description,
+			&i.UserID,
+			&i.AccessLevel,
+			&i.PreviewImgUrl,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Username,
 		); err != nil {
 			return nil, err
 		}

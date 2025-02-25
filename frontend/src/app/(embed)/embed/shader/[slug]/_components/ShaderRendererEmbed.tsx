@@ -13,7 +13,7 @@ const ShaderRendererEmbed = () => {
   const [errMsg, setErrMsg] = useState("");
   const { data, isPending, isError } = useQuery({
     queryFn: () =>
-      getShaderWithUsername((shaderId as string | undefined) || ""),
+      getShaderWithUsername((shaderId as string | undefined) || "", true),
     retry: (failureCount, error) => {
       if (error.message.includes("404")) {
         setErrMsg("Shader not found D:");

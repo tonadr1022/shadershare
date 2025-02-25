@@ -5,8 +5,6 @@ import {
   flexRender,
   getCoreRowModel,
   getSortedRowModel,
-  OnChangeFn,
-  PaginationState,
   SortingState,
   useReactTable,
 } from "@tanstack/react-table";
@@ -33,11 +31,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useDeleteShader } from "@/hooks/hooks";
 
-type Props = {
-  data: ShaderMetadata[];
-  onPaginationChange: OnChangeFn<PaginationState>;
-  initialPaginationState: PaginationState;
-};
 const SortableHeader = ({
   column,
   name,
@@ -105,17 +98,16 @@ const columns: ColumnDef<ShaderMetadata>[] = [
   },
   {
     accessorKey: "created_at",
-    header: ({ column }) => (
-      <SortableHeader column={column} name="Created At" />
-    ),
+    header: ({ column }) => <SortableHeader column={column} name="Created" />,
     sortingFn: (rowA, rowB) => {
-      const dateA = new Date(rowA.getValue("created_at"));
-      const dateB = new Date(rowB.getValue("created_at"));
-      return dateA.getTime() - dateB.getTime();
+      return (
+        new Date(rowA.getValue("created_at")).getTime() -
+        new Date(rowB.getValue("created_at")).getTime()
+      );
     },
     cell: ({ row }) => {
       const date = new Date(row.getValue("created_at"));
-      return <div className="text-center">{date.toLocaleDateString()}</div>;
+      return <div className="">{date.toLocaleString()}</div>;
     },
   },
   {
@@ -129,7 +121,7 @@ const columns: ColumnDef<ShaderMetadata>[] = [
     cell: ({ row }) => {
       const val = row.getValue("access_level");
       return (
-        <div className="text-center">
+        <div className="">
           {val === AccessLevel.PRIVATE
             ? "Private"
             : val === AccessLevel.PUBLIC
@@ -168,91 +160,67 @@ function ActionDropdown({ shader }: { shader: ShaderMetadata }) {
   );
 }
 
-const ShaderTable = ({
-  data,
-  onPaginationChange,
-  initialPaginationState,
-}: Props) => {
+type Props = {
+  data: ShaderMetadata[];
+};
+const ShaderTable = ({ data }: Props) => {
   const [sorting, setSorting] = useState<SortingState>([]);
   const table = useReactTable({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    onPaginationChange,
+    manualPagination: true,
     onSortingChange: setSorting,
-    initialState: {
-      pagination: initialPaginationState,
-    },
     state: {
       sorting,
     },
   });
   return (
-    <div className="w-full flex flex-col gap-2 rounded-md border">
-      <Table>
-        <TableHeader>
-          {table.getHeaderGroups().map((headerGroup) => (
-            <TableRow key={headerGroup.id} className="border-none">
-              {headerGroup.headers.map((header) => (
-                <TableHead key={header.id} className="border-none">
-                  {header.isPlaceholder
-                    ? null
-                    : flexRender(
-                        header.column.columnDef.header,
-                        header.getContext(),
-                      )}
-                </TableHead>
+    <Table>
+      <TableHeader>
+        {table.getHeaderGroups().map((headerGroup) => (
+          <TableRow key={headerGroup.id} className="border-none">
+            {headerGroup.headers.map((header) => (
+              <TableHead key={header.id} className="border-none">
+                {header.isPlaceholder
+                  ? null
+                  : flexRender(
+                      header.column.columnDef.header,
+                      header.getContext(),
+                    )}
+              </TableHead>
+            ))}
+          </TableRow>
+        ))}
+      </TableHeader>
+      <TableBody>
+        {table.getRowModel().rows?.length ? (
+          table.getRowModel().rows.map((row) => (
+            <TableRow key={row.id}>
+              {row.getVisibleCells().map((cell) => (
+                <TableCell key={cell.id} className="border-none">
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                </TableCell>
               ))}
             </TableRow>
-          ))}
-        </TableHeader>
-        <TableBody>
-          {table.getRowModel().rows?.length ? (
-            table.getRowModel().rows.map((row) => (
-              <TableRow key={row.id}>
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id} className="border-none">
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
-                ))}
-              </TableRow>
-            ))
-          ) : (
-            <TableRow>
-              <TableCell colSpan={columns.length} className="h-24 text-center">
-                No Shaders...{"  "}
-                <Button
-                  asChild
-                  variant="link"
-                  className="p-0 h-auto text-primary"
-                >
-                  <Link href="/new">Create one!</Link>
-                </Button>
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
-      <div className="space-x-2">
-        <Button
-          onClick={() => table.previousPage()}
-          variant="outline"
-          size="sm"
-          disabled={!table.getCanPreviousPage()}
-        >
-          Previous
-        </Button>
-        <Button
-          onClick={() => table.nextPage()}
-          variant="outline"
-          size="sm"
-          disabled={!table.getCanNextPage()}
-        >
-          Next
-        </Button>
-      </div>
-    </div>
+          ))
+        ) : (
+          <TableRow>
+            <TableCell colSpan={columns.length} className="h-24 text-center">
+              No Shaders...{"  "}
+              <Button
+                asChild
+                variant="link"
+                className="p-0 h-auto text-primary"
+              >
+                <Link href="/new">Create one!</Link>
+              </Button>
+            </TableCell>
+          </TableRow>
+        )}
+      </TableBody>
+    </Table>
   );
 };
 

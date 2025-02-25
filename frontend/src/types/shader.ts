@@ -108,8 +108,7 @@ export type ShaderMetadata = {
   preview_img_url: string;
 };
 
-export type ShaderData = {
-  shader: ShaderMetadata;
+export type ShaderData = ShaderMetadata & {
   shader_outputs: ShaderOutputFull[];
 };
 

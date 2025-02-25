@@ -2,16 +2,14 @@ import { initialFragmentShaderText } from "@/app/(mainapp)/view/components/rende
 import { ShaderData } from "@/types/shader";
 
 export const SimpleMultipass: ShaderData = {
-  shader: {
-    id: "",
-    created_at: "",
-    updated_at: "",
-    preview_img_url: "",
-    access_level: 0,
-    user_id: "",
-    title: "SimpleMultipass",
-    description: "",
-  },
+  id: "",
+  created_at: "",
+  updated_at: "",
+  preview_img_url: "",
+  access_level: 0,
+  user_id: "",
+  title: "SimpleMultipass",
+  description: "",
   shader_outputs: [
     {
       name: "Buffer A",
@@ -44,17 +42,15 @@ export const SimpleMultipass: ShaderData = {
 };
 
 export const MultipassExample: ShaderData = {
-  shader: {
-    id: "",
-    created_at: "",
-    updated_at: "",
-    preview_img_url: "",
-    access_level: 0,
-    user_id: "",
-    title: "Multipass",
-    description:
-      "A simple multipass example. src: https://www.shadertoy.com/view/4ddSz4",
-  },
+  id: "",
+  created_at: "",
+  updated_at: "",
+  preview_img_url: "",
+  access_level: 0,
+  user_id: "",
+  title: "Multipass",
+  description:
+    "A simple multipass example. src: https://www.shadertoy.com/view/4ddSz4",
   shader_outputs: [
     {
       name: "Buffer A",
@@ -152,16 +148,14 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
 };
 
 export const DefaultNewShader: ShaderData = {
-  shader: {
-    id: "",
-    created_at: "",
-    updated_at: "",
-    title: "",
-    user_id: "",
-    access_level: 0,
-    preview_img_url: "",
-    description: "",
-  },
+  id: "",
+  created_at: "",
+  updated_at: "",
+  title: "",
+  user_id: "",
+  access_level: 0,
+  preview_img_url: "",
+  description: "",
   shader_outputs: [
     {
       name: "Image",
@@ -173,16 +167,14 @@ export const DefaultNewShader: ShaderData = {
 };
 
 export const TextureExample: ShaderData = {
-  shader: {
-    id: "",
-    created_at: "",
-    updated_at: "",
-    title: "TextureExample",
-    user_id: "",
-    access_level: 1,
-    preview_img_url: "",
-    description: "",
-  },
+  id: "",
+  created_at: "",
+  updated_at: "",
+  title: "TextureExample",
+  user_id: "",
+  access_level: 1,
+  preview_img_url: "",
+  description: "",
   shader_outputs: [
     {
       name: "Image",
@@ -209,16 +201,14 @@ export const TextureExample: ShaderData = {
 };
 
 export const MultiPassRed: ShaderData = {
-  shader: {
-    id: "",
-    created_at: "",
-    updated_at: "",
-    title: "MultiPassRed",
-    user_id: "",
-    access_level: 0,
-    preview_img_url: "",
-    description: "",
-  },
+  id: "",
+  created_at: "",
+  updated_at: "",
+  title: "MultiPassRed",
+  user_id: "",
+  access_level: 0,
+  preview_img_url: "",
+  description: "",
   shader_outputs: [
     {
       name: "Buffer A",
