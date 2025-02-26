@@ -18,7 +18,11 @@ FROM shaders
 WHERE 
   (user_id = sqlc.narg(user_id) OR sqlc.narg(user_id) IS NULL) AND
   (access_level = sqlc.narg(access_level) OR sqlc.narg(access_level) IS NULL)
-ORDER BY updated_at DESC
+ORDER BY
+    CASE WHEN sqlc.narg(order_by)::text = 'created_at_asc' THEN created_at END ASC,
+    CASE WHEN sqlc.narg(order_by)::text = 'created_at_desc' THEN created_at END DESC,
+    CASE WHEN sqlc.narg(order_by)::text = 'title_asc' THEN title END ASC,
+    CASE WHEN sqlc.narg(order_by)::text = 'title_desc' THEN title END DESC
 LIMIT sqlc.narg(lim)::int
 OFFSET @off::int;
 
@@ -27,13 +31,11 @@ SELECT s.*
 FROM shader_with_user s
 WHERE 
   (s.access_level = sqlc.narg(access_level) OR sqlc.narg(access_level) IS NULL)
-ORDER BY CASE
-    WHEN NOT @reverse::boolean AND @order_by::text = 'updated_at' THEN updated_at
-    WHEN NOT @reverse::boolean AND @order_by::text = 'title' THEN title
-END ASC, CASE 
-    WHEN @reverse::boolean AND @order_by::text = 'updated_at' THEN updated_at
-    WHEN @reverse::boolean AND @order_by::text = 'title' THEN title
-END DESC
+ORDER BY
+    CASE WHEN sqlc.narg(order_by)::text = 'created_at_asc' THEN s.created_at END ASC,
+    CASE WHEN sqlc.narg(order_by)::text = 'created_at_desc' THEN s.created_at END DESC,
+    CASE WHEN sqlc.narg(order_by)::text = 'title_asc' THEN s.title END ASC,
+    CASE WHEN sqlc.narg(order_by)::text = 'title_desc' THEN s.title END DESC
 LIMIT sqlc.narg(lim)::int
 OFFSET @off::int;
 
@@ -43,7 +45,11 @@ FROM shader_details sd
 WHERE 
   (user_id = sqlc.narg(user_id) OR sqlc.narg(user_id) IS NULL) AND
   (access_level = sqlc.narg(access_level) OR sqlc.narg(access_level) IS NULL)
-ORDER BY sd.updated_at DESC
+ORDER BY
+    CASE WHEN sqlc.narg(order_by)::text = 'created_at_asc' THEN sd.created_at END ASC,
+    CASE WHEN sqlc.narg(order_by)::text = 'created_at_desc' THEN sd.created_at END DESC,
+    CASE WHEN sqlc.narg(order_by)::text = 'title_asc' THEN sd.title END ASC,
+    CASE WHEN sqlc.narg(order_by)::text = 'title_desc' THEN sd.title END DESC
 LIMIT sqlc.narg(lim)::int
 OFFSET @off::int;
 
@@ -53,7 +59,11 @@ sd.* from shader_details_with_user sd
 JOIN users u ON sd.user_id = u.id
 WHERE 
   (access_level = sqlc.narg(access_level) OR sqlc.narg(access_level) IS NULL)
-ORDER BY sd.updated_at DESC
+ORDER BY
+    CASE WHEN sqlc.narg(order_by)::text = 'created_at_asc' THEN sd.created_at END ASC,
+    CASE WHEN sqlc.narg(order_by)::text = 'created_at_desc' THEN sd.created_at END DESC,
+    CASE WHEN sqlc.narg(order_by)::text = 'title_asc' THEN sd.title END ASC,
+    CASE WHEN sqlc.narg(order_by)::text = 'title_desc' THEN sd.title END DESC
 LIMIT sqlc.narg(lim)::int
 OFFSET sqlc.narg(off)::int;
 

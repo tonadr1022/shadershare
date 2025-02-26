@@ -1,11 +1,10 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback } from "react";
 import {
   Column,
   ColumnDef,
   flexRender,
   getCoreRowModel,
   getSortedRowModel,
-  SortingState,
   useReactTable,
 } from "@tanstack/react-table";
 import Image from "next/image";
@@ -29,35 +28,54 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useDeleteShader } from "@/hooks/hooks";
+import { useDeleteShader, useSortParams } from "@/hooks/hooks";
+import { usePathname, useRouter } from "next/navigation";
 
 const SortableHeader = ({
   column,
   name,
+  id,
 }: {
   column: Column<ShaderMetadata, unknown>;
   name: string;
+  id: string;
 }) => {
+  const { page, perPage, assembleParams, desc, sort } = useSortParams();
+  const pathname = usePathname();
+  const router = useRouter();
+
+  const onSortChange = () => {
+    let newDesc = false;
+    let newSort = sort;
+    if (sort !== null && sort !== "" && desc) {
+      newSort = "";
+    } else if (sort === null || sort === "" || sort !== id) {
+      newSort = id;
+      newDesc = false;
+    } else {
+      newDesc = !desc;
+      newSort = id;
+    }
+    router.replace(
+      `${pathname}?view=table&${assembleParams(page, perPage, newSort, newDesc)}`,
+    );
+  };
+
   return (
     <Button
       variant="ghost"
-      onClick={column.getToggleSortingHandler()}
+      onClick={onSortChange}
       className={cn(column.getIsSorted() && "text-primary")}
       title={
-        column.getCanSort()
-          ? column.getNextSortingOrder() === "asc"
-            ? "Sort Ascending"
-            : column.getNextSortingOrder() === "desc"
-              ? "Sort Descending"
-              : "Clear Sort"
-          : undefined
+        !sort || id !== sort
+          ? "Sort Ascending"
+          : desc
+            ? "Clear Sort"
+            : "Sort Descending"
       }
     >
       {name}
-      {{
-        asc: <ArrowUp />,
-        desc: <ArrowDown />,
-      }[column.getIsSorted() as string] ?? null}
+      {!sort || id !== sort ? null : desc ? <ArrowUp /> : <ArrowDown />}
     </Button>
   );
 };
@@ -87,7 +105,9 @@ const columns: ColumnDef<ShaderMetadata>[] = [
   },
   {
     accessorKey: "title",
-    header: ({ column }) => <SortableHeader column={column} name="Title" />,
+    header: ({ column }) => (
+      <SortableHeader id={"title"} column={column} name="Title" />
+    ),
     cell: ({ row }) => {
       return (
         <Button asChild variant="link">
@@ -98,7 +118,9 @@ const columns: ColumnDef<ShaderMetadata>[] = [
   },
   {
     accessorKey: "created_at",
-    header: ({ column }) => <SortableHeader column={column} name="Created" />,
+    header: ({ column }) => (
+      <SortableHeader id={"created_at"} column={column} name="Created" />
+    ),
     cell: ({ row }) => {
       const date = new Date(row.getValue("created_at"));
       return <div className="">{date.toLocaleString()}</div>;
@@ -106,7 +128,7 @@ const columns: ColumnDef<ShaderMetadata>[] = [
   },
   {
     accessorKey: "access_level",
-    header: ({ column }) => <SortableHeader column={column} name="Access" />,
+    header: () => <div>Access</div>,
     sortingFn: (rowA, rowB) => {
       const valA = rowA.getValue("access_level") as AccessLevel;
       const valB = rowB.getValue("access_level") as AccessLevel;

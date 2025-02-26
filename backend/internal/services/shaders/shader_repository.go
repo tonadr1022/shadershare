@@ -414,38 +414,58 @@ func offLimToPgType(val int) pgtype.Int4 {
 	return pgtype.Int4{Valid: true, Int32: int32(val)}
 }
 
+func getSortString(sort string, rev bool) string {
+	if rev {
+		return fmt.Sprintf("%s_desc", sort)
+	} else {
+		return fmt.Sprintf("%s_asc", sort)
+	}
+}
+
 func (r shaderRepository) GetShaders(ctx context.Context, req domain.ShaderListReq) ([]domain.Shader, error) {
 	var dbShaders interface{}
 	var err error
+	var orderBy pgtype.Text
+	if req.Sort != "" {
+		orderBy = pgtype.Text{Valid: true, String: getSortString(req.Sort, req.SortReverse)}
+	} else {
+		orderBy = pgtype.Text{Valid: false}
+	}
+	lim := offLimToPgType(req.Limit)
+	access := accessLevelToPgInt(req.Filter.AccessLevel)
+	off := int32(req.Offset)
+	fmt.Println(orderBy.String)
 	if req.Detailed {
 		if req.IncludeUserData {
 			dbShaders, err = r.queries.ListShadersDetailedWithUser(ctx, db.ListShadersDetailedWithUserParams{
-				Lim:         offLimToPgType(req.Limit),
+				Lim:         lim,
 				Off:         offLimToPgType(req.Offset),
-				AccessLevel: accessLevelToPgInt(req.Filter.AccessLevel),
+				OrderBy:     orderBy,
+				AccessLevel: access,
 			})
 		} else {
 			dbShaders, err = r.queries.ListShadersDetailed(ctx, db.ListShadersDetailedParams{
 				UserID:      toPGUUID(req.Filter.UserID),
-				AccessLevel: accessLevelToPgInt(req.Filter.AccessLevel),
-				Off:         int32(req.Offset),
-				Lim:         offLimToPgType(req.Limit),
+				AccessLevel: access,
+				Off:         off,
+				OrderBy:     orderBy,
+				Lim:         lim,
 			})
 		}
 	} else {
 		if req.IncludeUserData {
 			dbShaders, err = r.queries.ListShadersWithUser(ctx, db.ListShadersWithUserParams{
-				Lim:         offLimToPgType(req.Limit),
-				Off:         int32(req.Offset),
-				OrderBy:     req.Sort,
-				Reverse:     req.SortReverse,
-				AccessLevel: accessLevelToPgInt(req.Filter.AccessLevel),
+				Lim:         lim,
+				Off:         off,
+				OrderBy:     orderBy,
+				AccessLevel: access,
 			})
 		} else {
 			dbShaders, err = r.queries.ListShaders4(ctx, db.ListShaders4Params{
-				Lim:         offLimToPgType(req.Limit),
-				Off:         int32(req.Offset),
-				AccessLevel: accessLevelToPgInt(req.Filter.AccessLevel),
+				Lim:         lim,
+				Off:         off,
+				OrderBy:     orderBy,
+				AccessLevel: access,
 			})
 		}
 	}

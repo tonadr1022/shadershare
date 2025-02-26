@@ -140,51 +140,6 @@ func (q *Queries) GetShaderDetailed(ctx context.Context, id uuid.UUID) (ShaderDe
 	return i, err
 }
 
-const getShaderDetailedList = `-- name: GetShaderDetailedList :many
-SELECT 
-  s.id, s.title, s.description, s.user_id, s.access_level, s.preview_img_url, s.created_at, s.updated_at, s.outputs
-FROM shader_details s
-WHERE s.access_level = $3
-ORDER BY s.updated_at DESC
-LIMIT $1 OFFSET $2
-`
-
-type GetShaderDetailedListParams struct {
-	Limit       int32
-	Offset      int32
-	AccessLevel int16
-}
-
-func (q *Queries) GetShaderDetailedList(ctx context.Context, arg GetShaderDetailedListParams) ([]ShaderDetail, error) {
-	rows, err := q.db.Query(ctx, getShaderDetailedList, arg.Limit, arg.Offset, arg.AccessLevel)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ShaderDetail
-	for rows.Next() {
-		var i ShaderDetail
-		if err := rows.Scan(
-			&i.ID,
-			&i.Title,
-			&i.Description,
-			&i.UserID,
-			&i.AccessLevel,
-			&i.PreviewImgUrl,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.Outputs,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const getShaderDetailedWithUser = `-- name: GetShaderDetailedWithUser :one
 SELECT id, title, description, user_id, access_level, preview_img_url, created_at, updated_at, outputs, username from shader_details_with_user
 WHERE id = $1
@@ -206,51 +161,6 @@ func (q *Queries) GetShaderDetailedWithUser(ctx context.Context, id uuid.UUID) (
 		&i.Username,
 	)
 	return i, err
-}
-
-const getShaderDetailedWithUserList = `-- name: GetShaderDetailedWithUserList :many
-SELECT sd.id, sd.title, sd.description, sd.user_id, sd.access_level, sd.preview_img_url, sd.created_at, sd.updated_at, sd.outputs, sd.username from shader_details_with_user sd
-LEFT JOIN users u ON sd.user_id = id
-WHERE sd.access_level = $3
-ORDER BY sd.updated_at DESC
-LIMIT $1 OFFSET $2
-`
-
-type GetShaderDetailedWithUserListParams struct {
-	Limit       int32
-	Offset      int32
-	AccessLevel int16
-}
-
-func (q *Queries) GetShaderDetailedWithUserList(ctx context.Context, arg GetShaderDetailedWithUserListParams) ([]ShaderDetailsWithUser, error) {
-	rows, err := q.db.Query(ctx, getShaderDetailedWithUserList, arg.Limit, arg.Offset, arg.AccessLevel)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ShaderDetailsWithUser
-	for rows.Next() {
-		var i ShaderDetailsWithUser
-		if err := rows.Scan(
-			&i.ID,
-			&i.Title,
-			&i.Description,
-			&i.UserID,
-			&i.AccessLevel,
-			&i.PreviewImgUrl,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.Outputs,
-			&i.Username,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
 }
 
 const getShaderInput = `-- name: GetShaderInput :one

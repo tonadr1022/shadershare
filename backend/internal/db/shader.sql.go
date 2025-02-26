@@ -229,14 +229,19 @@ FROM shaders
 WHERE 
   (user_id = $1 OR $1 IS NULL) AND
   (access_level = $2 OR $2 IS NULL)
-ORDER BY updated_at DESC
-LIMIT $4::int
-OFFSET $3::int
+ORDER BY
+    CASE WHEN $3::text = 'created_at_asc' THEN created_at END ASC,
+    CASE WHEN $3::text = 'created_at_desc' THEN created_at END DESC,
+    CASE WHEN $3::text = 'title_asc' THEN title END ASC,
+    CASE WHEN $3::text = 'title_desc' THEN title END DESC
+LIMIT $5::int
+OFFSET $4::int
 `
 
 type ListShaders4Params struct {
 	UserID      pgtype.UUID
 	AccessLevel pgtype.Int2
+	OrderBy     pgtype.Text
 	Off         int32
 	Lim         pgtype.Int4
 }
@@ -245,6 +250,7 @@ func (q *Queries) ListShaders4(ctx context.Context, arg ListShaders4Params) ([]S
 	rows, err := q.db.Query(ctx, listShaders4,
 		arg.UserID,
 		arg.AccessLevel,
+		arg.OrderBy,
 		arg.Off,
 		arg.Lim,
 	)
@@ -281,14 +287,19 @@ FROM shader_details sd
 WHERE 
   (user_id = $1 OR $1 IS NULL) AND
   (access_level = $2 OR $2 IS NULL)
-ORDER BY sd.updated_at DESC
-LIMIT $4::int
-OFFSET $3::int
+ORDER BY
+    CASE WHEN $3::text = 'created_at_asc' THEN sd.created_at END ASC,
+    CASE WHEN $3::text = 'created_at_desc' THEN sd.created_at END DESC,
+    CASE WHEN $3::text = 'title_asc' THEN sd.title END ASC,
+    CASE WHEN $3::text = 'title_desc' THEN sd.title END DESC
+LIMIT $5::int
+OFFSET $4::int
 `
 
 type ListShadersDetailedParams struct {
 	UserID      pgtype.UUID
 	AccessLevel pgtype.Int2
+	OrderBy     pgtype.Text
 	Off         int32
 	Lim         pgtype.Int4
 }
@@ -297,6 +308,7 @@ func (q *Queries) ListShadersDetailed(ctx context.Context, arg ListShadersDetail
 	rows, err := q.db.Query(ctx, listShadersDetailed,
 		arg.UserID,
 		arg.AccessLevel,
+		arg.OrderBy,
 		arg.Off,
 		arg.Lim,
 	)
@@ -334,19 +346,29 @@ sd.id, sd.title, sd.description, sd.user_id, sd.access_level, sd.preview_img_url
 JOIN users u ON sd.user_id = u.id
 WHERE 
   (access_level = $1 OR $1 IS NULL)
-ORDER BY sd.updated_at DESC
-LIMIT $3::int
-OFFSET $2::int
+ORDER BY
+    CASE WHEN $2::text = 'created_at_asc' THEN sd.created_at END ASC,
+    CASE WHEN $2::text = 'created_at_desc' THEN sd.created_at END DESC,
+    CASE WHEN $2::text = 'title_asc' THEN sd.title END ASC,
+    CASE WHEN $2::text = 'title_desc' THEN sd.title END DESC
+LIMIT $4::int
+OFFSET $3::int
 `
 
 type ListShadersDetailedWithUserParams struct {
 	AccessLevel pgtype.Int2
+	OrderBy     pgtype.Text
 	Off         pgtype.Int4
 	Lim         pgtype.Int4
 }
 
 func (q *Queries) ListShadersDetailedWithUser(ctx context.Context, arg ListShadersDetailedWithUserParams) ([]ShaderDetailsWithUser, error) {
-	rows, err := q.db.Query(ctx, listShadersDetailedWithUser, arg.AccessLevel, arg.Off, arg.Lim)
+	rows, err := q.db.Query(ctx, listShadersDetailedWithUser,
+		arg.AccessLevel,
+		arg.OrderBy,
+		arg.Off,
+		arg.Lim,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -381,21 +403,18 @@ SELECT s.id, s.title, s.description, s.user_id, s.access_level, s.preview_img_ur
 FROM shader_with_user s
 WHERE 
   (s.access_level = $1 OR $1 IS NULL)
-ORDER BY CASE
-    WHEN NOT $2::boolean AND $3::text = 'updated_at' THEN updated_at
-    WHEN NOT $2::boolean AND $3::text = 'title' THEN title
-END ASC, CASE 
-    WHEN $2::boolean AND $3::text = 'updated_at' THEN updated_at
-    WHEN $2::boolean AND $3::text = 'title' THEN title
-END DESC
-LIMIT $5::int
-OFFSET $4::int
+ORDER BY
+    CASE WHEN $2::text = 'created_at_asc' THEN s.created_at END ASC,
+    CASE WHEN $2::text = 'created_at_desc' THEN s.created_at END DESC,
+    CASE WHEN $2::text = 'title_asc' THEN s.title END ASC,
+    CASE WHEN $2::text = 'title_desc' THEN s.title END DESC
+LIMIT $4::int
+OFFSET $3::int
 `
 
 type ListShadersWithUserParams struct {
 	AccessLevel pgtype.Int2
-	Reverse     bool
-	OrderBy     string
+	OrderBy     pgtype.Text
 	Off         int32
 	Lim         pgtype.Int4
 }
@@ -403,7 +422,6 @@ type ListShadersWithUserParams struct {
 func (q *Queries) ListShadersWithUser(ctx context.Context, arg ListShadersWithUserParams) ([]ShaderWithUser, error) {
 	rows, err := q.db.Query(ctx, listShadersWithUser,
 		arg.AccessLevel,
-		arg.Reverse,
 		arg.OrderBy,
 		arg.Off,
 		arg.Lim,

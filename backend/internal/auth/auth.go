@@ -24,6 +24,7 @@ type (
 		ParseJWTWithClaims(tokenString string) (*UserClaims, error)
 		SetAccessTokenCookie(ctx *gin.Context, token string)
 		SetRefreshTokenCookie(ctx *gin.Context, token string)
+		ClearAuthCookies(ctx *gin.Context)
 	}
 	UserClaims struct {
 		ID    uuid.UUID `json:"id"`
@@ -65,6 +66,11 @@ func Instance() Auth {
 func InitAuth(authSettings *AuthSettings, isProd bool) {
 	instance = &auth{settings: authSettings}
 	instance.InitOauth(isProd)
+}
+
+func (a *auth) ClearAuthCookies(c *gin.Context) {
+	c.SetCookie("accessToken", "", -1, "/", a.settings.Domain, a.settings.Secure, a.settings.HttpOnly)
+	c.SetCookie("refreshToken", "", -1, "/", a.settings.Domain, a.settings.Secure, a.settings.HttpOnly)
 }
 
 func (a *auth) InitOauth(isProd bool) {

@@ -1,7 +1,7 @@
 "use client";
 import { getMe, logoutUser } from "@/api/auth-api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback } from "react";
 import { useTheme } from "next-themes";
 import { useMemo, useEffect, useState } from "react";
@@ -64,4 +64,41 @@ export const useDeleteShader = (onSuccess?: () => void) => {
       if (onSuccess) onSuccess();
     },
   });
+};
+export const useSortParams = (): {
+  desc: boolean;
+  sort: string | null;
+  page: number;
+  perPage: number;
+  assembleParams: (
+    page: number,
+    perPage: number,
+    sort: string | null,
+    desc: boolean,
+  ) => string;
+} => {
+  const p = useSearchParams();
+  const page = parseInt(p.get("page") || "1");
+  const sort = p.get("sort");
+  const desc = p.get("desc");
+  const perPage = parseInt(p.get("perpage") || "25");
+  const assembleParams = (
+    page: number,
+    perPage: number,
+    sort: string | null,
+    desc: boolean,
+  ) => {
+    let res = `page=${page}&perpage=${perPage}&desc=${desc}`;
+    if (sort) {
+      res += `&sort=${sort}`;
+    }
+    return res;
+  };
+  return {
+    perPage,
+    page,
+    sort,
+    desc: desc === "true",
+    assembleParams,
+  };
 };

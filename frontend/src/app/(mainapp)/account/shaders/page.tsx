@@ -21,7 +21,7 @@ const ProfileShaders = () => {
   const searchParams = useSearchParams();
   const page = parseInt(searchParams.get("page") || "1");
   const sort = searchParams.get("sort");
-  const sortDesc = searchParams.get("sortdesc");
+  const desc = searchParams.get("desc");
   const view = searchParams.get("view") || "table";
   const perPage = parseInt(searchParams.get("perpage") || "25");
   if (!perPages.includes(perPage)) {
@@ -29,8 +29,15 @@ const ProfileShaders = () => {
   }
 
   const { data, isPending, isError } = useQuery({
-    queryKey: ["shaders", { isUserShaders: true }, page, perPage],
-    queryFn: () => getUserShaders((page - 1) * perPage, perPage, false),
+    queryKey: ["shaders", { isUserShaders: true }, page, perPage, sort, desc],
+    queryFn: () =>
+      getUserShaders(
+        (page - 1) * perPage,
+        perPage,
+        false,
+        sort,
+        desc === "true",
+      ),
   });
 
   const onPageButtonClick = useCallback(
@@ -45,7 +52,8 @@ const ProfileShaders = () => {
   );
 
   return (
-    <div className="w-full flex flex-col gap-2">
+    <div className="w-full flex flex-col gap-6">
+      <h2>Shaders</h2>
       <Tabs value={view} onValueChange={onValueChangeClick}>
         <TabsList>
           <TabsTrigger value="table">Table</TabsTrigger>

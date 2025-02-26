@@ -60,6 +60,8 @@ export type ShaderInput = {
   dirty?: boolean;
 };
 
+export type ShaderSort = "updated_at" | "created_at" | "title";
+
 export const DefaultShaderInputBuffer: ShaderInput = {
   type: "buffer",
   idx: 0,

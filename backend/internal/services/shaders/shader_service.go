@@ -77,7 +77,7 @@ func transformLimit(limit int, detailed bool) int {
 	return limit
 }
 
-var shaderOrderBys = []string{"created_at", "updated_at", "title"}
+var shaderOrderBys = []string{"created_at", "title", ""}
 
 func (s shaderService) GetShaders(ctx context.Context, req domain.ShaderListReq) (*domain.ShaderResponse, error) {
 	if !slices.Contains(shaderOrderBys, req.Sort) {

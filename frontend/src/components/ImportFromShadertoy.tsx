@@ -79,8 +79,8 @@ const ImportFromShadertoy = () => {
             {dropzone.isDragAccept ? (
               <h6 className="">Drop Here</h6>
             ) : (
-              <div className="flex items-center flex-col gap-1.5">
-                <h6 className="flex gap-2">
+              <div className="flex flex-col gap-1.5">
+                <h6 className="flex gap-2 px-4">
                   Import Shadertoy JSON files <FileUp />
                 </h6>
               </div>

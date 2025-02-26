@@ -6,6 +6,7 @@ import {
   ShaderListDetailedResp,
   ShaderListResp,
   ShaderOutputFull,
+  ShaderSort,
   ShaderToyShaderResp,
   ShaderUpdateCreatePayload,
 } from "@/types/shader";
@@ -101,9 +102,11 @@ export const getUserShaders = async (
   offset: number,
   limit: number,
   detailed?: boolean,
+  sort?: string | null,
+  desc?: boolean | null,
 ): Promise<ShaderListResp> => {
   const res = await axiosInstance.get("/me/shaders", {
-    params: { detailed, offset, limit },
+    params: { detailed, offset, limit, sort, desc },
   });
   return res.data;
 };

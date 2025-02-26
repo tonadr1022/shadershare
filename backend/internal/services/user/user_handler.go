@@ -39,8 +39,7 @@ func RegisterHandlers(baseUrl string, e *gin.Engine, r *gin.RouterGroup, shaderS
 func (h userHandler) logout(c *gin.Context) {
 	gothic.Logout(c.Writer, c.Request)
 	c.SetSameSite(http.SameSiteLaxMode)
-	auth.Instance().SetAccessTokenCookie(c, "")
-	auth.Instance().SetRefreshTokenCookie(c, "")
+	auth.Instance().ClearAuthCookies(c)
 	c.JSON(http.StatusOK, gin.H{"message": "User logged out successfully"})
 }
 

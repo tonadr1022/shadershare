@@ -35,7 +35,7 @@ var (
 
 func RegisterHandlers(r *gin.RouterGroup, service domain.ShaderService) {
 	h := &ShaderHandler{service, os.Getenv("SHADERTOY_API_KEY")}
-	r.GET("/shaders", h.getShaderList)
+	r.GET("/shaders", h.getShaders)
 	r.GET("/shaders/:id", h.getShader)
 	r.POST("/shaders", middleware.Auth(), h.createShader)
 	r.PUT("/shaders/:id", middleware.Auth(), h.updateShader)
@@ -129,7 +129,7 @@ func (h ShaderHandler) createShader(c *gin.Context) {
 	c.JSON(http.StatusOK, shader)
 }
 
-func (h ShaderHandler) getShaderList(c *gin.Context) {
+func (h ShaderHandler) getShaders(c *gin.Context) {
 	var err error
 	detailed := com.StrToBool(c.DefaultQuery("detailed", "false"))
 
@@ -139,6 +139,7 @@ func (h ShaderHandler) getShaderList(c *gin.Context) {
 	if userIDStr != "" {
 		id, err := uuid.Parse(userIDStr)
 		if err != nil {
+
 			util.SetErrorResponse(c, http.StatusBadRequest, "Invalid user ID")
 			return
 		}
@@ -158,7 +159,7 @@ func (h ShaderHandler) getShaderList(c *gin.Context) {
 	includes := strings.Split(includeQuery, ",")
 	includeUser := slices.Contains(includes, "username")
 	getShadersReq := domain.ShaderListReq{
-		Sort:        c.Query("sort"),
+		Sort:        c.DefaultQuery("sort", ""),
 		SortReverse: com.StrToBool(c.DefaultQuery("desc", "false")),
 		Limit:       limit,
 		Offset:      offset,

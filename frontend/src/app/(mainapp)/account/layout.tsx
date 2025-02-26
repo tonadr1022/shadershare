@@ -11,7 +11,7 @@ export default function UserPageLayout({
     <div className="p-4">
       <h1 className="text-4xl font-bold pb-4">Account</h1>
       <Separator />
-      <SidebarProvider className="flex flex-row min-h-full max-h-full">
+      <SidebarProvider className="flex flex-col sm:flex-row min-h-full max-h-full">
         <UsersSidebar />
         <main className="h-full w-full p-4">{children}</main>
       </SidebarProvider>
