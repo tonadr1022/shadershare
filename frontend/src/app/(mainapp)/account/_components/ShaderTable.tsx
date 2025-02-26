@@ -28,7 +28,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useDeleteShader, useSortParams } from "@/hooks/hooks";
+import { assembleParams, useDeleteShader, useSortParams } from "@/hooks/hooks";
 import { usePathname, useRouter } from "next/navigation";
 
 const SortableHeader = ({
@@ -40,7 +40,7 @@ const SortableHeader = ({
   name: string;
   id: string;
 }) => {
-  const { page, perPage, assembleParams, desc, sort } = useSortParams();
+  const { page, perPage, desc, sort } = useSortParams();
   const pathname = usePathname();
   const router = useRouter();
 

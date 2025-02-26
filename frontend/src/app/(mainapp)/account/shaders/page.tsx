@@ -5,50 +5,47 @@ import React, { Suspense, useCallback } from "react";
 import ShaderTable from "../_components/ShaderTable";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useGetMe } from "@/hooks/hooks";
+import { assembleParams, useGetMe, useSortParams } from "@/hooks/hooks";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import PaginationButtons from "@/components/PaginationButtons";
 
 const perPages = [10, 25, 50];
 
-const getUrl = (page: number, perPage: number, view: string) => {
-  return `/account/shaders?page=${page}&perpage=${perPage}&view=${view}`;
+const getUrl = (
+  page: number,
+  perPage: number,
+  view: string,
+  sort: string | null,
+  desc: boolean,
+) => {
+  return `/account/shaders?view=${view}&${assembleParams(page, perPage, sort, desc)}`;
 };
 
 const ProfileShaders = () => {
+  const { page, perPage, desc, sort } = useSortParams();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const page = parseInt(searchParams.get("page") || "1");
-  const sort = searchParams.get("sort");
-  const desc = searchParams.get("desc");
   const view = searchParams.get("view") || "table";
-  const perPage = parseInt(searchParams.get("perpage") || "25");
   if (!perPages.includes(perPage)) {
-    router.replace(getUrl(0, perPages[0], view));
+    router.replace(getUrl(0, perPages[0], view, sort, desc));
   }
 
   const { data, isPending, isError } = useQuery({
     queryKey: ["shaders", { isUserShaders: true }, page, perPage, sort, desc],
     queryFn: () =>
-      getUserShaders(
-        (page - 1) * perPage,
-        perPage,
-        false,
-        sort,
-        desc === "true",
-      ),
+      getUserShaders((page - 1) * perPage, perPage, false, sort, desc),
   });
 
   const onPageButtonClick = useCallback(
     (page: number) => {
-      router.push(getUrl(page, perPage, view));
+      router.push(getUrl(page, perPage, view, sort, desc));
     },
-    [perPage, router, view],
+    [desc, perPage, router, sort, view],
   );
   const onValueChangeClick = useCallback(
-    (val: string) => router.push(getUrl(page, perPage, val)),
-    [page, perPage, router],
+    (val: string) => router.push(getUrl(page, perPage, val, sort, desc)),
+    [desc, page, perPage, router, sort],
   );
 
   return (
@@ -73,7 +70,7 @@ const ProfileShaders = () => {
               <p>Results: ({data.total}):</p>
               <PaginationButtons
                 onPerPageChange={(newPage: number, newPerPage: number) => {
-                  router.push(getUrl(newPage, newPerPage, view));
+                  router.push(getUrl(newPage, newPerPage, view, sort, desc));
                 }}
                 onPageChange={onPageButtonClick}
                 perPage={perPage}

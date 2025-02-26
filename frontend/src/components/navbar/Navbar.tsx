@@ -24,10 +24,9 @@ const navbarItems = [
 export default function Navbar() {
   const { data: user, isPending } = useGetMe();
 
-  // TODO: bar when small screen
   return (
     <div
-      className="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white sticky top-0 z-50 w-full
+      className="bg-primary-foreground sticky top-0 z-50 w-full
       border-b border-border/40   backdrop-blur  px-2"
     >
       <div className="flex h-14 items-center justify-between">

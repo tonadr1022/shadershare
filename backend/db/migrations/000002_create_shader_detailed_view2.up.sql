@@ -49,6 +49,7 @@ FROM shaders s
     LEFT JOIN aggregated_inputs ai ON ai.output_id = so.id
 GROUP BY s.id;
 
+DROP VIEW IF EXISTS shader_details_with_user;
 CREATE VIEW shader_details_with_user AS 
 SELECT 
   sd.*, 
@@ -56,7 +57,7 @@ SELECT
 FROM shader_details sd
 JOIN users u ON sd.user_id = u.id;
 
-
+DROP VIEW IF EXISTS shader_with_user;
 CREATE VIEW shader_with_user AS 
 SELECT s.*, u.username
 FROM shaders s

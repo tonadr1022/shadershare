@@ -22,7 +22,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trigger_update_users_timestamp
+CREATE TRIGGER IF NOT EXISTS trigger_update_users_timestamp
 BEFORE UPDATE ON users
 FOR EACH ROW
 EXECUTE FUNCTION update_timestamp();
@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS shaders (
 );
 
 CREATE INDEX IF NOT EXISTS idx_shader_access_level ON shaders (access_level);
+CREATE INDEX IF NOT EXISTS idx_shader_created_at ON shaders (created_at);
 CREATE INDEX IF NOT EXISTS idx_shader_user_id ON shaders(user_id);
 CREATE INDEX IF NOT EXISTS idx_shader_user_access ON shaders (user_id, access_level);
 
@@ -71,7 +72,7 @@ CREATE TABLE IF NOT EXISTS shader_inputs (
 CREATE INDEX IF NOT EXISTS idx_shader_inputs_shader_id ON shader_inputs (shader_id);
 CREATE INDEX IF NOT EXISTS idx_shader_inputs_output_id ON shader_inputs (output_id);
 
-CREATE TRIGGER trigger_update_shaders_timestamp
+CREATE TRIGGER  IF NOT EXISTS trigger_update_shaders_timestamp
 BEFORE UPDATE ON shaders
 FOR EACH ROW
-EXECUTE FUNCTION update_timestamp();;
+EXECUTE FUNCTION update_timestamp();

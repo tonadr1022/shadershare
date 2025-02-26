@@ -11,6 +11,7 @@ import {
   ShaderUpdateCreatePayload,
 } from "@/types/shader";
 import axiosInstance from "./api";
+import axios from "axios";
 
 // TODO: type
 export const createShader = async (data: ShaderUpdateCreatePayload) => {
