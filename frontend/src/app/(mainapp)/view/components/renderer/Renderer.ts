@@ -178,6 +178,7 @@ uniform int iFrame;
 uniform float iChannelTime[10];
 uniform vec3 iChannelResolution[10];
 uniform vec4 iMouse; // xy = curr pixel coords, zw = click pixel coords
+uniform vec4 iDate;
 
 out vec4 fC;
 
@@ -234,6 +235,7 @@ class Shader {
 }
 
 class FragShaderUniforms {
+  iDate: WebGLUniformLocation | null = null;
   iResolution: WebGLUniformLocation | null = null;
   iTime: WebGLUniformLocation | null = null;
   iTimeDelta: WebGLUniformLocation | null = null;
@@ -259,6 +261,7 @@ class FragShaderUniforms {
     this.iTimeDelta = gl.getUniformLocation(shaderProgram, "iTimeDelta");
     this.iFrame = gl.getUniformLocation(shaderProgram, "iFrame");
     this.iMouse = gl.getUniformLocation(shaderProgram, "iMouse");
+    this.iDate = gl.getUniformLocation(shaderProgram, "iDate");
 
     this.iChannelTimes = gl.getUniformLocation(
       shaderProgram,
@@ -558,6 +561,14 @@ const webGL2Renderer = () => {
   let currTime = 0;
   let timeDelta = 0;
   let singleTextureShader: Shader | null = null;
+  const mouseState = {
+    mouseOriginX: -1,
+    mouseOriginY: -1,
+    mouseCurrX: -1,
+    mouseCurrY: -1,
+    mouseDown: false,
+    mouseSignalDown: false,
+  };
   const fpsCounter = new AvgFpsCounter();
 
   const bindTexture = (
@@ -572,7 +583,12 @@ const webGL2Renderer = () => {
 
   let util: WebGL2Utils;
 
-  const bindUniforms = (output: RenderPass, uniforms: FragShaderUniforms) => {
+  const bindUniforms = (
+    output: RenderPass,
+    uniforms: FragShaderUniforms,
+    dates: number[],
+    mouse: number[],
+  ) => {
     gl.uniform3f(uniforms.iResolution, canvas.width, canvas.height, 1);
     gl.uniform1f(uniforms.iTime, shaderTime);
     gl.uniform1f(uniforms.iTimeDelta, timeDelta);
@@ -582,6 +598,9 @@ const webGL2Renderer = () => {
       currTime,
       currTime,
     ]);
+    gl.uniform4f(uniforms.iDate, dates[0], dates[1], dates[2], dates[3]);
+    gl.uniform4f(uniforms.iMouse, mouse[0], mouse[1], mouse[2], mouse[3]);
+
     for (let i = 0; i < output.shader_inputs.length; i++) {
       const iChannel = output.shader_inputs[i];
       const dims: [number, number] = [canvas.width, canvas.height];
@@ -592,7 +611,6 @@ const webGL2Renderer = () => {
       gl.uniform3fv(uniforms.iChannelResolutions[i], [dims[0], dims[1], 1]);
     }
     gl.uniform1i(uniforms.iFrame, currFrame);
-    gl.uniform4f(uniforms.iMouse, 0, 0, 0, 0);
   };
 
   const enableExtensions = () => {
@@ -713,6 +731,30 @@ const webGL2Renderer = () => {
       }
     }
 
+    const d = new Date();
+    const dates = [
+      d.getFullYear(),
+      d.getMonth(),
+      d.getDate(),
+      d.getHours() * 60.0 * 60 +
+        d.getMinutes() * 60 +
+        d.getSeconds() +
+        d.getMilliseconds() / 1000.0,
+    ];
+    const mouse = [
+      Math.abs(mouseState.mouseCurrX),
+      Math.abs(mouseState.mouseCurrY),
+      mouseState.mouseOriginX,
+      mouseState.mouseOriginY,
+    ];
+    if (!mouseState.mouseDown) {
+      mouse[2] = -mouse[2];
+    }
+    if (!mouseState.mouseSignalDown) {
+      mouse[3] = -mouse[3];
+    }
+    mouseState.mouseSignalDown = false;
+
     for (const { output, name: bufferName } of getBufferOutputsWithNames()) {
       if (output === null) {
         continue;
@@ -725,7 +767,7 @@ const webGL2Renderer = () => {
       gl.viewport(0, 0, canvas.width, canvas.height);
       gl.useProgram(output.program);
       const uniforms = output.uniformLocs;
-      bindUniforms(output, uniforms);
+      bindUniforms(output, uniforms, dates, mouse);
       gl.clearColor(0.0, 0.0, 0.0, 1.0);
       gl.clear(gl.COLOR_BUFFER_BIT);
       bindIChannels(output, uniforms);
@@ -1334,6 +1376,40 @@ ${commonBufferText}
       if (!canvas) {
         return;
       }
+
+      canvas.onmousedown = (ev: MouseEvent) => {
+        const rect = canvas.getBoundingClientRect();
+        mouseState.mouseOriginX = Math.floor(
+          ((ev.clientX - rect.left) / (rect.right - rect.left)) * canvas.width,
+        );
+        mouseState.mouseOriginY = Math.floor(
+          canvas.height -
+            ((ev.clientY - rect.top) / (rect.bottom - rect.top)) *
+              canvas.height,
+        );
+        mouseState.mouseCurrX = mouseState.mouseOriginX;
+        mouseState.mouseCurrY = mouseState.mouseOriginY;
+        mouseState.mouseDown = true;
+        mouseState.mouseSignalDown = true;
+      };
+      canvas.onmousemove = (ev: MouseEvent) => {
+        if (mouseState.mouseDown) {
+          const rect = canvas.getBoundingClientRect();
+          mouseState.mouseCurrX = Math.floor(
+            ((ev.clientX - rect.left) / (rect.right - rect.left)) *
+              canvas.width,
+          );
+          mouseState.mouseCurrY = Math.floor(
+            canvas.height -
+              ((ev.clientY - rect.top) / (rect.bottom - rect.top)) *
+                canvas.height,
+          );
+        }
+      };
+      canvas.onmouseup = () => {
+        mouseState.mouseDown = false;
+      };
+
       if (!gl) {
         const glResult = canvas.getContext("webgl2", {
           preserveDrawingBuffer: true,

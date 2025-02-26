@@ -118,7 +118,7 @@ func (h ShaderHandler) createShader(c *gin.Context) {
 	shader, err := h.service.CreateShader(c, userctx.ID, payload, file)
 	if err != nil {
 		if err == e.ErrShaderWithTitleExists {
-			util.SetErrorResponse(c, http.StatusBadRequest, "Shader with this title already exists")
+			util.SetErrorResponse(c, http.StatusBadRequest, fmt.Sprintf("Shader with title \"%s\" already exists", payload.Title))
 			return
 		}
 
@@ -345,6 +345,5 @@ func (h ShaderHandler) getShadertoyShader(c *gin.Context) {
 		util.SetInternalServiceErrorResponse(c)
 		return
 	}
-	fmt.Println(resp.StatusCode, resp.Body, jsonData)
 	c.JSON(resp.StatusCode, jsonData)
 }

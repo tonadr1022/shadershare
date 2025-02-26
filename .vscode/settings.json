@@ -11,6 +11,11 @@
       "connectString": "postgres://postgres:password@localhost:5432/postgres?sslmode=disable"
     },
     {
+      "pgOptions": {
+        "ssl": {
+          "rejectUnauthorized": true
+        }
+      },
       "previewLimit": 50,
       "server": "localhost",
       "driver": "PostgreSQL",

@@ -17,8 +17,8 @@ import { url } from "@/utils/links";
 
 const menuItems = [
   { href: url.account, label: "Profile", icon: User },
+  { href: url.usershaders, label: "Shaders", icon: GalleryHorizontal },
   { href: url.settings, label: "Settings", icon: Settings },
-  { href: "/account/shaders", label: "Shaders", icon: GalleryHorizontal },
   {
     href: "/account/import",
     label: "Import",

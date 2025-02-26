@@ -1,11 +1,11 @@
 "use client";
-import { useGetMe } from "@/hooks/hooks";
+import { useGetMeRedirect } from "@/hooks/hooks";
 import React from "react";
 import UpdateProfileDialog from "./_components/UpdateProfileDialog";
 import { Spinner } from "@/components/ui/spinner";
 
 const Profile = () => {
-  const { data: user, isPending, isError } = useGetMe();
+  const { data: user, isPending, isError } = useGetMeRedirect();
   if (isPending) return <Spinner />;
   if (isError) return <p>Error loading profile.</p>;
   return (

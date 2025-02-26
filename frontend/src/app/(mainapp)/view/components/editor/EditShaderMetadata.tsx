@@ -175,7 +175,7 @@ const EditShaderMetadata = ({ initialData }: Props) => {
   return (
     <div>
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 px-4">
           <FormField
             control={form.control}
             name="title"
@@ -183,7 +183,11 @@ const EditShaderMetadata = ({ initialData }: Props) => {
               <FormItem>
                 <FormLabel>Title</FormLabel>
                 <FormControl>
-                  <Input {...field} placeholder="Name your shader here." />
+                  <Input
+                    {...field}
+                    placeholder="Name your shader here."
+                    className="w-96"
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -199,6 +203,7 @@ const EditShaderMetadata = ({ initialData }: Props) => {
                   <Textarea
                     {...field}
                     placeholder="Describe your shader here."
+                    rows={6}
                   />
                 </FormControl>
               </FormItem>

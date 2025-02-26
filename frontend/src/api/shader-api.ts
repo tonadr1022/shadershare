@@ -6,7 +6,6 @@ import {
   ShaderListDetailedResp,
   ShaderListResp,
   ShaderOutputFull,
-  ShaderSort,
   ShaderToyShaderResp,
   ShaderUpdateCreatePayload,
 } from "@/types/shader";

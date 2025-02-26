@@ -123,6 +123,9 @@ func Run() {
 	api.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "up"})
 	})
+	api.GET("/", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "up"})
+	})
 
 	shadersRepo := shaders.NewShaderRepository(dbConn, queries)
 	usersRepo := user.NewUserRepository(dbConn, queries)
