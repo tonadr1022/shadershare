@@ -48,7 +48,7 @@ const ShaderRenderer = ({
   const [optionsDropdownOpen, setOptionsDropdownOpen] = useState(false);
   const [embedOpen, setEmbedOpen] = useState(false);
   const [hoverPaused, setHoverPaused] = useState(true);
-  const [firstRender, setFirstRender] = useState(3);
+  const [firstRender, setFirstRender] = useState(2);
   const [canvasDims, setCanvasDims] = useState({ width: 0, height: 0 });
   const [overrideHoverPlay, setOverrideHoverPlay] = useState(false);
 
@@ -93,14 +93,48 @@ const ShaderRenderer = ({
       renderer?.shutdown();
     };
   }, [renderer]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !renderer) return;
+
+    const onKeyDown = (ev: KeyboardEvent) => {
+      ev.preventDefault();
+      renderer.setKeyDown(ev.keyCode);
+    };
+    const onKeyUp = (ev: KeyboardEvent) => {
+      ev.preventDefault();
+      renderer.setKeyUp(ev.keyCode);
+    };
+    canvas.addEventListener("keydown", onKeyDown);
+    canvas.addEventListener("keyup", onKeyUp);
+    const initializeRenderer = async () => {
+      await renderer.initialize({
+        canvas,
+        shaderOutputs: shaderDataRef.current.shader_outputs,
+      });
+    };
+
+    initializeRenderer();
+
+    return () => {
+      canvas.removeEventListener("keydown", onKeyDown);
+      canvas.removeEventListener("keyup", onKeyUp);
+    };
+  }, [renderer, shaderDataRef]);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !renderer) return;
 
     let animationFrameId: number;
-
     const render = () => {
       const currRealTime = performance.now() / 1000;
+      if (renderer.initializing()) {
+        // setFirstRender(2);
+        animationFrameId = requestAnimationFrame(render);
+        return;
+      }
 
       const isPaused =
         paused || (!overrideHoverPlay && hoverOnlyPlay && hoverPaused);
@@ -113,9 +147,10 @@ const ShaderRenderer = ({
 
         const dt = currRealTime - renderer.getLastRealTime();
         renderer.setShaderTime(renderer.getShaderTime() + dt);
-        const rendered = renderer.render({ checkResize: true, dt: dt });
-        if (firstRender > 0) {
-          if (rendered) setFirstRender((fr) => fr - 1);
+        const didRender = renderer.render({ checkResize: true, dt: dt });
+        if (!didRender || firstRender > 0) {
+          renderer.setFrame(0);
+          setFirstRender((fr) => Math.max(fr - 1, 0));
         }
         renderer.setLastRealTime(currRealTime);
       } else {
@@ -124,14 +159,6 @@ const ShaderRenderer = ({
 
       animationFrameId = requestAnimationFrame(render);
     };
-
-    const initializeRenderer = async () => {
-      await renderer.initialize({
-        canvas: canvas,
-        shaderOutputs: shaderDataRef.current.shader_outputs,
-      });
-    };
-    initializeRenderer();
 
     render();
 
@@ -155,7 +182,12 @@ const ShaderRenderer = ({
       const xres = Math.round(canvas.width);
       const yres = Math.round(canvas.height);
       setCanvasDims({ width: xres, height: yres });
-      renderer.onResize(xres, yres);
+      if (
+        canvas.width !== canvas.clientWidth ||
+        canvas.height !== canvas.clientHeight
+      ) {
+        renderer.onResize(xres, yres);
+      }
     };
 
     // src: Shader toy JS source in network tab :D
@@ -178,7 +210,12 @@ const ShaderRenderer = ({
           width: Math.floor(box.inlineSize / dpr),
           height: Math.floor(box.blockSize / dpr),
         });
-        renderer.onResize(box.inlineSize, box.blockSize);
+        if (
+          canvas.width !== canvas.clientWidth ||
+          canvas.height !== canvas.clientHeight
+        ) {
+          renderer.onResize(box.inlineSize, box.blockSize);
+        }
       }
     });
     try {
@@ -210,10 +247,14 @@ const ShaderRenderer = ({
     >
       {keepAspectRatio ? (
         <AspectRatio ratio={16 / 9} className="w-full p-0 m-0 bg-background">
-          <canvas ref={canvasRef} className="w-full h-full" />
+          <canvas
+            tabIndex={1}
+            ref={canvasRef}
+            className="w-full h-full outline-none"
+          />
         </AspectRatio>
       ) : (
-        <canvas ref={canvasRef} className="w-full h-full" />
+        <canvas ref={canvasRef} className="w-full h-full outline-none" />
       )}
       {isShaderEmbed && (
         <div

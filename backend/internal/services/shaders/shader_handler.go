@@ -105,28 +105,75 @@ func (h ShaderHandler) createShader(c *gin.Context) {
 		return
 	}
 
-	var payload domain.CreateShaderPayload
-	if ok := util.ValidateMultiPartJSONAndSetErrors(c, &payload); !ok {
-		return
-	}
-	file, err := c.FormFile("file")
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	shader, err := h.service.CreateShader(c, userctx.ID, payload, file)
-	if err != nil {
-		if err == e.ErrShaderWithTitleExists {
-			util.SetErrorResponse(c, http.StatusBadRequest, fmt.Sprintf("Shader with title \"%s\" already exists", payload.Title))
+	if c.Query("bulk") != "" {
+		var payload domain.BulkCreateShaderPayload
+		if ok := util.ValidateMultiPartJSONAndSetErrors(c, &payload); !ok {
 			return
 		}
 
-		util.SetErrorResponse(c, http.StatusBadRequest, err.Error())
-		return
-	}
+		var (
+			errors []gin.H
+			badReq bool
+			ids    []uuid.UUID
+		)
 
-	c.JSON(http.StatusOK, shader)
+		for i, shaderPayload := range payload.Shaders {
+			file, err := c.FormFile(fmt.Sprintf("file_%d", i))
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+			id, err := h.service.CreateShader(c, userctx.ID, shaderPayload, file)
+			if err != nil {
+				if err == e.ErrShaderWithTitleExists {
+					errors = append(errors, gin.H{"title": shaderPayload.Title, "error": "Shader with this title already exists"})
+					badReq = true
+				} else {
+					errors = append(errors, gin.H{"title": shaderPayload.Title, "error": "Internal server error"})
+				}
+				continue
+			}
+			ids = append(ids, id)
+		}
+		if len(errors) > 0 {
+			status := http.StatusBadRequest
+			if !badReq {
+				status = http.StatusInternalServerError
+			}
+			c.JSON(status, gin.H{
+				"errors":  errors,
+				"success": false,
+			})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"ids":     ids,
+			"success": true,
+		})
+	} else {
+		var payload domain.CreateShaderPayload
+		if ok := util.ValidateMultiPartJSONAndSetErrors(c, &payload); !ok {
+			return
+		}
+		file, err := c.FormFile("file")
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		id, err := h.service.CreateShader(c, userctx.ID, payload, file)
+		if err != nil {
+			if err == e.ErrShaderWithTitleExists {
+				util.SetErrorResponse(c, http.StatusBadRequest, fmt.Sprintf("Shader with title \"%s\" already exists", payload.Title))
+				return
+			}
+
+			util.SetErrorResponse(c, http.StatusBadRequest, err.Error())
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"id": id})
+	}
 }
 
 func (h ShaderHandler) getShaders(c *gin.Context) {

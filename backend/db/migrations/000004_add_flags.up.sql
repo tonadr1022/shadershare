@@ -1,0 +1,4 @@
+ALTER TABLE shaders 
+ADD flags INT NOT NULL DEFAULT 0;
+ALTER TABLE shader_outputs 
+ADD flags INT NOT NULL DEFAULT 0;

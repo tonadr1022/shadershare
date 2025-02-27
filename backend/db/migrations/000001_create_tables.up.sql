@@ -1,5 +1,4 @@
 -- CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     username TEXT NOT NULL UNIQUE,
@@ -22,7 +21,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER IF NOT EXISTS trigger_update_users_timestamp
+CREATE TRIGGER trigger_update_users_timestamp
 BEFORE UPDATE ON users
 FOR EACH ROW
 EXECUTE FUNCTION update_timestamp();
@@ -72,7 +71,7 @@ CREATE TABLE IF NOT EXISTS shader_inputs (
 CREATE INDEX IF NOT EXISTS idx_shader_inputs_shader_id ON shader_inputs (shader_id);
 CREATE INDEX IF NOT EXISTS idx_shader_inputs_output_id ON shader_inputs (output_id);
 
-CREATE TRIGGER  IF NOT EXISTS trigger_update_shaders_timestamp
+CREATE TRIGGER trigger_update_shaders_timestamp
 BEFORE UPDATE ON shaders
 FOR EACH ROW
 EXECUTE FUNCTION update_timestamp();

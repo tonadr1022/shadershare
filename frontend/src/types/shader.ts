@@ -1,6 +1,6 @@
 export type TextureWrap = "repeat" | "clamp";
 export type FilterMode = "nearest" | "linear";
-export type ShaderInputType = "texture" | "buffer";
+export type ShaderInputType = "texture" | "buffer" | "keyboard";
 export type ShaderOutputType = "common" | "image" | "buffer";
 export type BufferName =
   | "Buffer A"
@@ -56,7 +56,7 @@ export type ShaderInput = {
   // TODO: make type
   type: ShaderInputType;
   idx: number;
-  properties: TextureProps | BufferProps;
+  properties: TextureProps | BufferProps | object;
   dirty?: boolean;
 };
 
@@ -87,6 +87,7 @@ export type ShaderOutput = {
   code: string;
   name: ShaderOutputName;
   type: ShaderOutputType;
+  flags: number;
   dirty?: boolean;
 };
 
@@ -105,6 +106,7 @@ export type ShaderMetadata = {
   description: string;
   user_id: string;
   access_level: AccessLevel;
+  flags: number;
   created_at: string;
   updated_at: string;
   preview_img_url: string;
@@ -164,10 +166,14 @@ export type IRendererInitPararms = {
   shaderOutputs: ShaderOutputFull[];
 };
 
+export const SHADER_USE_KEYBOARD_BIT = 1;
+export const OUTPUT_USE_KEYBOARD_BIT = 1;
+
 export type ShaderUpdateCreatePayload = {
   id?: string;
   title?: string;
   user_id?: string;
+  flags: number;
   access_level?: AccessLevel;
   preview_img_url?: string;
   description?: string;

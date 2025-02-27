@@ -150,6 +150,15 @@ export const shaderToyToShader = (stShader: ShaderToyShader) => {
       break;
     }
 
+    if (
+      rp.type === "Buf A" ||
+      rp.type === "Buf B" ||
+      rp.type === "Buf C" ||
+      rp.type === "Buf D" ||
+      rp.type === "Buf E"
+    ) {
+      rp.type = "buffer";
+    }
     const types = ["common", "image", "buffer"];
     if (!types.includes(rp.type)) {
       errors.push(
@@ -161,6 +170,7 @@ export const shaderToyToShader = (stShader: ShaderToyShader) => {
 
     const newOutput: ShaderOutputFull = {
       shader_inputs: [],
+      flags: 0,
       type: rp.type as ShaderOutputType,
       code: rp.code,
       name: rp.name as ShaderOutputName,
@@ -172,7 +182,7 @@ export const shaderToyToShader = (stShader: ShaderToyShader) => {
       const newInput: ShaderInput = {
         idx: i,
         type: "buffer",
-        properties: { name: "Buffer A" },
+        properties: {},
       };
 
       const inputType =
@@ -241,15 +251,13 @@ export const shaderToyToShader = (stShader: ShaderToyShader) => {
         }
         newInput.url = url;
         newInput.type = "texture";
+      } else if (inputType === "keyboard") {
+        newInput.type = "keyboard";
       } else {
         errors.push("Shader input type not supported: " + inputType);
         break;
       }
-      if (newOutput.shader_inputs) {
-        newOutput.shader_inputs.push(newInput);
-      } else {
-        throw new Error("internal error");
-      }
+      newOutput.shader_inputs!.push(newInput);
     }
     if (errors.length) break;
     shader_outputs.push(newOutput);
@@ -262,12 +270,13 @@ export const shaderToyToShader = (stShader: ShaderToyShader) => {
   const info = stShader.info;
   let description = "Imported From Shadertoy";
   if (info.username) {
-    description += "Shader authored by: " + info.username;
+    description += "Shader authored by: \n" + info.username;
   }
   description += `See original at https://shadertoy.com/view/${info.id}`;
 
   const newShader: ShaderData = {
     id: "",
+    flags: 0,
     user_id: "",
     access_level: AccessLevel.PRIVATE,
     created_at: "",

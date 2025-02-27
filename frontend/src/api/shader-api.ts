@@ -17,17 +17,38 @@ export const createShader = async (data: ShaderUpdateCreatePayload) => {
   return res.data;
 };
 
-export const createShaderWithPreview = async ({
-  data,
-  previewFile,
-}: {
-  data: ShaderUpdateCreatePayload;
+export type ShaderFullUpload = {
+  shader: ShaderUpdateCreatePayload;
   previewFile: File;
-}): Promise<ShaderData> => {
+};
+export const createShaderWithPreview = async ({
+  shader,
+  previewFile,
+}: ShaderFullUpload): Promise<{ id: string }> => {
   const formData = new FormData();
   formData.append("file", previewFile);
-  formData.append("json", JSON.stringify(data));
+  formData.append("json", JSON.stringify(shader));
   const res = await axiosInstance.post("/shaders", formData);
+  return res.data;
+};
+
+export const bulkCreateShaderWithPreview = async (
+  upload: ShaderFullUpload[],
+): Promise<{ ids: string[] }> => {
+  const formData = new FormData();
+  const shaders: ShaderUpdateCreatePayload[] = [];
+  for (const u of upload) {
+    shaders.push(u.shader);
+  }
+  formData.append("json", JSON.stringify({ shaders }));
+
+  let i = 0;
+  for (const u of upload) {
+    formData.append(`file_${i++}`, u.previewFile);
+  }
+  const res = await axiosInstance.post("/shaders", formData, {
+    params: { bulk: true },
+  });
   return res.data;
 };
 

@@ -76,9 +76,9 @@ WHERE
 
 -- name: CreateShader :one
 INSERT INTO shaders (
-    title, description, user_id, preview_img_url, access_level
+    title, description, user_id, preview_img_url, access_level, flags
 ) VALUES (
-    $1, $2, $3, $4, $5
+    $1, $2, $3, $4, $5, $6
 )
 ON CONFLICT (title) DO NOTHING
 RETURNING *;
@@ -89,7 +89,8 @@ UPDATE shaders
 SET title = COALESCE(NULLIF($3::TEXT,''), title),
     description = COALESCE($4, description),
     preview_img_url = COALESCE($5, preview_img_url),
-    access_level = COALESCE($6, access_level)
+    access_level = COALESCE($6, access_level),
+    flags = COALESCE($7, flags)
 WHERE id = $1 AND user_id = $2
 RETURNING *;
 

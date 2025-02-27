@@ -21,10 +21,11 @@ const AddTestShaders = () => {
       queryClient.invalidateQueries({ queryKey: ["shaders"] });
     },
   });
-  const addTestShader = async (shader: ShaderData) => {
+  const addTestShader = async (shader: Partial<ShaderData>) => {
     const previewFile = await getPreviewImgFile(shader);
     createShaderMut.mutate({
-      data: {
+      shader: {
+        flags: shader.flags !== undefined ? shader.flags : 0,
         title: shader.title + val,
         description: shader.description,
         access_level: AccessLevel.PUBLIC,

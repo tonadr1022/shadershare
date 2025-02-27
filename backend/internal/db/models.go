@@ -18,6 +18,7 @@ type Shader struct {
 	PreviewImgUrl pgtype.Text
 	CreatedAt     pgtype.Timestamptz
 	UpdatedAt     pgtype.Timestamptz
+	Flags         int32
 }
 
 type ShaderDetail struct {
@@ -29,6 +30,7 @@ type ShaderDetail struct {
 	PreviewImgUrl pgtype.Text
 	CreatedAt     pgtype.Timestamptz
 	UpdatedAt     pgtype.Timestamptz
+	Flags         int32
 	Outputs       []byte
 }
 
@@ -41,6 +43,7 @@ type ShaderDetailsWithUser struct {
 	PreviewImgUrl pgtype.Text
 	CreatedAt     pgtype.Timestamptz
 	UpdatedAt     pgtype.Timestamptz
+	Flags         int32
 	Outputs       []byte
 	Username      string
 }
@@ -61,6 +64,7 @@ type ShaderOutput struct {
 	Code     string
 	Name     string
 	Type     string
+	Flags    int32
 }
 
 type ShaderWithUser struct {
@@ -72,6 +76,7 @@ type ShaderWithUser struct {
 	PreviewImgUrl pgtype.Text
 	CreatedAt     pgtype.Timestamptz
 	UpdatedAt     pgtype.Timestamptz
+	Flags         int32
 	Username      string
 }
 

@@ -28,6 +28,7 @@ func mapShaderFields(row interface{}) domain.Shader {
 		res.Title = r.Title
 		res.Description = r.Description.String
 		res.AccessLevel = domain.AccessLevel(r.AccessLevel)
+		res.Flags = r.Flags
 		res.UserID = r.UserID
 		res.CreatedAt = r.CreatedAt.Time
 		res.UpdatedAt = r.UpdatedAt.Time
@@ -38,6 +39,7 @@ func mapShaderFields(row interface{}) domain.Shader {
 		res.Description = r.Description.String
 		res.AccessLevel = domain.AccessLevel(r.AccessLevel)
 		res.UserID = r.UserID
+		res.Flags = r.Flags
 		res.CreatedAt = r.CreatedAt.Time
 		res.UpdatedAt = r.UpdatedAt.Time
 	case db.Shader:
@@ -45,6 +47,7 @@ func mapShaderFields(row interface{}) domain.Shader {
 		res.ID = r.ID
 		res.Title = r.Title
 		res.Description = r.Description.String
+		res.Flags = r.Flags
 		res.AccessLevel = domain.AccessLevel(r.AccessLevel)
 		res.UserID = r.UserID
 		res.CreatedAt = r.CreatedAt.Time
@@ -52,6 +55,7 @@ func mapShaderFields(row interface{}) domain.Shader {
 	case db.ShaderWithUser:
 		res.PreviewImgURL = r.PreviewImgUrl.String
 		res.ID = r.ID
+		res.Flags = r.Flags
 		res.Title = r.Title
 		res.Description = r.Description.String
 		res.AccessLevel = domain.AccessLevel(r.AccessLevel)
@@ -120,6 +124,7 @@ func (r shaderRepository) CreateShaderOutput(ctx context.Context, shaderOutputPa
 		Code:     shaderOutputPayload.Code,
 		Name:     shaderOutputPayload.Name,
 		Type:     shaderOutputPayload.Type,
+		Flags:    shaderOutputPayload.Flags,
 	}
 	dbShaderOutput, err := r.queries.CreateShaderOutput(ctx, params)
 	if err != nil {
@@ -178,10 +183,10 @@ func (r shaderRepository) shaderOutputFromDB(dbShaderOutput db.ShaderOutput) dom
 	}
 }
 
-func (r shaderRepository) CreateShader(ctx context.Context, userID uuid.UUID, shaderPayload domain.CreateShaderPayload) (*domain.Shader, error) {
+func (r shaderRepository) CreateShader(ctx context.Context, userID uuid.UUID, shaderPayload domain.CreateShaderPayload) (uuid.UUID, error) {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
-		return nil, err
+		return uuid.Nil, err
 	}
 	defer tx.Rollback(ctx)
 	var shader db.Shader
@@ -197,18 +202,18 @@ func (r shaderRepository) CreateShader(ctx context.Context, userID uuid.UUID, sh
 	shader, err = r.queries.CreateShader(ctx, params)
 	if err != nil {
 		if err == pgx.ErrNoRows {
-			return nil, e.ErrShaderWithTitleExists
+			return uuid.Nil, e.ErrShaderWithTitleExists
 		}
-		return nil, err
+		return uuid.Nil, err
 	}
 
 	resultOutputs := make([]domain.ShaderOutput, len(shaderPayload.ShaderOutputs))
 	// make shader outputs
-	for _, shaderOutput := range shaderPayload.ShaderOutputs {
+	for i, shaderOutput := range shaderPayload.ShaderOutputs {
 		shaderOutput.ShaderID = shader.ID
 		output, err := r.CreateShaderOutput(ctx, shaderOutput)
 		if err != nil {
-			return nil, err
+			return uuid.Nil, err
 		}
 
 		// make shader inputs for the output
@@ -218,25 +223,19 @@ func (r shaderRepository) CreateShader(ctx context.Context, userID uuid.UUID, sh
 			shaderInput.ShaderID = output.ShaderID
 			input, err := r.CreateShaderInput(ctx, shaderInput)
 			if err != nil {
-				return nil, err
+				return uuid.Nil, err
 			}
 			output.ShaderInputs[shaderInputIdx] = *input
 
 		}
-		resultOutputs = append(resultOutputs, *output)
+		resultOutputs[i] = *output
 	}
 
 	err = tx.Commit(ctx)
 	if err != nil {
-		return nil, err
+		return uuid.Nil, err
 	}
-	shaderWithRenderPasses := mapShaderFields(shader)
-	bytes, err := json.Marshal(resultOutputs)
-	if err != nil {
-		return nil, err
-	}
-	shaderWithRenderPasses.ShaderOutput = bytes
-	return &shaderWithRenderPasses, nil
+	return shader.ID, nil
 }
 
 func NewShaderRepository(db *pgxpool.Pool, queries *db.Queries) domain.ShaderRepository {
@@ -345,6 +344,9 @@ func (r shaderRepository) UpdateShader(ctx context.Context, userID uuid.UUID, sh
 		}
 		if shaderOutput.Type != nil {
 			params.Column4 = *shaderOutput.Type
+		}
+		if shaderOutput.Flags != nil {
+			params.Column5 = *shaderOutput.Flags
 		}
 		r.queries.UpdateShaderOutput(ctx, params)
 	}

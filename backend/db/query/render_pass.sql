@@ -30,9 +30,9 @@ WHERE id = $1;
 
 -- name: CreateShaderOutput :one
 INSERT INTO shader_outputs (
-    shader_id, code, name, type
+    shader_id, code, name, type, flags
 ) VALUES (
-    $1, $2, $3, $4
+    $1, $2, $3, $4, $5
 ) RETURNING *;
 
 -- name: DeleteShaderOutput :exec
@@ -51,7 +51,8 @@ WHERE shader_id = $1;
 UPDATE shader_outputs
 SET code = COALESCE(NULLIF($2::TEXT,''), code),
     name = COALESCE(NULLIF($3::TEXT,''), name),
-    type = COALESCE(NULLIF($4::TEXT,''), type)
+    type = COALESCE(NULLIF($4::TEXT,''), type),
+    flags = COALESCE(NULLIF($5::INT, 0), flags)
 WHERE id = $1 RETURNING *;
 
 -- name: GetShaderCount :one

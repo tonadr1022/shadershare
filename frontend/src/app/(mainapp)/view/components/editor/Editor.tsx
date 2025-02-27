@@ -209,6 +209,7 @@ const Editor = React.memo((props: Props2) => {
 Editor.displayName = "Editor2";
 
 export const MultiBufferEditor = React.memo(() => {
+  const multiEditorRef = useRef<HTMLDivElement | null>(null);
   const [shaderOutputName, setShaderOutputName] = useState("Image");
   const [codeInputEditFocus, setCodeInputEditFocus] = useState("code");
   // const [renderPassEditIdx, setRenderPassEditIdx] = useState();
@@ -244,8 +245,11 @@ export const MultiBufferEditor = React.memo(() => {
         }
       });
     };
-    window.addEventListener("keydown", handleKeyDown, { passive: true });
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    const ref = multiEditorRef.current;
+    if (ref) {
+      ref.addEventListener("keydown", handleKeyDown);
+    }
+    return () => ref?.removeEventListener("keydown", handleKeyDown);
   }, [renderer, setPaused, shaderDataRef]);
 
   const onTextUpdate = useCallback(
@@ -302,6 +306,7 @@ export const MultiBufferEditor = React.memo(() => {
       const shaderID = shaderDataRef.current.id || "";
       const newOutput: ShaderOutputFull = {
         name,
+        flags: 0,
         type: type,
         shader_inputs: [],
         code:
@@ -325,7 +330,7 @@ export const MultiBufferEditor = React.memo(() => {
     setShowHelp((prev) => !prev);
   }, []);
   return (
-    <div className="flex flex-col w-full h-full">
+    <div ref={multiEditorRef} className="flex flex-col w-full h-full">
       <Tabs
         defaultValue={shaderOutputName}
         onValueChange={(value) => setShaderOutputName(value)}

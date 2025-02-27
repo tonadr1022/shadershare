@@ -102,19 +102,19 @@ func (s shaderService) GetShaders(ctx context.Context, req domain.ShaderListReq)
 	return &domain.ShaderResponse{Total: count, Shaders: shaders}, nil
 }
 
-func (s shaderService) CreateShader(ctx context.Context, userID uuid.UUID, shaderPayload domain.CreateShaderPayload, file *multipart.FileHeader) (*domain.Shader, error) {
+func (s shaderService) CreateShader(ctx context.Context, userID uuid.UUID, shaderPayload domain.CreateShaderPayload, file *multipart.FileHeader) (uuid.UUID, error) {
 	file.Filename = randomFileName(".png")
 	fileUrl, err := s.fileStore.UploadFile(file)
 	if err != nil {
-		return nil, err
+		return uuid.Nil, err
 	}
 	shaderPayload.PreviewImgURL = fileUrl
 
-	shader, err := s.repo.CreateShader(ctx, userID, shaderPayload)
+	id, err := s.repo.CreateShader(ctx, userID, shaderPayload)
 	if err != nil {
-		return nil, err
+		return uuid.Nil, err
 	}
-	return shader, nil
+	return id, nil
 }
 
 func (s shaderService) GetShader(ctx context.Context, req domain.ShaderByIdReq) (*domain.Shader, error) {

@@ -1,8 +1,16 @@
 "use client";
-import { createShaderWithPreview } from "@/api/shader-api";
+import {
+  bulkCreateShaderWithPreview,
+  createShaderWithPreview,
+  ShaderFullUpload,
+} from "@/api/shader-api";
 import { getPreviewImgFile } from "@/app/(mainapp)/view/components/renderer/Renderer";
 import { toastAxiosErrors } from "@/lib/utils";
-import { AccessLevel, ShaderData, ShaderToyShaderResp } from "@/types/shader";
+import {
+  AccessLevel,
+  ShaderToyShaderResp,
+  ShaderUpdateCreatePayload,
+} from "@/types/shader";
 import {
   getShadertoyShaders,
   shaderToyToShader,
@@ -15,25 +23,46 @@ import Dropzone, { DropzoneState } from "shadcn-dropzone";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { toast } from "sonner";
-import axios from "axios";
+import axios, { AxiosError } from "axios";
+import { Spinner } from "./ui/spinner";
 
 const ImportFromShadertoy = () => {
+  const [addShaderPending, setAddShaderPending] = useState(false);
   const queryClient = useQueryClient();
   const createShaderMut = useMutation({
     mutationFn: createShaderWithPreview,
-    onError: toastAxiosErrors,
+    onError: (err) => {
+      toastAxiosErrors(err as AxiosError);
+      setAddShaderPending(false);
+    },
     onSuccess: () => {
+      setAddShaderPending(false);
+      queryClient.invalidateQueries({ queryKey: ["shaders"] });
+      toast.success(`Imported shader successfully`);
+    },
+  });
+  const bulkCreateShaderMut = useMutation({
+    mutationFn: bulkCreateShaderWithPreview,
+    onError: (err) => {
+      toastAxiosErrors(err as AxiosError);
+      setAddShaderPending(false);
+    },
+    onSuccess: (res) => {
+      setAddShaderPending(false);
+      toast.success(`Imported ${res.ids.length} shaders.`);
       queryClient.invalidateQueries({ queryKey: ["shaders"] });
     },
   });
+
   const addShader = useCallback(
-    async (shader: ShaderData) => {
+    async (shader: ShaderUpdateCreatePayload) => {
       const previewFile = await getPreviewImgFile(shader);
       if (!previewFile) {
         return;
       }
       createShaderMut.mutate({
-        data: {
+        shader: {
+          flags: shader.flags,
           title: shader.title,
           description: shader.description,
           access_level:
@@ -49,29 +78,48 @@ const ImportFromShadertoy = () => {
   );
 
   const [errors, setErrors] = React.useState<string[]>([]);
-  const handleUpload = useCallback(
+
+  const handleUploadFiles = useCallback(
     async (acceptedFiles: File[]) => {
+      const newErrs: string[] = [];
+      setAddShaderPending(true);
       const { shaders: shaderToyShaders, errors } =
         await getShadertoyShaders(acceptedFiles);
-      setErrors((existing) => [...existing, ...errors]);
+      for (const e of errors) {
+        newErrs.push(e);
+      }
       const newShaders = [];
       for (const stShader of shaderToyShaders) {
         const { shader, errors } = shaderToyToShader(stShader);
         if (!shader || errors.length) {
           for (const err of errors) {
-            setErrors((existing) => [...existing, err]);
+            newErrs.push(`${shader?.title || ""} ${err}`);
           }
         } else {
           newShaders.push(shader);
         }
       }
+      const uploads: ShaderFullUpload[] = [];
       for (const shader of newShaders) {
-        await addShader(shader);
+        const previewFile = await getPreviewImgFile(shader);
+        if (!previewFile) {
+          newErrs.push(
+            `${shader?.title || ""}: Failed to render preview image`,
+          );
+          continue;
+        }
+        uploads.push({ shader, previewFile });
+      }
+      if (uploads.length) {
+        bulkCreateShaderMut.mutate(uploads);
+      }
+      if (newErrs.length) {
+        setErrors((old) => [...old, ...newErrs]);
       }
     },
-    [addShader],
+    [bulkCreateShaderMut],
   );
-  const getShaderMut = useMutation({
+  const addShaderByIdMut = useMutation({
     mutationFn: async (id: string) => {
       const res = await axios.get(
         `https://www.shadertoy.com/api/v1/shaders/${id}?key=rdHlhm`,
@@ -79,7 +127,7 @@ const ImportFromShadertoy = () => {
       console.log(res.status, "got");
       return res.data;
     },
-    onSuccess: (data: ShaderToyShaderResp) => {
+    onSuccess: async (data: ShaderToyShaderResp) => {
       const { shader, errors } = shaderToyToShader(data.Shader);
       if (!shader || errors.length) {
         for (const err of errors) {
@@ -87,10 +135,11 @@ const ImportFromShadertoy = () => {
         }
       } else {
         try {
-          addShader(shader);
+          await addShader(shader);
+          toast.success(`Imported "${shader.title}" successfully`);
           // eslint-disable-next-line @typescript-eslint/no-unused-vars
         } catch (err) {
-          toast.error("Failed to upload shader.");
+          toast.error(`Failed to upload "${shader.title}"`);
         }
       }
     },
@@ -102,7 +151,7 @@ const ImportFromShadertoy = () => {
 
   return (
     <div className="flex flex-col gap-4 h-24">
-      <Dropzone onDrop={handleUpload}>
+      <Dropzone onDrop={handleUploadFiles}>
         {(dropzone: DropzoneState) => (
           <div className="h-24 flex flex-col justify-center" id="test">
             {dropzone.isDragAccept ? (
@@ -120,7 +169,13 @@ const ImportFromShadertoy = () => {
       <p className="self-center">
         <strong>OR</strong>
       </p>
-      <InputButton onClick={getShaderMut.mutate} />
+      <InputButton
+        onClick={(id: string) => {
+          setAddShaderPending(true);
+          addShaderByIdMut.mutate(id);
+        }}
+      />
+      {addShaderPending ? <Spinner /> : <></>}
       <div>
         {errors.length ? (
           <>

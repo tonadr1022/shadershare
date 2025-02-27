@@ -53,10 +53,10 @@ func (q *Queries) CreateShaderInput(ctx context.Context, arg CreateShaderInputPa
 
 const createShaderOutput = `-- name: CreateShaderOutput :one
 INSERT INTO shader_outputs (
-    shader_id, code, name, type
+    shader_id, code, name, type, flags
 ) VALUES (
-    $1, $2, $3, $4
-) RETURNING id, shader_id, code, name, type
+    $1, $2, $3, $4, $5
+) RETURNING id, shader_id, code, name, type, flags
 `
 
 type CreateShaderOutputParams struct {
@@ -64,6 +64,7 @@ type CreateShaderOutputParams struct {
 	Code     string
 	Name     string
 	Type     string
+	Flags    int32
 }
 
 func (q *Queries) CreateShaderOutput(ctx context.Context, arg CreateShaderOutputParams) (ShaderOutput, error) {
@@ -72,6 +73,7 @@ func (q *Queries) CreateShaderOutput(ctx context.Context, arg CreateShaderOutput
 		arg.Code,
 		arg.Name,
 		arg.Type,
+		arg.Flags,
 	)
 	var i ShaderOutput
 	err := row.Scan(
@@ -80,6 +82,7 @@ func (q *Queries) CreateShaderOutput(ctx context.Context, arg CreateShaderOutput
 		&i.Code,
 		&i.Name,
 		&i.Type,
+		&i.Flags,
 	)
 	return i, err
 }
@@ -116,7 +119,7 @@ func (q *Queries) GetShaderCount(ctx context.Context) (int64, error) {
 }
 
 const getShaderDetailed = `-- name: GetShaderDetailed :one
-SELECT id, title, description, user_id, access_level, preview_img_url, created_at, updated_at, outputs
+SELECT id, title, description, user_id, access_level, preview_img_url, created_at, updated_at, flags, outputs
 FROM 
   shader_details s
 WHERE 
@@ -135,13 +138,14 @@ func (q *Queries) GetShaderDetailed(ctx context.Context, id uuid.UUID) (ShaderDe
 		&i.PreviewImgUrl,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Flags,
 		&i.Outputs,
 	)
 	return i, err
 }
 
 const getShaderDetailedWithUser = `-- name: GetShaderDetailedWithUser :one
-SELECT id, title, description, user_id, access_level, preview_img_url, created_at, updated_at, outputs, username from shader_details_with_user
+SELECT id, title, description, user_id, access_level, preview_img_url, created_at, updated_at, flags, outputs, username from shader_details_with_user
 WHERE id = $1
 `
 
@@ -157,6 +161,7 @@ func (q *Queries) GetShaderDetailedWithUser(ctx context.Context, id uuid.UUID) (
 		&i.PreviewImgUrl,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Flags,
 		&i.Outputs,
 		&i.Username,
 	)
@@ -184,7 +189,7 @@ func (q *Queries) GetShaderInput(ctx context.Context, id uuid.UUID) (ShaderInput
 }
 
 const getShaderOutput = `-- name: GetShaderOutput :one
-SELECT id, shader_id, code, name, type FROM shader_outputs
+SELECT id, shader_id, code, name, type, flags FROM shader_outputs
 WHERE id = $1
 `
 
@@ -197,6 +202,7 @@ func (q *Queries) GetShaderOutput(ctx context.Context, id uuid.UUID) (ShaderOutp
 		&i.Code,
 		&i.Name,
 		&i.Type,
+		&i.Flags,
 	)
 	return i, err
 }
@@ -235,7 +241,7 @@ func (q *Queries) ListShaderInputs(ctx context.Context, shaderID uuid.UUID) ([]S
 }
 
 const listShaderOutputs = `-- name: ListShaderOutputs :many
-SELECT id, shader_id, code, name, type FROM shader_outputs
+SELECT id, shader_id, code, name, type, flags FROM shader_outputs
 WHERE shader_id = $1
 `
 
@@ -254,6 +260,7 @@ func (q *Queries) ListShaderOutputs(ctx context.Context, shaderID uuid.UUID) ([]
 			&i.Code,
 			&i.Name,
 			&i.Type,
+			&i.Flags,
 		); err != nil {
 			return nil, err
 		}
@@ -307,8 +314,9 @@ const updateShaderOutput = `-- name: UpdateShaderOutput :one
 UPDATE shader_outputs
 SET code = COALESCE(NULLIF($2::TEXT,''), code),
     name = COALESCE(NULLIF($3::TEXT,''), name),
-    type = COALESCE(NULLIF($4::TEXT,''), type)
-WHERE id = $1 RETURNING id, shader_id, code, name, type
+    type = COALESCE(NULLIF($4::TEXT,''), type),
+    flags = COALESCE(NULLIF($5::INT, 0), flags)
+WHERE id = $1 RETURNING id, shader_id, code, name, type, flags
 `
 
 type UpdateShaderOutputParams struct {
@@ -316,6 +324,7 @@ type UpdateShaderOutputParams struct {
 	Column2 string
 	Column3 string
 	Column4 string
+	Column5 int32
 }
 
 func (q *Queries) UpdateShaderOutput(ctx context.Context, arg UpdateShaderOutputParams) (ShaderOutput, error) {
@@ -324,6 +333,7 @@ func (q *Queries) UpdateShaderOutput(ctx context.Context, arg UpdateShaderOutput
 		arg.Column2,
 		arg.Column3,
 		arg.Column4,
+		arg.Column5,
 	)
 	var i ShaderOutput
 	err := row.Scan(
@@ -332,6 +342,7 @@ func (q *Queries) UpdateShaderOutput(ctx context.Context, arg UpdateShaderOutput
 		&i.Code,
 		&i.Name,
 		&i.Type,
+		&i.Flags,
 	)
 	return i, err
 }

@@ -34,12 +34,12 @@ func (q *Queries) CountShaders(ctx context.Context, arg CountShadersParams) (int
 
 const createShader = `-- name: CreateShader :one
 INSERT INTO shaders (
-    title, description, user_id, preview_img_url, access_level
+    title, description, user_id, preview_img_url, access_level, flags
 ) VALUES (
-    $1, $2, $3, $4, $5
+    $1, $2, $3, $4, $5, $6
 )
 ON CONFLICT (title) DO NOTHING
-RETURNING id, title, description, user_id, access_level, preview_img_url, created_at, updated_at
+RETURNING id, title, description, user_id, access_level, preview_img_url, created_at, updated_at, flags
 `
 
 type CreateShaderParams struct {
@@ -48,6 +48,7 @@ type CreateShaderParams struct {
 	UserID        uuid.UUID
 	PreviewImgUrl pgtype.Text
 	AccessLevel   int16
+	Flags         int32
 }
 
 func (q *Queries) CreateShader(ctx context.Context, arg CreateShaderParams) (Shader, error) {
@@ -57,6 +58,7 @@ func (q *Queries) CreateShader(ctx context.Context, arg CreateShaderParams) (Sha
 		arg.UserID,
 		arg.PreviewImgUrl,
 		arg.AccessLevel,
+		arg.Flags,
 	)
 	var i Shader
 	err := row.Scan(
@@ -68,13 +70,14 @@ func (q *Queries) CreateShader(ctx context.Context, arg CreateShaderParams) (Sha
 		&i.PreviewImgUrl,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Flags,
 	)
 	return i, err
 }
 
 const deleteShader = `-- name: DeleteShader :one
 DELETE FROM shaders
-WHERE id = $1 AND user_id = $2 RETURNING id, title, description, user_id, access_level, preview_img_url, created_at, updated_at
+WHERE id = $1 AND user_id = $2 RETURNING id, title, description, user_id, access_level, preview_img_url, created_at, updated_at, flags
 `
 
 type DeleteShaderParams struct {
@@ -94,12 +97,13 @@ func (q *Queries) DeleteShader(ctx context.Context, arg DeleteShaderParams) (Sha
 		&i.PreviewImgUrl,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Flags,
 	)
 	return i, err
 }
 
 const getShader = `-- name: GetShader :one
-SELECT id, title, description, user_id, access_level, preview_img_url, created_at, updated_at FROM shaders
+SELECT id, title, description, user_id, access_level, preview_img_url, created_at, updated_at, flags FROM shaders
 WHERE id = $1 LIMIT 1
 `
 
@@ -115,12 +119,13 @@ func (q *Queries) GetShader(ctx context.Context, id uuid.UUID) (Shader, error) {
 		&i.PreviewImgUrl,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Flags,
 	)
 	return i, err
 }
 
 const getShaderWithUser = `-- name: GetShaderWithUser :one
-SELECT id, title, description, user_id, access_level, preview_img_url, created_at, updated_at, username FROM shader_with_user s
+SELECT id, title, description, user_id, access_level, preview_img_url, created_at, updated_at, flags, username FROM shader_with_user s
 WHERE s.id = $1
 `
 
@@ -136,13 +141,14 @@ func (q *Queries) GetShaderWithUser(ctx context.Context, id uuid.UUID) (ShaderWi
 		&i.PreviewImgUrl,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Flags,
 		&i.Username,
 	)
 	return i, err
 }
 
 const getUserShaderList = `-- name: GetUserShaderList :many
-SELECT id, title, description, user_id, access_level, preview_img_url, created_at, updated_at FROM shaders 
+SELECT id, title, description, user_id, access_level, preview_img_url, created_at, updated_at, flags FROM shaders 
 WHERE user_id = $1
 LIMIT $2 OFFSET $3
 `
@@ -171,6 +177,7 @@ func (q *Queries) GetUserShaderList(ctx context.Context, arg GetUserShaderListPa
 			&i.PreviewImgUrl,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Flags,
 		); err != nil {
 			return nil, err
 		}
@@ -183,7 +190,7 @@ func (q *Queries) GetUserShaderList(ctx context.Context, arg GetUserShaderListPa
 }
 
 const listShaders = `-- name: ListShaders :many
-SELECT id, title, description, user_id, access_level, preview_img_url, created_at, updated_at FROM shaders
+SELECT id, title, description, user_id, access_level, preview_img_url, created_at, updated_at, flags FROM shaders
 WHERE access_level = $3
 ORDER BY id LIMIT $1 OFFSET $2
 `
@@ -212,6 +219,7 @@ func (q *Queries) ListShaders(ctx context.Context, arg ListShadersParams) ([]Sha
 			&i.PreviewImgUrl,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Flags,
 		); err != nil {
 			return nil, err
 		}
@@ -224,7 +232,7 @@ func (q *Queries) ListShaders(ctx context.Context, arg ListShadersParams) ([]Sha
 }
 
 const listShaders4 = `-- name: ListShaders4 :many
-SELECT id, title, description, user_id, access_level, preview_img_url, created_at, updated_at
+SELECT id, title, description, user_id, access_level, preview_img_url, created_at, updated_at, flags
 FROM shaders
 WHERE 
   (user_id = $1 OR $1 IS NULL) AND
@@ -270,6 +278,7 @@ func (q *Queries) ListShaders4(ctx context.Context, arg ListShaders4Params) ([]S
 			&i.PreviewImgUrl,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Flags,
 		); err != nil {
 			return nil, err
 		}
@@ -282,7 +291,7 @@ func (q *Queries) ListShaders4(ctx context.Context, arg ListShaders4Params) ([]S
 }
 
 const listShadersDetailed = `-- name: ListShadersDetailed :many
-SELECT sd.id, sd.title, sd.description, sd.user_id, sd.access_level, sd.preview_img_url, sd.created_at, sd.updated_at, sd.outputs
+SELECT sd.id, sd.title, sd.description, sd.user_id, sd.access_level, sd.preview_img_url, sd.created_at, sd.updated_at, sd.flags, sd.outputs
 FROM shader_details sd
 WHERE 
   (user_id = $1 OR $1 IS NULL) AND
@@ -328,6 +337,7 @@ func (q *Queries) ListShadersDetailed(ctx context.Context, arg ListShadersDetail
 			&i.PreviewImgUrl,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Flags,
 			&i.Outputs,
 		); err != nil {
 			return nil, err
@@ -342,7 +352,7 @@ func (q *Queries) ListShadersDetailed(ctx context.Context, arg ListShadersDetail
 
 const listShadersDetailedWithUser = `-- name: ListShadersDetailedWithUser :many
 SELECT 
-sd.id, sd.title, sd.description, sd.user_id, sd.access_level, sd.preview_img_url, sd.created_at, sd.updated_at, sd.outputs, sd.username from shader_details_with_user sd
+sd.id, sd.title, sd.description, sd.user_id, sd.access_level, sd.preview_img_url, sd.created_at, sd.updated_at, sd.flags, sd.outputs, sd.username from shader_details_with_user sd
 JOIN users u ON sd.user_id = u.id
 WHERE 
   (access_level = $1 OR $1 IS NULL)
@@ -385,6 +395,7 @@ func (q *Queries) ListShadersDetailedWithUser(ctx context.Context, arg ListShade
 			&i.PreviewImgUrl,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Flags,
 			&i.Outputs,
 			&i.Username,
 		); err != nil {
@@ -399,7 +410,7 @@ func (q *Queries) ListShadersDetailedWithUser(ctx context.Context, arg ListShade
 }
 
 const listShadersWithUser = `-- name: ListShadersWithUser :many
-SELECT s.id, s.title, s.description, s.user_id, s.access_level, s.preview_img_url, s.created_at, s.updated_at, s.username
+SELECT s.id, s.title, s.description, s.user_id, s.access_level, s.preview_img_url, s.created_at, s.updated_at, s.flags, s.username
 FROM shader_with_user s
 WHERE 
   (s.access_level = $1 OR $1 IS NULL)
@@ -442,6 +453,7 @@ func (q *Queries) ListShadersWithUser(ctx context.Context, arg ListShadersWithUs
 			&i.PreviewImgUrl,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Flags,
 			&i.Username,
 		); err != nil {
 			return nil, err
@@ -459,9 +471,10 @@ UPDATE shaders
 SET title = COALESCE(NULLIF($3::TEXT,''), title),
     description = COALESCE($4, description),
     preview_img_url = COALESCE($5, preview_img_url),
-    access_level = COALESCE($6, access_level)
+    access_level = COALESCE($6, access_level),
+    flags = COALESCE($7, flags)
 WHERE id = $1 AND user_id = $2
-RETURNING id, title, description, user_id, access_level, preview_img_url, created_at, updated_at
+RETURNING id, title, description, user_id, access_level, preview_img_url, created_at, updated_at, flags
 `
 
 type UpdateShaderParams struct {
@@ -471,6 +484,7 @@ type UpdateShaderParams struct {
 	Description   pgtype.Text
 	PreviewImgUrl pgtype.Text
 	AccessLevel   int16
+	Flags         int32
 }
 
 func (q *Queries) UpdateShader(ctx context.Context, arg UpdateShaderParams) (Shader, error) {
@@ -481,6 +495,7 @@ func (q *Queries) UpdateShader(ctx context.Context, arg UpdateShaderParams) (Sha
 		arg.Description,
 		arg.PreviewImgUrl,
 		arg.AccessLevel,
+		arg.Flags,
 	)
 	var i Shader
 	err := row.Scan(
@@ -492,6 +507,7 @@ func (q *Queries) UpdateShader(ctx context.Context, arg UpdateShaderParams) (Sha
 		&i.PreviewImgUrl,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Flags,
 	)
 	return i, err
 }

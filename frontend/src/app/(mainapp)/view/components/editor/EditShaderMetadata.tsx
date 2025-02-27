@@ -74,8 +74,8 @@ const EditShaderMetadata = ({ initialData }: Props) => {
   const createShaderMut = useMutation({
     mutationFn: createShaderWithPreview,
     onError: toastAxiosErrors,
-    onSuccess: (data: ShaderData) => {
-      queryClient.invalidateQueries({ queryKey: ["shaders"] });
+    onSuccess: (data: { id: string }) => {
+      queryClient.invalidateQueries({ queryKey: ["shaders", data.id] });
       router.push(`/view/${data.id}`);
     },
   });
@@ -110,6 +110,7 @@ const EditShaderMetadata = ({ initialData }: Props) => {
 
       const payload: ShaderUpdateCreatePayload = {
         title: values.title,
+        flags: initialData?.flags || 0,
         description: values.description,
       };
       if (isUpdate) {
@@ -158,7 +159,7 @@ const EditShaderMetadata = ({ initialData }: Props) => {
       if (isUpdate) {
         updateShaderMut.mutate({ data: payload, previewFile: previewFile });
       } else {
-        createShaderMut.mutate({ data: payload, previewFile: previewFile! });
+        createShaderMut.mutate({ shader: payload, previewFile: previewFile! });
       }
     },
     [

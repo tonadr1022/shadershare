@@ -17,6 +17,7 @@ type (
 		UserID        uuid.UUID       `json:"user_id"`
 		AccessLevel   AccessLevel     `json:"access_level"`
 		PreviewImgURL string          `json:"preview_img_url"`
+		Flags         int32           `json:"flags"`
 		CreatedAt     time.Time       `json:"created_at"`
 		UpdatedAt     time.Time       `json:"updated_at"`
 		Username      string          `json:"username,omitempty"`
@@ -39,6 +40,7 @@ type (
 		Code         string        `json:"code"`
 		Name         string        `json:"name"`
 		Type         string        `json:"type"`
+		Flags        int32         `json:"flags"`
 		ShaderInputs []ShaderInput `json:"shader_inputs"`
 	}
 
@@ -60,10 +62,11 @@ type (
 	}
 
 	UpdateShaderOutputPayload struct {
-		ID   uuid.UUID `json:"id" binding:"required"`
-		Code *string   `json:"code,omitempty"`
-		Name *string   `json:"name,omitempty"`
-		Type *string   `json:"type,omitempty"`
+		ID    uuid.UUID `json:"id" binding:"required"`
+		Code  *string   `json:"code,omitempty"`
+		Name  *string   `json:"name,omitempty"`
+		Type  *string   `json:"type,omitempty"`
+		Flags *int32    `json:"flags"`
 	}
 
 	CreateShaderOutputPayload struct {
@@ -71,6 +74,7 @@ type (
 		Code         string                     `json:"code" binding:"required"`
 		Name         string                     `json:"name" binding:"required"`
 		Type         string                     `json:"type" binding:"required"`
+		Flags        int32                      `json:"flags" binding:"required"`
 		ShaderInputs []CreateShaderInputPayload `json:"shader_inputs" binding:"required"`
 	}
 	UpdateShaderPayload struct {
@@ -88,8 +92,13 @@ type (
 		Title         string                      `json:"title" binding:"required"`
 		Description   string                      `json:"description" binding:"required"`
 		PreviewImgURL string                      `json:"preview_img_url"`
+		Flags         int32                       `json:"flags" binding:"required"`
 		AccessLevel   AccessLevel                 `json:"access_level" binding:"required"`
 		ShaderOutputs []CreateShaderOutputPayload `json:"shader_outputs" binding:"required"`
+	}
+
+	BulkCreateShaderPayload struct {
+		Shaders []CreateShaderPayload `json:"shaders" binding:"required"`
 	}
 
 	GetShaderFilter struct {
@@ -124,7 +133,7 @@ type (
 		GetShaderCount(ctx context.Context, filter GetShaderFilter) (int64, error)
 		GetShaders(ctx context.Context, req ShaderListReq) ([]Shader, error)
 		GetShader(ctx context.Context, req ShaderByIdReq) (*Shader, error)
-		CreateShader(ctx context.Context, userID uuid.UUID, shaderPayload CreateShaderPayload) (*Shader, error)
+		CreateShader(ctx context.Context, userID uuid.UUID, shaderPayload CreateShaderPayload) (uuid.UUID, error)
 		UpdateShader(ctx context.Context, userID uuid.UUID, shaderID uuid.UUID, updatePayload UpdateShaderPayload) (*Shader, error)
 		CreateShaderInput(ctx context.Context, input CreateShaderInputPayload) (*ShaderInput, error)
 		CreateShaderOutput(ctx context.Context, output CreateShaderOutputPayload) (*ShaderOutput, error)
@@ -137,7 +146,7 @@ type (
 		GetShaders(ctx context.Context, req ShaderListReq) (*ShaderResponse, error)
 		GetShaderCount(ctx context.Context, filter GetShaderFilter) (int64, error)
 		GetShader(ctx context.Context, req ShaderByIdReq) (*Shader, error)
-		CreateShader(ctx context.Context, userID uuid.UUID, shaderPayload CreateShaderPayload, file *multipart.FileHeader) (*Shader, error)
+		CreateShader(ctx context.Context, userID uuid.UUID, shaderPayload CreateShaderPayload, file *multipart.FileHeader) (uuid.UUID, error)
 		UpdateShader(ctx context.Context, userID uuid.UUID, shaderID uuid.UUID, updatePayload UpdateShaderPayload, file *multipart.FileHeader) (*Shader, error)
 		CreateShaderInput(ctx context.Context, input CreateShaderInputPayload) (*ShaderInput, error)
 		CreateShaderOutput(ctx context.Context, output CreateShaderOutputPayload) (*ShaderOutput, error)

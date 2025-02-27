@@ -1,11 +1,12 @@
 import { initialFragmentShaderText } from "@/app/(mainapp)/view/components/renderer/Renderer";
 import { ShaderData } from "@/types/shader";
 
-export const SimpleMultipass: ShaderData = {
+export const SimpleMultipass: Partial<ShaderData> = {
   id: "",
   created_at: "",
   updated_at: "",
   preview_img_url: "",
+  flags: 0,
   access_level: 0,
   user_id: "",
   title: "SimpleMultipass",
@@ -13,6 +14,7 @@ export const SimpleMultipass: ShaderData = {
   shader_outputs: [
     {
       name: "Buffer A",
+      flags: 0,
       type: "buffer",
       shader_inputs: [
         {
@@ -31,6 +33,7 @@ export const SimpleMultipass: ShaderData = {
     {
       name: "Image",
       type: "image",
+      flags: 0,
       shader_inputs: [
         { idx: 0, properties: { name: "Buffer A" }, type: "buffer" },
       ],
@@ -41,19 +44,15 @@ export const SimpleMultipass: ShaderData = {
   ],
 };
 
-export const MultipassExample: ShaderData = {
-  id: "",
-  created_at: "",
-  updated_at: "",
-  preview_img_url: "",
+export const MultipassExample: Partial<ShaderData> = {
   access_level: 0,
-  user_id: "",
   title: "Multipass",
   description:
     "A simple multipass example. src: https://www.shadertoy.com/view/4ddSz4",
   shader_outputs: [
     {
       name: "Buffer A",
+      flags: 0,
       type: "buffer",
       shader_inputs: [
         { idx: 0, properties: { name: "Buffer A" }, type: "buffer" },
@@ -121,6 +120,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
     {
       name: "Image",
       type: "image",
+      flags: 0,
       shader_inputs: [
         { idx: 0, properties: { name: "Buffer A" }, type: "buffer" },
       ],
@@ -148,17 +148,19 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
 };
 
 export const DefaultNewShader: ShaderData = {
-  id: "",
   created_at: "",
+  description: "",
   updated_at: "",
+  flags: 0,
+  id: "",
+  preview_img_url: "",
   title: "",
   user_id: "",
   access_level: 0,
-  preview_img_url: "",
-  description: "",
   shader_outputs: [
     {
       name: "Image",
+      flags: 0,
       shader_inputs: [],
       code: initialFragmentShaderText,
       type: "image",
@@ -166,18 +168,13 @@ export const DefaultNewShader: ShaderData = {
   ],
 };
 
-export const TextureExample: ShaderData = {
-  id: "",
-  created_at: "",
-  updated_at: "",
+export const TextureExample: Partial<ShaderData> = {
   title: "TextureExample",
-  user_id: "",
   access_level: 1,
-  preview_img_url: "",
-  description: "",
   shader_outputs: [
     {
       name: "Image",
+      flags: 0,
       shader_inputs: [
         {
           idx: 0,
@@ -200,19 +197,14 @@ export const TextureExample: ShaderData = {
   ],
 };
 
-export const MultiPassRed: ShaderData = {
-  id: "",
-  created_at: "",
-  updated_at: "",
+export const MultiPassRed: Partial<ShaderData> = {
   title: "MultiPassRed",
-  user_id: "",
   access_level: 0,
-  preview_img_url: "",
-  description: "",
   shader_outputs: [
     {
       name: "Buffer A",
       type: "buffer",
+      flags: 0,
       shader_inputs: [
         {
           type: "buffer",
@@ -240,6 +232,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     },
     {
       name: "Image",
+      flags: 0,
       type: "image",
       shader_inputs: [],
       code: `vec4 readMemory(vec2 coords) {
@@ -254,7 +247,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
   ],
 };
 
-export const Examples: ShaderData[] = [
+export const Examples: Partial<ShaderData>[] = [
   TextureExample,
   MultipassExample,
   MultiPassRed,
