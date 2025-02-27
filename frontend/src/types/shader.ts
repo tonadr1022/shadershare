@@ -131,6 +131,10 @@ export type ShaderListDetailedResp = {
   shaders: ShaderDataWithUser[];
   total: number;
 };
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const isShaderData = (data: any): data is ShaderData => {
+  return data && Array.isArray(data.shader_outputs);
+};
 
 export type CompileResult = {
   success: boolean;

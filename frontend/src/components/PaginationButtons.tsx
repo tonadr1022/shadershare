@@ -17,6 +17,7 @@ type Props = {
   onPageChange: (page: number) => void;
   onPerPageChange: (newPage: number, newPerPage: number) => void;
   pageSizes?: number[];
+  showPageSizeSelect?: boolean;
 };
 
 const PaginationButtons = ({
@@ -26,6 +27,7 @@ const PaginationButtons = ({
   onPageChange,
   onPerPageChange,
   pageSizes,
+  showPageSizeSelect = true,
 }: Props) => {
   const sizes = pageSizes ? pageSizes : [10, 25, 50];
   const pageNumbers = generatePagination(
@@ -35,28 +37,32 @@ const PaginationButtons = ({
 
   return (
     <div className="flex flex-row gap-2">
-      <Select
-        value={perPage.toString()}
-        onValueChange={(val: string) => {
-          const newPerPage = parseInt(val);
-          let newPage = page;
-          if (newPerPage * page > totalDataLength) {
-            newPage = Math.ceil(totalDataLength / newPerPage);
-          }
-          onPerPageChange(newPage, newPerPage);
-        }}
-      >
-        <SelectTrigger className="w-fit">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {sizes.map((p) => (
-            <SelectItem key={p} value={p.toString()}>
-              {p}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      {showPageSizeSelect ? (
+        <Select
+          value={perPage.toString()}
+          onValueChange={(val: string) => {
+            const newPerPage = parseInt(val);
+            let newPage = page;
+            if (newPerPage * page > totalDataLength) {
+              newPage = Math.ceil(totalDataLength / newPerPage);
+            }
+            onPerPageChange(newPage, newPerPage);
+          }}
+        >
+          <SelectTrigger className="w-fit h-8">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {sizes.map((p) => (
+              <SelectItem key={p} value={p.toString()}>
+                {p}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ) : (
+        <></>
+      )}
       <Button
         variant="outline"
         size="sm"

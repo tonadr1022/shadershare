@@ -48,7 +48,7 @@ const ShaderRenderer = ({
   const [optionsDropdownOpen, setOptionsDropdownOpen] = useState(false);
   const [embedOpen, setEmbedOpen] = useState(false);
   const [hoverPaused, setHoverPaused] = useState(true);
-  const [firstRender, setFirstRender] = useState(true);
+  const [firstRender, setFirstRender] = useState(3);
   const [canvasDims, setCanvasDims] = useState({ width: 0, height: 0 });
   const [overrideHoverPlay, setOverrideHoverPlay] = useState(false);
 
@@ -89,6 +89,11 @@ const ShaderRenderer = ({
   }, []);
 
   useEffect(() => {
+    return () => {
+      renderer?.shutdown();
+    };
+  }, [renderer]);
+  useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !renderer) return;
 
@@ -99,7 +104,7 @@ const ShaderRenderer = ({
 
       const isPaused =
         paused || (!overrideHoverPlay && hoverOnlyPlay && hoverPaused);
-      if (!isPaused || firstRender) {
+      if (renderer.forceRender() || !isPaused || firstRender) {
         if (renderer.getWasPaused()) {
           // Adjust last real time so there's no jump
           renderer.setLastRealTime(currRealTime);
@@ -108,10 +113,9 @@ const ShaderRenderer = ({
 
         const dt = currRealTime - renderer.getLastRealTime();
         renderer.setShaderTime(renderer.getShaderTime() + dt);
-
         const rendered = renderer.render({ checkResize: true, dt: dt });
-        if (firstRender) {
-          if (rendered) setFirstRender(false);
+        if (firstRender > 0) {
+          if (rendered) setFirstRender((fr) => fr - 1);
         }
         renderer.setLastRealTime(currRealTime);
       } else {
@@ -133,7 +137,6 @@ const ShaderRenderer = ({
 
     return () => {
       cancelAnimationFrame(animationFrameId);
-      // renderer?.shutdown();
     };
   }, [
     hoverOnlyPlay,

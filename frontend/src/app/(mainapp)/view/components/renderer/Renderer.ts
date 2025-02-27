@@ -179,6 +179,7 @@ uniform float iChannelTime[10];
 uniform vec3 iChannelResolution[10];
 uniform vec4 iMouse; // xy = curr pixel coords, zw = click pixel coords
 uniform vec4 iDate;
+uniform float iFrameRate;
 
 out vec4 fC;
 
@@ -707,6 +708,7 @@ const webGL2Renderer = () => {
       URL.revokeObjectURL(url);
     }, 0);
   };
+  let forceRender = false;
   const render = (options?: { checkResize?: boolean; dt: number }): boolean => {
     if (!initialized || !gl || !canvas) {
       return false;
@@ -782,6 +784,7 @@ const webGL2Renderer = () => {
     }
 
     currFrame++;
+    forceRender = false;
     return true;
   };
 
@@ -1123,18 +1126,20 @@ ${commonBufferText}
     }
   };
   const actualDims = [0, 0];
-  const onResize = (width: number, height: number, force: boolean = false) => {
+  const onResize = (
+    _width: number,
+    _height: number,
+    force: boolean = false,
+  ) => {
     if (!initialized || !canvas) {
       return;
     }
-    const scale = 1;
-    canvas.width = Math.floor(width * scale);
-    canvas.height = Math.floor(height * scale);
     if (
       force ||
       canvas.width !== actualDims[0] ||
       canvas.height !== actualDims[1]
     ) {
+      forceRender = true;
       resizeBuffers();
     }
     actualDims[0] = canvas.width;
@@ -1471,22 +1476,13 @@ ${commonBufferText}
           return;
         }
 
-        let doubleBuffer = false;
         const output = shaderOutputs.find(
           (output: ShaderOutputFull) => output.name === task.name,
         );
         if (!output) {
           throw new Error("invalid state");
         }
-        for (const input of output.shader_inputs || []) {
-          if (
-            "name" in input.properties &&
-            input.properties.name === task.name
-          ) {
-            doubleBuffer = true;
-            break;
-          }
-        }
+        const doubleBuffer = output.name !== "Image";
         if (checkGLError(gl)) {
           throw new Error("GL error");
         }
@@ -1565,6 +1561,7 @@ ${commonBufferText}
 
     onResize,
     render,
+    forceRender: () => forceRender,
     startRecording,
     stopRecording,
     getFps: () => {

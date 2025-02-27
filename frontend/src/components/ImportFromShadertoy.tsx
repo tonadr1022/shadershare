@@ -36,7 +36,10 @@ const ImportFromShadertoy = () => {
         data: {
           title: shader.title,
           description: shader.description,
-          access_level: AccessLevel.PRIVATE,
+          access_level:
+            process.env.NODE_ENV === "development"
+              ? AccessLevel.PUBLIC
+              : AccessLevel.PRIVATE,
           shader_outputs: shader.shader_outputs,
         },
         previewFile: previewFile,

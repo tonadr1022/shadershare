@@ -126,13 +126,22 @@ export const getShadersWithUsernames = async (
   detailed: boolean,
   offset?: number,
   limit?: number,
-): Promise<ShaderListResp> => {
-  return getShadersWithUsernamesImpl(
-    detailed,
-    undefined,
-    offset,
-    limit,
-  ) as Promise<ShaderListResp>;
+): Promise<ShaderListResp | ShaderListDetailedResp> => {
+  if (detailed) {
+    return getShadersWithUsernamesImpl(
+      detailed,
+      undefined,
+      offset,
+      limit,
+    ) as Promise<ShaderListDetailedResp>;
+  } else {
+    return getShadersWithUsernamesImpl(
+      detailed,
+      undefined,
+      offset,
+      limit,
+    ) as Promise<ShaderListResp>;
+  }
 };
 
 export const deleteShaderInput = async (id: string) => {
