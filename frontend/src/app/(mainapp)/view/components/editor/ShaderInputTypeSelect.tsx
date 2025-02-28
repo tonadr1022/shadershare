@@ -30,6 +30,7 @@ const ShaderInputTypeSelect = ({ type, onChange }: Props) => {
         <SelectContent defaultValue={type}>
           <SelectItem value="texture">Texture</SelectItem>
           <SelectItem value="buffer">Buffer</SelectItem>
+          <SelectItem value="keyboard">Keyboard</SelectItem>
         </SelectContent>
       </Select>
     </div>

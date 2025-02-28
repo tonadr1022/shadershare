@@ -25,8 +25,12 @@ import { Input } from "./ui/input";
 import { toast } from "sonner";
 import axios, { AxiosError } from "axios";
 import { Spinner } from "./ui/spinner";
+import { Checkbox } from "./ui/checkbox";
+import { Label } from "./ui/label";
 
 const ImportFromShadertoy = () => {
+  const [creditAuthor, setCreditAuthor] = useState(false);
+  const [creditShadertoy, setCreditShadertoy] = useState(false);
   const [addShaderPending, setAddShaderPending] = useState(false);
   const queryClient = useQueryClient();
   const createShaderMut = useMutation({
@@ -90,14 +94,17 @@ const ImportFromShadertoy = () => {
       }
       const newShaders = [];
       for (const stShader of shaderToyShaders) {
-        const { shader, errors } = shaderToyToShader(stShader);
+        const { shader, errors } = shaderToyToShader(
+          stShader,
+          creditAuthor,
+          creditShadertoy,
+        );
         if (!shader || errors.length) {
           for (const err of errors) {
             newErrs.push(`${shader?.title || ""} ${err}`);
           }
-        } else {
-          newShaders.push(shader);
         }
+        newShaders.push(shader);
       }
       const uploads: ShaderFullUpload[] = [];
       for (const shader of newShaders) {
@@ -117,26 +124,27 @@ const ImportFromShadertoy = () => {
         setErrors((old) => [...old, ...newErrs]);
       }
     },
-    [bulkCreateShaderMut],
+    [bulkCreateShaderMut, creditAuthor, creditShadertoy],
   );
   const addShaderByIdMut = useMutation({
     mutationFn: async (id: string) => {
       const res = await axios.get(
         `https://www.shadertoy.com/api/v1/shaders/${id}?key=rdHlhm`,
       );
-      console.log(res.status, "got");
       return res.data;
     },
     onSuccess: async (data: ShaderToyShaderResp) => {
-      const { shader, errors } = shaderToyToShader(data.Shader);
+      const { shader, errors } = shaderToyToShader(
+        data.Shader,
+        creditAuthor,
+        creditShadertoy,
+      );
       if (!shader || errors.length) {
         for (const err of errors) {
           setErrors((existing) => [...existing, err]);
         }
-      } else {
         try {
           await addShader(shader);
-          toast.success(`Imported "${shader.title}" successfully`);
           // eslint-disable-next-line @typescript-eslint/no-unused-vars
         } catch (err) {
           toast.error(`Failed to upload "${shader.title}"`);
@@ -151,6 +159,22 @@ const ImportFromShadertoy = () => {
 
   return (
     <div className="flex flex-col gap-4 h-24">
+      <div className="flex items-center gap-2 cursor-pointer">
+        <Label htmlFor="credit-author">Credit Author in Title</Label>
+        <Checkbox
+          id="credit-author"
+          checked={creditAuthor}
+          onCheckedChange={(c) => setCreditAuthor(c.valueOf() !== false)}
+        />
+      </div>
+      <div className="flex items-center gap-2 cursor-pointer">
+        <Label htmlFor="credit-shadertoy">Credit Shadertoy in Title</Label>
+        <Checkbox
+          id="credit-shadertoy"
+          checked={creditShadertoy}
+          onCheckedChange={(c) => setCreditShadertoy(c.valueOf() !== false)}
+        />
+      </div>
       <Dropzone onDrop={handleUploadFiles}>
         {(dropzone: DropzoneState) => (
           <div className="h-24 flex flex-col justify-center" id="test">

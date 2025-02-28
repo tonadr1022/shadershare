@@ -22,7 +22,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { promptSaveScreenshot } from "./Renderer";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import Fps from "./Fps";
 import { useRendererCtx } from "@/context/RendererContext";
@@ -42,6 +41,7 @@ const ShaderRenderer = ({
   isEmbedded,
   hideControls,
 }: Props) => {
+  const [hideUI, setHideUI] = useState(hideControls);
   const isShaderEmbed = isEmbedded || false;
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const { paused, setPaused, shaderDataRef, renderer } = useRendererCtx();
@@ -56,11 +56,21 @@ const ShaderRenderer = ({
     setPaused((prev) => !prev);
   }, [setPaused]);
 
-  const onScreenshot = useCallback(() => {
-    if (canvasRef.current) {
-      promptSaveScreenshot(canvasRef.current);
-    }
-  }, []);
+  const onScreenshot = useCallback(async () => {
+    renderer?.saveScreenshot((blob) => {
+      if (!blob) {
+        console.error("Failed to capture canvas as blob");
+        return;
+      }
+
+      const a = document.createElement("a");
+      const url = window.URL.createObjectURL(blob!);
+      a.style.display = "none";
+      a.download = "shader.png";
+      a.href = url;
+      a.click();
+    });
+  }, [renderer]);
 
   const onRestart = useCallback(() => {
     renderer?.restart();
@@ -100,6 +110,9 @@ const ShaderRenderer = ({
 
     const onKeyDown = (ev: KeyboardEvent) => {
       ev.preventDefault();
+      if (ev.key === "F7") {
+        setHideUI((prev) => !prev);
+      }
       renderer.setKeyDown(ev.keyCode);
     };
     const onKeyUp = (ev: KeyboardEvent) => {
@@ -250,13 +263,17 @@ const ShaderRenderer = ({
           <canvas
             tabIndex={1}
             ref={canvasRef}
-            className="w-full h-full outline-none"
+            className="w-full bg-black h-full outline-none"
           />
         </AspectRatio>
       ) : (
-        <canvas ref={canvasRef} className="w-full h-full outline-none" />
+        <canvas
+          tabIndex={1}
+          ref={canvasRef}
+          className="w-full h-full bg-back outline-none"
+        />
       )}
-      {isShaderEmbed && (
+      {!hideUI && isShaderEmbed && (
         <div
           className={cn(
             optionsDropdownOpen
@@ -273,7 +290,7 @@ const ShaderRenderer = ({
           </div>
         </div>
       )}
-      {!hideControls && (
+      {!hideUI && (
         <div
           className={cn(
             isShaderEmbed &&

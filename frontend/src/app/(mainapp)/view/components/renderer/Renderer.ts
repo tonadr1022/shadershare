@@ -13,6 +13,7 @@ import {
   ShaderOutputName,
   ShaderOutputFull,
   ShaderUpdateCreatePayload,
+  ShaderOutputType,
 } from "@/types/shader";
 import { createErrorResult, createSuccessResult } from "../util";
 import { webgl2Utils, WebGL2Utils } from "./Util";
@@ -194,6 +195,65 @@ void main() {
     mainImage(fC, gl_FragCoord.xy);
 }
 `;
+const makeHeaderBase = () => {
+  return `#version 300 es
+#ifdef GL_ES
+precision highp float;
+precision highp int;
+// precision mediump sampler3D;
+#endif
+
+uniform sampler2D iChannel0;
+uniform sampler2D iChannel1;
+uniform sampler2D iChannel2;
+uniform sampler2D iChannel3;
+uniform sampler2D iChannel4;
+uniform sampler2D iChannel5;
+uniform sampler2D iChannel6;
+uniform sampler2D iChannel7;
+uniform sampler2D iChannel8;
+uniform sampler2D iChannel9;
+uniform sampler2D iChannel10;
+
+uniform vec3 iResolution;
+uniform float iTime; // seconds
+uniform float iTimeDelta;
+uniform int iFrame;
+uniform float iChannelTime[10];
+uniform vec3 iChannelResolution[10];
+uniform vec4 iMouse; // xy = curr pixel coords, zw = click pixel coords
+uniform vec4 iDate;
+uniform float iFrameRate;
+
+out vec4 out_frag_color_abcabc;
+
+
+void mainImage(out vec4 fragColor, in vec2 fragCoord);
+
+`;
+};
+
+const makeHeaderImage = () => {
+  let ret = makeHeaderBase();
+  ret += `void main() {
+    out_frag_color_abcabc = vec4(1.0,1.0,1.0,1.0);
+    mainImage(out_frag_color_abcabc, gl_FragCoord.xy);
+    out_frag_color_abcabc.a = 1.0;
+}
+`;
+  return ret;
+};
+
+const makeHeaderBuffer = () => {
+  let ret = makeHeaderBase();
+  ret += `void main() {
+    out_frag_color_abcabc = vec4(1.0,1.0,1.0,1.0);
+    mainImage(out_frag_color_abcabc, gl_FragCoord.xy);
+}
+`;
+  return ret;
+};
+
 const getLineCnt = (text: string) => {
   return text.split(/\r\n|\r|\n/).length;
 };
@@ -251,9 +311,26 @@ class FragShaderUniforms {
     null,
     null,
     null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
   ];
   iMouse: WebGLUniformLocation | null = null;
-  iChannels: (WebGLUniformLocation | null)[] = [null, null, null, null];
+  iChannels: (WebGLUniformLocation | null)[] = [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+  ];
   iChannelNames: string[] = [];
 
   setLocs(shaderProgram: WebGLProgram, gl: WebGL2RenderingContext) {
@@ -373,15 +450,12 @@ class RenderTarget {
       tex.texture,
       0,
     );
-    // if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) {
-    //   console.error("Framebuffer is incomplete after resizing!");
-    // }
   }
 
-  swapTextures(gl: WebGL2RenderingContext) {
+  swapTextures() {
     if (this.doubleBuffer) {
       this.currentTextureIndex = 1 - this.currentTextureIndex;
-      this.bindAndSetTex(gl);
+      // this.bindAndSetTex(gl);
     }
   }
 }
@@ -626,6 +700,11 @@ class KeyboardTexture {
       this.state[i] = 0;
     }
     gl.bindTexture(gl.TEXTURE_2D, this.texture.texture);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     gl.texImage2D(
       gl.TEXTURE_2D,
       0,
@@ -647,13 +726,8 @@ class KeyboardTexture {
   }
 
   clearPresses() {
-    for (let i = 256; i < 512; i++) {
-      if (this.state[i]) {
-        this.#dirty = true;
-      }
-    }
-    if (this.#dirty) {
-      this.state.fill(0, 256, 512);
+    for (let i = 0; i < 256; i++) {
+      this.state[i + 256] = 0;
     }
   }
 
@@ -661,7 +735,7 @@ class KeyboardTexture {
     if (key < 0 || key >= 256 || this.state[key] === 255) return;
     this.state[key] = 255;
     this.state[key + 256] = 255;
-    this.state[key + 512] ^= 255;
+    this.state[key + 256 * 2] = 255 - this.state[key + 256 * 2];
     this.#dirty = true;
   }
 
@@ -672,9 +746,10 @@ class KeyboardTexture {
   }
 
   flush(gl: WebGL2RenderingContext) {
-    if (this.#dirty) {
+    if (true) {
       this.#dirty = false;
       gl.bindTexture(gl.TEXTURE_2D, this.texture.texture);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0);
       gl.texSubImage2D(
         gl.TEXTURE_2D,
         0,
@@ -797,14 +872,7 @@ const webGL2Renderer = () => {
       }
       const loc = uniforms.iChannels[i]!;
       if (iChannel.type === "keyboard") {
-        if (checkGLError(gl)) {
-          console.error("e");
-        }
-        gl.bindTexture(gl.TEXTURE_2D, kbTex.texture.texture);
-        if (checkGLError(gl)) {
-          console.error("e");
-        }
-        // bindTexture(loc, kbTex.texture, i);
+        bindTexture(loc, kbTex.texture, i);
       } else if (iChannel.type === "buffer") {
         const output =
           state.outputs[(iChannel.data as BufferIChannel).bufferName];
@@ -853,6 +921,16 @@ const webGL2Renderer = () => {
       a.click();
       URL.revokeObjectURL(url);
     }, 0);
+  };
+
+  let screenshotRequested = false;
+  let screenshotCallback: ((blob: Blob | null) => void) | null = null;
+  const saveScreenshot = (callback: (blob: Blob | null) => void) => {
+    if (screenshotRequested) {
+      return;
+    }
+    screenshotRequested = true;
+    screenshotCallback = callback;
   };
 
   const render = (options?: { checkResize?: boolean; dt: number }): boolean => {
@@ -909,9 +987,6 @@ const webGL2Renderer = () => {
       if (output === null) {
         continue;
       }
-      if (checkGLError(gl)) {
-        console.error("e");
-      }
       if (bufferName === "Image") {
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
       } else {
@@ -920,35 +995,31 @@ const webGL2Renderer = () => {
       gl.viewport(0, 0, canvas.width, canvas.height);
       gl.useProgram(output.program);
       const uniforms = output.uniformLocs;
-      if (checkGLError(gl)) {
-        console.error("e");
-      }
       bindUniforms(output, uniforms, dates, mouse);
-      gl.clearColor(0.0, 0.0, 0.0, 1.0);
+      // if (bufferName === "Image") {
+      gl.clearColor(0.0, 0.0, 0.0, 0.0);
       gl.clear(gl.COLOR_BUFFER_BIT);
-      if (checkGLError(gl)) {
-        console.error("e");
-      }
+      // }
       bindIChannels(output, uniforms);
       drawScreen();
-      if (checkGLError(gl)) {
-        console.error("e");
+      if (bufferName !== "Image") {
+        output?.renderTarget.swapTextures();
       }
     }
 
-    for (const output of getBufferOutputs()) {
-      if (output === null) {
-        continue;
-      }
-      output.renderTarget.swapTextures(gl);
-    }
+    // for (const output of getBufferOutputs()) {
+    //   output?.renderTarget.swapTextures(gl);
+    // }
 
-    if (checkGLError(gl)) {
-      console.error("e");
-    }
     kbTex.clearPresses();
     if (!forceRender) currFrame++;
     forceRender = false;
+
+    if (screenshotRequested && screenshotCallback) {
+      screenshotRequested = false;
+      canvas.toBlob(screenshotCallback, "image/png");
+      screenshotCallback = null;
+    }
     return true;
   };
 
@@ -961,10 +1032,19 @@ const webGL2Renderer = () => {
     headerLineCnt: number;
   };
   const compileShader = (
+    outputType: ShaderOutputType,
     commonBufferText: string,
     fragmentText: string,
   ): Result<CompileShaderResult> => {
     // TODO: dynamically create the header based on what is actually used in the shader
+    let fragmentHeader = "";
+    if (outputType === "buffer") {
+      fragmentHeader = makeHeaderBuffer();
+    } else if (outputType === "image") {
+      fragmentHeader = makeHeaderImage();
+    } else {
+      throw new Error("can't compile: invalid output type");
+    }
     const completeHeader = `${fragmentHeader}
 ${commonBufferText}
 `;
@@ -1069,7 +1149,7 @@ ${commonBufferText}
     return new Promise((resolve, reject) => {
       const output = state.outputs[outputName];
       if (!output) {
-        throw new Error("output not existent");
+        throw new Error("output not existent: " + outputName);
       }
       if (idx < 0 || idx >= output.shader_inputs.length) {
         reject(new Error("Invalid pass index, out of range"));
@@ -1152,10 +1232,21 @@ ${commonBufferText}
     inputType: ShaderInputType,
     idx: number,
   ) => {
+    // TODO: refactor
+    const output = state.outputs[outputName];
+    if (!output) {
+      throw new Error("output not existent");
+    }
+    if (idx < 0 || idx >= output.shader_inputs.length) {
+      throw new Error("Invalid pass index, out of range");
+    }
+
     if (inputType === "buffer") {
       removeBufferIChannel(outputName, idx);
     } else if (inputType === "texture") {
       removeImageIChannel(outputName, idx);
+    } else if (inputType === "keyboard") {
+      output.shader_inputs.splice(idx, 1);
     } else {
       throw new Error("Invalid input type");
     }
@@ -1211,6 +1302,7 @@ ${commonBufferText}
       return;
     }
     // for each buffer, need to make new textures, copy the old data over
+    const newDims = [canvas.width, canvas.height];
     for (const { output } of getBufferOutputsWithNames()) {
       if (!output) {
         continue;
@@ -1229,7 +1321,6 @@ ${commonBufferText}
       if (singleTextureShader) {
         singleTextureShader.bind(gl);
 
-        const newDims = [canvas.width, canvas.height];
         const oldDims = [
           output.renderTarget.getCurrTex()!.width,
           output.renderTarget.getCurrTex()!.height,
@@ -1247,6 +1338,8 @@ ${commonBufferText}
             newDims[1],
           );
 
+          gl.clearColor(0.0, 0.0, 0.0, 1.0);
+          gl.clear(gl.COLOR_BUFFER_BIT);
           gl.framebufferTexture2D(
             gl.FRAMEBUFFER,
             gl.COLOR_ATTACHMENT0,
@@ -1256,7 +1349,7 @@ ${commonBufferText}
           );
           drawScreen();
 
-          if (true) {
+          if (output.renderTarget.doubleBuffer) {
             const tex = output.renderTarget.getCurrTex()!;
             bindTexture(
               singleTextureShader.uniformLocs.locs.get("tex")!,
@@ -1289,10 +1382,11 @@ ${commonBufferText}
       output.renderTarget = newRenderTarget;
 
       oldRenderTarget.cleanup(gl);
-      output.renderTarget.swapTextures(gl);
+      output.renderTarget.swapTextures();
     }
   };
   const actualDims = [0, 0];
+
   const onResize = (width: number, height: number, force: boolean = false) => {
     if (!initialized || !canvas) {
       return;
@@ -1421,6 +1515,7 @@ ${commonBufferText}
     getWasPaused: () => wasPaused,
 
     canvas: () => canvas,
+    saveScreenshot,
     screenshot: () => {
       canvas.toBlob((blob) => {
         if (!blob) {
@@ -1501,7 +1596,7 @@ ${commonBufferText}
         if (output.type === "common") {
           continue;
         }
-        const res = compileShader(commonOutput, output.code);
+        const res = compileShader(output.type, commonOutput, output.code);
         lineCnts.set(output.name, res.data!.headerLineCnt);
         if (res.error) {
           anyError = true;
@@ -1566,6 +1661,10 @@ ${commonBufferText}
         return;
       }
 
+      canvas.onmouseout = () => {
+        mouseState.mouseSignalDown = false;
+        mouseState.mouseDown = false;
+      };
       canvas.onmousedown = (ev: MouseEvent) => {
         const rect = canvas.getBoundingClientRect();
         mouseState.mouseOriginX = Math.floor(
@@ -1602,6 +1701,7 @@ ${commonBufferText}
 
       if (!gl) {
         const glResult = canvas.getContext("webgl2", {
+          stencil: false,
           preserveDrawingBuffer: true,
           powerPreference: "high-performance",
         });
@@ -1634,56 +1734,40 @@ ${commonBufferText}
         }
       }
 
-      const compileTasks: {
-        code: string;
-        name: BufferName;
-      }[] = [];
-
-      for (let i = 0; i < shaderOutputs.length; i++) {
-        const output = shaderOutputs[i];
-        if (output.type === "common" || output.name === "Common") {
-          continue;
+      const compileTasks: ShaderOutputFull[] = [];
+      for (const output of shaderOutputs) {
+        if (output.type !== "common") {
+          compileTasks.push(output);
         }
-
-        compileTasks.push({
-          code: output.code,
-          name: output.name,
-        });
-      }
-      if (checkGLError(gl)) {
-        throw new Error("GL error");
       }
 
       try {
         const compilePromises = compileTasks.map(
           (
-            task,
+            output,
           ): Promise<{
             res: Result<CompileShaderResult>;
-            task: { code: string; name: BufferName };
+            output: ShaderOutputFull;
           }> =>
             new Promise((resolve, reject) => {
-              const res = compileShader(commonOutput?.code || "", task.code);
+              const res = compileShader(
+                output.type,
+                commonOutput?.code || "",
+                output.code,
+              );
               if (res.error) {
                 console.error("Error compiling shader", res.message);
                 reject(res.message);
               } else {
-                resolve({ res, task });
+                resolve({ res, output });
               }
             }),
         );
         const results = await Promise.all(compilePromises);
-        for (const { res, task } of results) {
+        for (const { res, output } of results) {
           if (res.error) {
             console.error("error compiling shader", res.message);
             return;
-          }
-
-          const output = shaderOutputs.find(
-            (output: ShaderOutputFull) => output.name === task.name,
-          );
-          if (!output) {
-            throw new Error("invalid state");
           }
           const doubleBuffer = output.name !== "Image";
           if (checkGLError(gl)) {
@@ -1700,7 +1784,9 @@ ${commonBufferText}
           if (checkGLError(gl)) {
             throw new Error("GL error");
           }
-          state.outputs[task.name] = pass;
+          if (output.name !== "Common") {
+            state.outputs[output.name] = pass;
+          }
         }
       } catch (error) {
         console.error("Shader compilation failed", error);
@@ -1767,7 +1853,7 @@ ${commonBufferText}
 
     onResize,
     render,
-    forceRender: () => forceRender,
+    forceRender: () => forceRender || screenshotRequested,
     startRecording,
     stopRecording,
     getFps: () => {

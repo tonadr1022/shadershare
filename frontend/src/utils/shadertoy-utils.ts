@@ -138,11 +138,21 @@ export const getShadertoyShaders = async (
   }
   return { shaders, errors };
 };
-export const shaderToyToShader = (stShader: ShaderToyShader) => {
+
+export const shaderToyToShader = (
+  stShader: ShaderToyShader,
+  creditAuthor?: boolean,
+  creditShadertoy?: boolean,
+) => {
   const errors: string[] = [];
   const shader_outputs = [];
   for (let rpIdx = 0; rpIdx < stShader.renderpass.length; rpIdx++) {
     const rp = stShader.renderpass[rpIdx];
+    if (rp.name === "Buf A") rp.name = "Buffer A";
+    if (rp.name === "Buf B") rp.name = "Buffer B";
+    if (rp.name === "Buf C") rp.name = "Buffer C";
+    if (rp.name === "Buf D") rp.name = "Buffer D";
+    if (rp.name === "Buf E") rp.name = "Buffer E";
     if (!shaderOutputNamesStrs.includes(rp.name)) {
       errors.push(
         "Failed to import Shadertoy shader: renderpass name: " + rp.name,
@@ -150,15 +160,6 @@ export const shaderToyToShader = (stShader: ShaderToyShader) => {
       break;
     }
 
-    if (
-      rp.type === "Buf A" ||
-      rp.type === "Buf B" ||
-      rp.type === "Buf C" ||
-      rp.type === "Buf D" ||
-      rp.type === "Buf E"
-    ) {
-      rp.type = "buffer";
-    }
     const types = ["common", "image", "buffer"];
     if (!types.includes(rp.type)) {
       errors.push(
@@ -211,15 +212,6 @@ export const shaderToyToShader = (stShader: ShaderToyShader) => {
         } else if (inputSrc.includes("03")) {
           props.name = "Buffer D";
         }
-        // if (stInput.channel === 0) {
-        //   props.name = "Buffer A";
-        // } else if (stInput.channel === 1) {
-        //   props.name = "Buffer B";
-        // } else if (stInput.channel === 2) {
-        //   props.name = "Buffer C";
-        // } else if (stInput.channel === 3) {
-        //   props.name = "Buffer D";
-        // }
       } else if (inputType === "texture") {
         newInput.properties = DefaultTextureProps;
         const props = newInput.properties as TextureProps;
@@ -259,21 +251,27 @@ export const shaderToyToShader = (stShader: ShaderToyShader) => {
       }
       newOutput.shader_inputs!.push(newInput);
     }
-    if (errors.length) break;
+    // if (errors.length) break;
     shader_outputs.push(newOutput);
-  }
-
-  if (errors.length) {
-    return { shader: undefined, errors };
   }
 
   const info = stShader.info;
   let description = "Imported From Shadertoy";
   if (info.username) {
-    description += "Shader authored by: \n" + info.username;
+    description += "Shader authored by: " + info.username + "\n";
+  }
+  if (!info.username) {
+    console.log("no username", stShader);
   }
   description += `See original at https://shadertoy.com/view/${info.id}`;
 
+  let title = info.name;
+  if (creditAuthor) {
+    title += ` [by ${info.username}]`;
+  }
+  if (creditShadertoy) {
+    title += ` [from Shadertoy]`;
+  }
   const newShader: ShaderData = {
     id: "",
     flags: 0,
@@ -283,9 +281,9 @@ export const shaderToyToShader = (stShader: ShaderToyShader) => {
     preview_img_url: "",
     updated_at: "",
     description,
-    title: `${info.name}`,
+    title,
     shader_outputs,
   };
 
-  return { shader: newShader, errors: [] };
+  return { shader: newShader, errors: errors };
 };

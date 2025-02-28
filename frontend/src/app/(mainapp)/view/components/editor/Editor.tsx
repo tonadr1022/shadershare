@@ -176,7 +176,7 @@ const Editor = React.memo((props: Props2) => {
       exts.push(lineNumbersRelative);
     }
     if (settings.keyBindingMode === "vim") {
-      exts.push(vim({ status: false }));
+      exts.push(vim({ status: true }));
     }
     return exts;
   }, [settings]);
@@ -210,6 +210,7 @@ Editor.displayName = "Editor2";
 
 export const MultiBufferEditor = React.memo(() => {
   const multiEditorRef = useRef<HTMLDivElement | null>(null);
+  const [outlineMode, setOutlineMode] = useState(0); // 0 is none, 1 is success, 2, is error
   const [shaderOutputName, setShaderOutputName] = useState("Image");
   const [codeInputEditFocus, setCodeInputEditFocus] = useState("code");
   // const [renderPassEditIdx, setRenderPassEditIdx] = useState();
@@ -237,6 +238,16 @@ export const MultiBufferEditor = React.memo(() => {
               const res = renderer.setShaders(
                 shaderDataRef.current.shader_outputs,
               );
+
+              if (res.error) {
+                setOutlineMode(2);
+              } else {
+                setOutlineMode(1);
+              }
+
+              setTimeout(() => {
+                setOutlineMode(0);
+              }, 500);
               setErrMsgs(res.errMsgs);
               break;
             default:
@@ -416,13 +427,24 @@ export const MultiBufferEditor = React.memo(() => {
                   )}
                 </div>
                 <TabsContent value="code">
-                  <Editor
-                    errMsgs={!errMsgs ? null : errMsgs.get(output.name)}
-                    name={output.name}
-                    visible={shaderOutputName === output.name}
-                    text={output.code}
-                    onTextChange={onTextUpdate}
-                  />
+                  <div
+                    className={cn(
+                      "box-border border-4 p-0",
+                      outlineMode === 2
+                        ? " border-red-500"
+                        : outlineMode === 1
+                          ? "border-blue-500"
+                          : "border-transparent",
+                    )}
+                  >
+                    <Editor
+                      errMsgs={!errMsgs ? null : errMsgs.get(output.name)}
+                      name={output.name}
+                      visible={shaderOutputName === output.name}
+                      text={output.code}
+                      onTextChange={onTextUpdate}
+                    />
+                  </div>
                 </TabsContent>
                 <TabsContent value="inputs">
                   {output.name != "Common" &&

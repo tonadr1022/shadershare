@@ -76,9 +76,12 @@ const AddShaderInputDialog = ({ children, onSave, bufferName }: Props) => {
           data.idx,
           data.properties as TextureProps,
         );
+      } else if (data.type === "keyboard") {
+        renderer.addKeyboardIChannel(bufferName, data.idx);
       } else {
         throw new Error("invalid shader input type");
       }
+
       const output = shaderDataRef.current.shader_outputs.find(
         (out) => out.name === bufferName,
       );
@@ -98,7 +101,8 @@ const AddShaderInputDialog = ({ children, onSave, bufferName }: Props) => {
 
   const createShaderInputMut = useMutation({
     mutationFn: createShaderInput,
-    onError: () => {
+    onError: (e) => {
+      console.error("e", e);
       toast.error("Failed to create shader input");
     },
     onSuccess: (data) => {
@@ -146,6 +150,8 @@ const AddShaderInputDialog = ({ children, onSave, bufferName }: Props) => {
         toast.error("Output not found for " + name);
         return;
       }
+    } else if (data.type === "keyboard") {
+      newInput.properties = {};
     } else {
       throw new Error("invalid type");
     }
@@ -166,8 +172,8 @@ const AddShaderInputDialog = ({ children, onSave, bufferName }: Props) => {
         <DialogHeader>
           <DialogTitle>Add Shader Input</DialogTitle>
           <DialogDescription>
-            Inputs can either be a 2D texture URL or an existing Buffer Output
-            to read from.
+            Inputs can be a 2D texture URL Buffer Output to read from, or the
+            keyboard.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -190,6 +196,7 @@ const AddShaderInputDialog = ({ children, onSave, bufferName }: Props) => {
                       <SelectContent defaultValue={"buffer"}>
                         <SelectItem value="texture">Texture</SelectItem>
                         <SelectItem value="buffer">Buffer</SelectItem>
+                        <SelectItem value="keyboard">Keyboard</SelectItem>
                       </SelectContent>
                     </Select>
                   </FormControl>

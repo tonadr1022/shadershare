@@ -94,7 +94,8 @@ const EditIChannel = ({ input, idx, bufferName, onDelete }: Props) => {
   return (
     <div className="flex flex-col gap-4 " key={input.id || idx}>
       <h4>
-        {input.type === "texture" ? "Texture" : "Buffer"} - iChannel{input.idx}
+        {input.type.charAt(0).toUpperCase() + input.type.slice(1)} - iChannel
+        {input.idx}
       </h4>
       <ShaderInputTypeSelect type={input.type} onChange={onTypeSelectChange} />
       {input.type === "texture" ? (
@@ -184,7 +185,7 @@ const EditIChannel = ({ input, idx, bufferName, onDelete }: Props) => {
             </Select>
           </div>
         </>
-      ) : (
+      ) : input.type === "buffer" ? (
         <>
           <div className="flex flex-col gap-2 w-40 max-w-sm">
             <Label htmlFor="buffer-name">Buffer</Label>
@@ -220,6 +221,8 @@ const EditIChannel = ({ input, idx, bufferName, onDelete }: Props) => {
             </Select>
           </div>
         </>
+      ) : (
+        <></>
       )}
       <Button
         onClick={handleDelete}
