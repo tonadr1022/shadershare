@@ -35,8 +35,6 @@ import {
   ShaderInputType,
   TextureProps,
 } from "@/types/shader";
-import { createShaderInput } from "@/api/shader-api";
-import { useMutation } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 
 const formSchema = z.object({
@@ -60,7 +58,7 @@ const AddShaderInputDialog = ({ children, onSave, bufferName }: Props) => {
       buffer_name: "Buffer A",
     },
   });
-  const afterCreateShaderInput = useCallback(
+  const createShaderInput = useCallback(
     (data: ShaderInput) => {
       if (!renderer) return;
       if (data.type === "buffer") {
@@ -86,11 +84,13 @@ const AddShaderInputDialog = ({ children, onSave, bufferName }: Props) => {
         (out) => out.name === bufferName,
       );
 
+      console.log("data", data);
       if (output) {
         if (!output.shader_inputs) {
           output.shader_inputs = [];
         }
         output.shader_inputs.push(data);
+        output.shader_inputs.sort((a, b) => a.idx - b.idx);
       }
 
       form.reset();
@@ -99,17 +99,6 @@ const AddShaderInputDialog = ({ children, onSave, bufferName }: Props) => {
     [renderer, shaderDataRef, form, bufferName],
   );
 
-  const createShaderInputMut = useMutation({
-    mutationFn: createShaderInput,
-    onError: (e) => {
-      console.error("e", e);
-      toast.error("Failed to create shader input");
-    },
-    onSuccess: (data) => {
-      afterCreateShaderInput(data);
-      onSave(data.idx);
-    },
-  });
   const onSubmit = form.handleSubmit((data) => {
     if (!renderer) return;
     const output = shaderDataRef.current.shader_outputs.find(
@@ -123,6 +112,7 @@ const AddShaderInputDialog = ({ children, onSave, bufferName }: Props) => {
     }
 
     const newInput: ShaderInput = {
+      new: true,
       type: data.type as ShaderInputType,
       idx:
         shaderDataRef.current.shader_outputs.find(
@@ -156,13 +146,9 @@ const AddShaderInputDialog = ({ children, onSave, bufferName }: Props) => {
       throw new Error("invalid type");
     }
     newInput.output_id = output.id;
-    if (shaderDataRef.current.id) {
-      newInput.shader_id = shaderDataRef.current.id;
-      createShaderInputMut.mutate(newInput);
-    } else {
-      afterCreateShaderInput(newInput);
-      onSave(newInput.idx);
-    }
+    console.log(output.id);
+    createShaderInput(newInput);
+    onSave(newInput.idx);
   });
 
   return (

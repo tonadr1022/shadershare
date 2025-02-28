@@ -308,47 +308,101 @@ func (r shaderRepository) UpdateShader(ctx context.Context, userID uuid.UUID, sh
 		}
 		return nil, err
 	}
-	for _, shaderInput := range updatePayload.ShaderInputs {
-		params := db.UpdateShaderInputParams{
-			ID: shaderInput.ID,
-		}
-		if shaderInput.Properties != nil {
-			jsonB, err := json.Marshal(*shaderInput.Properties)
+
+	outsUpdated := 0
+	insUpdated := 0
+	shaderOutputID := uuid.Nil
+	for _, shaderOutput := range updatePayload.ShaderOutputs {
+		if shaderOutput.ID != uuid.Nil {
+			shaderOutputID = shaderOutput.ID
+			outputUpdateParams := db.UpdateShaderOutputParams{
+				ID: shaderOutput.ID,
+			}
+			if shaderOutput.Code != nil {
+				outputUpdateParams.Column2 = *shaderOutput.Code
+			}
+			if shaderOutput.Name != nil {
+				outputUpdateParams.Column3 = *shaderOutput.Name
+			}
+			if shaderOutput.Type != nil {
+				outputUpdateParams.Column4 = *shaderOutput.Type
+			}
+			if shaderOutput.Flags != nil {
+				outputUpdateParams.Column5 = *shaderOutput.Flags
+			}
+			outsUpdated++
+			r.queries.UpdateShaderOutput(ctx, outputUpdateParams)
+		} else {
+			params := db.CreateShaderOutputParams{
+				ShaderID: updatePayload.ID,
+				Code:     *shaderOutput.Code,
+				Name:     *shaderOutput.Name,
+				Type:     *shaderOutput.Type,
+				Flags:    *shaderOutput.Flags,
+			}
+
+			dbShaderOutput, err := r.queries.CreateShaderOutput(ctx, params)
 			if err != nil {
 				return nil, err
 			}
-			params.Properties = jsonB
+			shaderOutputID = dbShaderOutput.ID
 		}
 
-		if shaderInput.Url != nil {
-			params.Column2 = *shaderInput.Url
-		}
-		if shaderInput.Type != nil {
-			params.Column3 = *shaderInput.Type
-		}
-		if shaderInput.Idx != nil {
-			params.Idx = int32(*shaderInput.Idx)
-		}
-		r.queries.UpdateShaderInput(ctx, params)
-	}
+		for _, shaderInput := range shaderOutput.ShaderInputs {
+			if shaderInput.ID != uuid.Nil { // update
+				params := db.UpdateShaderInputParams{
+					ID: shaderInput.ID,
+				}
+				if shaderInput.Properties != nil {
+					jsonB, err := json.Marshal(*shaderInput.Properties)
+					if err != nil {
+						return nil, err
+					}
+					params.Properties = jsonB
+				}
 
-	for _, shaderOutput := range updatePayload.ShaderOutputs {
-		params := db.UpdateShaderOutputParams{
-			ID: shaderOutput.ID,
+				if shaderInput.Url != nil {
+					params.Column2 = *shaderInput.Url
+				}
+				if shaderInput.Type != nil {
+					params.Column3 = *shaderInput.Type
+				}
+				if shaderInput.Idx != nil {
+					params.Idx = int32(*shaderInput.Idx)
+				}
+				insUpdated++
+				r.queries.UpdateShaderInput(ctx, params)
+			} else { // create
+				params := db.CreateShaderInputParams{
+					ShaderID: updatePayload.ID,
+					OutputID: shaderOutputID,
+				}
+				if shaderInput.Type != nil {
+					params.Type = *shaderInput.Type
+				}
+				if shaderInput.Idx != nil {
+					params.Idx = int32(*shaderInput.Idx)
+				}
+				if shaderInput.Url != nil {
+					params.Url = pgtype.Text{String: *shaderInput.Url, Valid: true}
+				}
+
+				if shaderInput.Properties != nil {
+					jsonB, err := json.Marshal(*shaderInput.Properties)
+					if err != nil {
+						return nil, err
+					}
+					params.Properties = jsonB
+				}
+
+				_, err := r.queries.CreateShaderInput(ctx, params)
+				if err != nil {
+					return nil, err
+				}
+			}
 		}
-		if shaderOutput.Code != nil {
-			params.Column2 = *shaderOutput.Code
-		}
-		if shaderOutput.Name != nil {
-			params.Column3 = *shaderOutput.Name
-		}
-		if shaderOutput.Type != nil {
-			params.Column4 = *shaderOutput.Type
-		}
-		if shaderOutput.Flags != nil {
-			params.Column5 = *shaderOutput.Flags
-		}
-		r.queries.UpdateShaderOutput(ctx, params)
+		fmt.Println("outs updated: ", outsUpdated, "insupdated: ", insUpdated)
+
 	}
 
 	shader := r.ShaderFromDB(dbshader)

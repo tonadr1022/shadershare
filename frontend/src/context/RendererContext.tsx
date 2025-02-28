@@ -18,12 +18,16 @@ import React, {
   useRef,
 } from "react";
 
+export type ShaderEditState = {
+  deletedInputIds: string[];
+};
 interface RendererContextType {
   paused: boolean;
   setPaused: React.Dispatch<React.SetStateAction<boolean>>;
   renderer: IRenderer | null;
   shaderDataRef: React.RefObject<ShaderDataWithUser>;
   codeDirtyRef: React.RefObject<Map<ShaderOutputName, boolean>>;
+  editState: React.RefObject<ShaderEditState>;
   shaderDataDirty: boolean;
   setShaderDataDirty: React.Dispatch<React.SetStateAction<boolean>>;
 }
@@ -44,6 +48,7 @@ export const RendererProvider: React.FC<RendererProviderProps> = ({
 }) => {
   const [paused, setPaused] = useState<boolean>(false);
   const [renderer, setRenderer] = useState<IRenderer | null>(null);
+  const editState = useRef<ShaderEditState>({ deletedInputIds: [] });
   const [shaderDataDirty, setShaderDataDirty] = useState<boolean>(false);
   const initialized = useRef(false);
   const shaderDataRef = React.useRef<ShaderDataWithUser>(
@@ -79,6 +84,7 @@ export const RendererProvider: React.FC<RendererProviderProps> = ({
   return (
     <RendererContext.Provider
       value={{
+        editState,
         shaderDataDirty,
         setShaderDataDirty,
         codeDirtyRef,

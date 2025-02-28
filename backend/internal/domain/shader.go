@@ -45,7 +45,8 @@ type (
 	}
 
 	UpdateShaderInputPayload struct {
-		ID         uuid.UUID               `json:"id" binding:"required"`
+		ID         uuid.UUID               `json:"id"`
+		New        bool                    `json:"new"`
 		Url        *string                 `json:"url,omitempty"`
 		Type       *string                 `json:"type,omitempty"`
 		Idx        *int                    `json:"idx,omitempty"`
@@ -62,11 +63,13 @@ type (
 	}
 
 	UpdateShaderOutputPayload struct {
-		ID    uuid.UUID `json:"id" binding:"required"`
-		Code  *string   `json:"code,omitempty"`
-		Name  *string   `json:"name,omitempty"`
-		Type  *string   `json:"type,omitempty"`
-		Flags *int32    `json:"flags"`
+		ID           uuid.UUID                  `json:"id"`
+		New          bool                       `json:"new"`
+		Code         *string                    `json:"code,omitempty"`
+		Name         *string                    `json:"name,omitempty"`
+		Type         *string                    `json:"type,omitempty"`
+		Flags        *int32                     `json:"flags"`
+		ShaderInputs []UpdateShaderInputPayload `json:"shader_inputs,omitempty"`
 	}
 
 	CreateShaderOutputPayload struct {
@@ -78,14 +81,14 @@ type (
 		ShaderInputs []CreateShaderInputPayload `json:"shader_inputs" binding:"required"`
 	}
 	UpdateShaderPayload struct {
-		ID            uuid.UUID                   `json:"id" binding:"required"`
-		UserID        uuid.UUID                   `json:"user_id" binding:"required"`
-		Title         *string                     `json:"title,omitempty"`
-		Description   *string                     `json:"description,omitempty"`
-		PreviewImgURL *string                     `json:"preview_img_url,omitempty"`
-		AccessLevel   *AccessLevel                `json:"access_level,omitempty"`
-		ShaderInputs  []UpdateShaderInputPayload  `json:"shader_inputs,omitempty"`
-		ShaderOutputs []UpdateShaderOutputPayload `json:"shader_outputs,omitempty"`
+		ID              uuid.UUID                   `json:"id" binding:"required"`
+		UserID          uuid.UUID                   `json:"user_id" binding:"required"`
+		Title           *string                     `json:"title,omitempty"`
+		Description     *string                     `json:"description,omitempty"`
+		PreviewImgURL   *string                     `json:"preview_img_url,omitempty"`
+		AccessLevel     *AccessLevel                `json:"access_level,omitempty"`
+		DeletedInputIds []string                    `json:"deleted_input_ids"`
+		ShaderOutputs   []UpdateShaderOutputPayload `json:"shader_outputs,omitempty"`
 	}
 
 	CreateShaderPayload struct {

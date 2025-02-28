@@ -37,7 +37,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useResolvedTheme } from "@/hooks/hooks";
 import ShaderInputEdit from "./ShaderInputEdit";
 import { Button } from "@/components/ui/button";
-import { CircleHelp, Plus, Settings } from "lucide-react";
+import { CircleHelp, Plus, Settings, X } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -45,15 +45,23 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useMutation } from "@tanstack/react-query";
-import { createShaderOutput } from "@/api/shader-api";
-import { toast } from "sonner";
 import {
   defaultBufferFragmentCode,
   defaultCommonBufferCode,
 } from "../renderer/Renderer";
 import { useLocalSettings } from "@/context/LocalSettingsContext";
 import EditorSettingsForm from "@/app/(mainapp)/account/settings/_components/EditorSettingsForm";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const shaderOutputNames: ShaderOutputName[] = [
   "Common",
@@ -212,7 +220,7 @@ export const MultiBufferEditor = React.memo(() => {
   const multiEditorRef = useRef<HTMLDivElement | null>(null);
   const [outlineMode, setOutlineMode] = useState(0); // 0 is none, 1 is success, 2, is error
   const [shaderOutputName, setShaderOutputName] = useState("Image");
-  const [codeInputEditFocus, setCodeInputEditFocus] = useState("code");
+  const [activeOutputEditTab, setActiveOutputEditTab] = useState("code");
   // const [renderPassEditIdx, setRenderPassEditIdx] = useState();
   const [errMsgs, setErrMsgs] = useState<Map<
     ShaderOutputName,
@@ -290,33 +298,13 @@ export const MultiBufferEditor = React.memo(() => {
     },
     [shaderDataRef],
   );
-  const afterCreateShaderOutput = useCallback(
-    (shaderOutput: ShaderOutputFull) => {
-      shaderDataRef.current.shader_outputs.push(shaderOutput);
-      codeDirtyRef.current.set(shaderOutput.name, false);
-      shaderDataRef.current.shader_outputs.sort((a, b) =>
-        a.name.localeCompare(b.name),
-      );
-    },
-    [codeDirtyRef, shaderDataRef],
-  );
-  const createShaderOutputMut = useMutation({
-    mutationFn: createShaderOutput,
-    onError: () => {
-      toast.error("Failed to create shader output");
-    },
-    onSuccess: (shaderOutput: ShaderOutputFull) => {
-      afterCreateShaderOutput(shaderOutput);
-    },
-  });
-
   // need to make a new shader output on the backend
   const handleAddShaderOutput = useCallback(
     async (name: ShaderOutputName) => {
       const type = name === "Common" ? "common" : "buffer";
-      const shaderID = shaderDataRef.current.id || "";
       const newOutput: ShaderOutputFull = {
         name,
+        new: true,
         flags: 0,
         type: type,
         shader_inputs: [],
@@ -326,24 +314,53 @@ export const MultiBufferEditor = React.memo(() => {
             : defaultBufferFragmentCode,
       };
 
-      if (shaderID !== "") {
-        newOutput.shader_id = shaderID;
-        createShaderOutputMut.mutate(newOutput);
-      } else {
-        afterCreateShaderOutput(newOutput);
-      }
+      shaderDataRef.current.shader_outputs.push(newOutput);
+      codeDirtyRef.current.set(newOutput.name, true);
+      shaderDataRef.current.shader_outputs.sort((a, b) =>
+        a.name.localeCompare(b.name),
+      );
+      await renderer?.addOutput(newOutput);
       forceUpdate((prev) => prev + 1);
     },
-    [afterCreateShaderOutput, shaderDataRef, createShaderOutputMut],
+    [codeDirtyRef, renderer, shaderDataRef],
   );
+
   const [showHelp, setShowHelp] = useState(false);
   const onHelpClick = useCallback(() => {
     setShowHelp((prev) => !prev);
   }, []);
+  const handleOuputDelete = useCallback(
+    (name: ShaderOutputName) => {
+      if (name === "Image") {
+        return;
+      }
+      const data = shaderDataRef.current;
+      let i = 0;
+      let found = false;
+      for (; i < data.shader_outputs.length; i++) {
+        if (data.shader_outputs[i].name === name) {
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        return;
+      }
+      shaderDataRef.current.shader_outputs.splice(i, 1);
+      setShaderOutputName(
+        shaderDataRef.current.shader_outputs[Math.max(i - 1, 0)].name,
+      );
+      console.log(
+        shaderDataRef.current.shader_outputs[Math.max(i - 1, 0)].name,
+      );
+      renderer?.removeOutput(name);
+    },
+    [renderer, shaderDataRef],
+  );
   return (
     <div ref={multiEditorRef} className="flex flex-col w-full h-full">
       <Tabs
-        defaultValue={shaderOutputName}
+        value={shaderOutputName}
         onValueChange={(value) => setShaderOutputName(value)}
         className=""
       >
@@ -401,30 +418,60 @@ export const MultiBufferEditor = React.memo(() => {
               )}
             >
               <Tabs
-                value={codeInputEditFocus}
-                onValueChange={setCodeInputEditFocus}
+                value={activeOutputEditTab}
+                onValueChange={setActiveOutputEditTab}
               >
                 <div className="flex flex-row justify-between">
                   <TabsList>
                     <TabsTrigger value="code">Code</TabsTrigger>
                     <TabsTrigger value="inputs">Inputs</TabsTrigger>
                   </TabsList>
-                  {codeInputEditFocus === "code" && (
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button variant="secondary">
-                          <Settings />
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogTitle>Editor</DialogTitle>
-                        <DialogDescription>
-                          Change editor settings here.
-                        </DialogDescription>
-                        <EditorSettingsForm />
-                      </DialogContent>
-                    </Dialog>
-                  )}
+
+                  <div className="flex gap-2">
+                    {output.name !== "Image" ? (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="destructive">
+                            <X />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>
+                              Are you sure you want to delete {output.name}?
+                            </AlertDialogTitle>
+                            <AlertDialogDescription></AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleOuputDelete(output.name)}
+                            >
+                              Continue
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    ) : (
+                      <></>
+                    )}
+                    {activeOutputEditTab === "code" && (
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="secondary">
+                            <Settings />
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogTitle>Editor</DialogTitle>
+                          <DialogDescription>
+                            Change editor settings here.
+                          </DialogDescription>
+                          <EditorSettingsForm />
+                        </DialogContent>
+                      </Dialog>
+                    )}
+                  </div>
                 </div>
                 <TabsContent value="code">
                   <div

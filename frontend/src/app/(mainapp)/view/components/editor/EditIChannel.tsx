@@ -25,9 +25,6 @@ import { RefreshCw, Trash } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import ShaderInputTypeSelect from "./ShaderInputTypeSelect";
-import { useMutation } from "@tanstack/react-query";
-import { deleteShaderInput } from "@/api/shader-api";
-import { toast } from "sonner";
 
 type Props = {
   input: ShaderInput;
@@ -38,7 +35,8 @@ type Props = {
 
 const EditIChannel = ({ input, idx, bufferName, onDelete }: Props) => {
   const [previewimgUrl, setPreviewImgUrl] = useState(input.url || "");
-  const { shaderDataRef, setShaderDataDirty, renderer } = useRendererCtx();
+  const { editState, shaderDataRef, setShaderDataDirty, renderer } =
+    useRendererCtx();
   const [, forceUpdate] = React.useState(false);
   const onTypeSelectChange = useCallback(
     (val: string) => {
@@ -68,28 +66,26 @@ const EditIChannel = ({ input, idx, bufferName, onDelete }: Props) => {
     [bufferName, input, renderer],
   );
 
-  const afterDeleteShaderInput = useCallback(() => {
+  const handleDelete = useCallback(() => {
     if (!renderer) return;
     renderer.removeIChannel(bufferName, input.type, input.idx);
     getShaderOutput(shaderDataRef, bufferName)?.shader_inputs?.splice(idx, 1);
-    onDelete();
-  }, [bufferName, idx, input, onDelete, renderer, shaderDataRef]);
-
-  const deleteShaderInputMut = useMutation({
-    mutationFn: deleteShaderInput,
-    onSuccess: () => {
-      afterDeleteShaderInput();
-      toast.success("Input deleted");
-    },
-  });
-
-  const handleDelete = useCallback(() => {
     if (input.id) {
-      deleteShaderInputMut.mutate(input.id);
-    } else {
-      afterDeleteShaderInput();
+      editState.current.deletedInputIds.push(input.id);
     }
-  }, [input.id, deleteShaderInputMut, afterDeleteShaderInput]);
+
+    onDelete();
+  }, [
+    bufferName,
+    editState,
+    idx,
+    input.id,
+    input.idx,
+    input.type,
+    onDelete,
+    renderer,
+    shaderDataRef,
+  ]);
 
   return (
     <div className="flex flex-col gap-4 " key={input.id || idx}>

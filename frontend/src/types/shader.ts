@@ -58,6 +58,7 @@ export type ShaderInput = {
   idx: number;
   properties: TextureProps | BufferProps | object;
   dirty?: boolean;
+  new?: boolean;
 };
 
 export type ShaderSort = "updated_at" | "created_at" | "title";
@@ -89,6 +90,7 @@ export type ShaderOutput = {
   type: ShaderOutputType;
   flags: number;
   dirty?: boolean;
+  new?: boolean;
 };
 
 export type ShaderOutputFull = ShaderOutput & {
@@ -177,8 +179,8 @@ export type ShaderUpdateCreatePayload = {
   access_level?: AccessLevel;
   preview_img_url?: string;
   description?: string;
-  shader_inputs?: ShaderInput[];
-  shader_outputs?: ShaderOutput[];
+  deleted_input_ids?: string[];
+  shader_outputs?: ShaderOutputFull[];
 };
 
 export type ShadertoyInput = {

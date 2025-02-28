@@ -34,9 +34,13 @@ export const getPreviewImgFile = async (
     });
 
     renderer.onResize(320, 180);
-    for (let i = 0; i < 2; i++) {
-      renderer.render({ checkResize: false, dt: 0.0007 });
+    let i = 0;
+    while (i < 2) {
+      if (renderer.render({ checkResize: false, dt: 0.0007 })) {
+        i++;
+      }
     }
+    console.log("done");
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     canvas.toBlob((blob) => {
@@ -260,20 +264,32 @@ const getLineCnt = (text: string) => {
 const fragHeaderLineCnt = getLineCnt(fragmentHeader);
 
 class UniformLocs {
-  locs: Map<string, WebGLUniformLocation>;
-  constructor(
-    gl: WebGL2RenderingContext,
-    program: WebGLProgram,
-    locs?: string[],
-  ) {
-    this.locs = new Map();
-    if (locs) {
-      for (const loc of locs) {
-        const l = gl.getUniformLocation(program, loc);
-        if (l === null) {
-          console.error(`Failed to get uniform location for ${loc}`);
-        } else {
-          this.locs.set(loc, l);
+  #locs: Map<string, { info: WebGLActiveInfo; loc: WebGLUniformLocation }>;
+  constructor(gl: WebGL2RenderingContext, program: WebGLProgram) {
+    this.#locs = new Map();
+    this.setLocs(gl, program);
+  }
+
+  get(v: string): WebGLUniformLocation | null {
+    const loc = this.#locs.get(v);
+    if (!v) {
+      return null;
+    }
+    if (!loc) {
+      return null;
+    }
+    return loc.loc;
+  }
+
+  setLocs(gl: WebGL2RenderingContext, program: WebGLProgram) {
+    const numUniforms = gl.getProgramParameter(program, gl.ACTIVE_UNIFORMS);
+    this.#locs = new Map();
+    for (let i = 0; i < numUniforms; i++) {
+      const info = gl.getActiveUniform(program, i);
+      if (info) {
+        const loc = gl.getUniformLocation(program, info.name);
+        if (loc) {
+          this.#locs.set(info.name, { info, loc });
         }
       }
     }
@@ -282,89 +298,39 @@ class UniformLocs {
 
 class Shader {
   uniformLocs: UniformLocs;
-  program: WebGLProgram;
-  constructor(
-    gl: WebGL2RenderingContext,
-    program: WebGLProgram,
-    locs?: string[],
-  ) {
-    this.program = program;
+  #program: WebGLProgram;
+  constructor(gl: WebGL2RenderingContext, program: WebGLProgram) {
+    this.#program = program;
     gl.useProgram(program);
-    this.uniformLocs = new UniformLocs(gl, program, locs);
+    this.uniformLocs = new UniformLocs(gl, program);
   }
 
   bind(gl: WebGL2RenderingContext) {
-    gl.useProgram(this.program);
+    if (!this.#program) {
+      throw new Error("Shader: can't bind without a program");
+    }
+    gl.useProgram(this.#program);
   }
-}
-
-class FragShaderUniforms {
-  iDate: WebGLUniformLocation | null = null;
-  iResolution: WebGLUniformLocation | null = null;
-  iTime: WebGLUniformLocation | null = null;
-  iTimeDelta: WebGLUniformLocation | null = null;
-  iFrame: WebGLUniformLocation | null = null;
-  iChannelTimes: WebGLUniformLocation | null = null;
-  // TODO: array
-  iChannelResolutions: (WebGLUniformLocation | null)[] = [
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-  ];
-  iMouse: WebGLUniformLocation | null = null;
-  iChannels: (WebGLUniformLocation | null)[] = [
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-  ];
-  iChannelNames: string[] = [];
-
-  setLocs(shaderProgram: WebGLProgram, gl: WebGL2RenderingContext) {
-    if (shaderProgram == 0) {
-      throw new Error("Invalid shader program");
+  setProgram(gl: WebGL2RenderingContext, program: WebGLProgram) {
+    if (!program) {
+      throw new Error("Shader: need a program to set");
     }
-    gl.useProgram(shaderProgram);
-    this.iResolution = gl.getUniformLocation(shaderProgram, "iResolution");
-    this.iTime = gl.getUniformLocation(shaderProgram, "iTime");
-    this.iTimeDelta = gl.getUniformLocation(shaderProgram, "iTimeDelta");
-    this.iFrame = gl.getUniformLocation(shaderProgram, "iFrame");
-    this.iMouse = gl.getUniformLocation(shaderProgram, "iMouse");
-    this.iDate = gl.getUniformLocation(shaderProgram, "iDate");
-
-    this.iChannelTimes = gl.getUniformLocation(
-      shaderProgram,
-      `iChannelTime[0]`,
-    );
-    for (let i = 0; i < this.iChannelNames.length; i++) {
-      this.iChannelResolutions[i] = gl.getUniformLocation(
-        shaderProgram,
-        `iChannelResolution[${i}]`,
-      );
-      this.iChannels[i] = gl.getUniformLocation(
-        shaderProgram,
-        this.iChannelNames[i],
-      );
+    if (this.#program) {
+      gl.deleteProgram(this.#program);
     }
+    this.#program = program;
+    this.bind(gl);
+    this.uniformLocs.setLocs(gl, program);
   }
-  constructor(shaderProgram: WebGLProgram, gl: WebGL2RenderingContext) {
-    for (let i = 0; i < 10; i++) {
-      this.iChannelNames.push(`iChannel${i}`);
+
+  destroy(gl: WebGL2RenderingContext) {
+    if (!this.#program) {
+      throw new Error("Shader: need a program to destroy.");
     }
-    this.setLocs(shaderProgram, gl);
+    if (this.#program) {
+      gl.deleteProgram(this.#program);
+    }
+    this.#program = 0;
   }
 }
 
@@ -394,7 +360,7 @@ class RenderTarget {
     return this.textures[this.currentTextureIndex];
   }
 
-  cleanup(gl: WebGL2RenderingContext) {
+  destroy(gl: WebGL2RenderingContext) {
     if (this.fbo) {
       gl.deleteFramebuffer(this.fbo);
       this.fbo = 0;
@@ -659,10 +625,21 @@ type RShaderInput = {
   data: BufferIChannel | Texture | null;
 };
 
+const destroyShaderInput = (
+  gl: WebGL2RenderingContext,
+  input: RShaderInput,
+) => {
+  switch (input.type) {
+    case "buffer":
+      (input.data as Texture).destroy(gl);
+    default:
+      break;
+  }
+};
+
 class RenderPass {
   dirty: boolean = true;
-  program: WebGLProgram;
-  uniformLocs: FragShaderUniforms;
+  shader: Shader;
   type: ShaderInputType = "buffer";
   renderTarget: RenderTarget;
   shader_inputs: RShaderInput[];
@@ -676,22 +653,28 @@ class RenderPass {
     if (program == 0) {
       throw new Error("Invalid program");
     }
+    this.shader = new Shader(gl, program);
     this.shader_inputs = [];
-    this.program = program;
-    this.uniformLocs = new FragShaderUniforms(program, gl);
     this.renderTarget = new RenderTarget(gl, width, height, doubleBuffer);
   }
+  destroy(gl: WebGL2RenderingContext) {
+    this.shader.destroy(gl);
+    this.renderTarget.destroy(gl);
+    for (const inp of this.shader_inputs) {
+      console.log("destroying input", inp);
+      destroyShaderInput(gl, inp);
+    }
+  }
 }
+
 class KeyboardTexture {
   state: Uint8Array = new Uint8Array(256 * 3);
   #initialized = false;
   texture = new Texture();
-  #dirty = true;
   isInitialized() {
     return this.#initialized;
   }
   initialize(gl: WebGL2RenderingContext) {
-    this.#dirty = true;
     if (this.isInitialized()) {
       throw new Error("KeyboardTexture initialized already");
     }
@@ -736,18 +719,15 @@ class KeyboardTexture {
     this.state[key] = 255;
     this.state[key + 256] = 255;
     this.state[key + 256 * 2] = 255 - this.state[key + 256 * 2];
-    this.#dirty = true;
   }
 
   setKeyUp(key: number) {
     this.state[key] = 0;
     this.state[key + 256] = 0;
-    this.#dirty = true;
   }
 
   flush(gl: WebGL2RenderingContext) {
     if (true) {
-      this.#dirty = false;
       gl.bindTexture(gl.TEXTURE_2D, this.texture.texture);
       gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0);
       gl.texSubImage2D(
@@ -772,6 +752,8 @@ const webGL2Renderer = () => {
   let initialized = false;
   let validPipelines = false;
   let wasPaused = false;
+  let shaderTime = 0;
+  let lastRealTime = 0;
   let currTime = 0;
   const kbTex = new KeyboardTexture();
   let timeDelta = 0;
@@ -802,22 +784,26 @@ const webGL2Renderer = () => {
 
   const bindUniforms = (
     output: RenderPass,
-    uniforms: FragShaderUniforms,
+    locs: UniformLocs,
     dates: number[],
     mouse: number[],
   ) => {
-    gl.uniform3f(uniforms.iResolution, canvas.width, canvas.height, 1);
-    gl.uniform1f(uniforms.iTime, shaderTime);
-    gl.uniform1f(uniforms.iTimeDelta, timeDelta);
-    gl.uniform1fv(uniforms.iChannelTimes, [
+    gl.uniform3f(locs.get("iResolution"), canvas.width, canvas.height, 1);
+    gl.uniform1f(locs.get("iTime"), shaderTime);
+    gl.uniform1f(locs.get("iTimeDelta"), timeDelta);
+    gl.uniform1fv(locs.get("iChannelTime"), [
       currTime,
       currTime,
       currTime,
       currTime,
     ]);
-    gl.uniform4f(uniforms.iDate, dates[0], dates[1], dates[2], dates[3]);
-    gl.uniform4f(uniforms.iMouse, mouse[0], mouse[1], mouse[2], mouse[3]);
+    gl.uniform4f(locs.get("iDate"), dates[0], dates[1], dates[2], dates[3]);
+    gl.uniform4f(locs.get("iMouse"), mouse[0], mouse[1], mouse[2], mouse[3]);
 
+    const dimsAll: number[] = [];
+    for (let i = 0; i < output.shader_inputs.length * 3; i++) {
+      dimsAll.push(0);
+    }
     for (let i = 0; i < output.shader_inputs.length; i++) {
       const iChannel = output.shader_inputs[i].data;
       const dims: [number, number] = [canvas.width, canvas.height];
@@ -825,9 +811,15 @@ const webGL2Renderer = () => {
         dims[0] = iChannel.width;
         dims[1] = iChannel.height;
       }
-      gl.uniform3fv(uniforms.iChannelResolutions[i], [dims[0], dims[1], 1]);
+      dimsAll[i * 3] = dims[0];
+      dimsAll[i * 3 + 1] = dims[1];
+      dimsAll[i * 3 + 2] = 1;
     }
-    gl.uniform1i(uniforms.iFrame, currFrame);
+    if (dimsAll.length) {
+      gl.uniform3fv(locs.get(`iChannelResolution[0]`), dimsAll);
+    }
+
+    gl.uniform1i(locs.get("iFrame"), currFrame);
   };
 
   const enableExtensions = () => {
@@ -864,13 +856,14 @@ const webGL2Renderer = () => {
     ];
   };
 
-  const bindIChannels = (output: RenderPass, uniforms: FragShaderUniforms) => {
+  const bindIChannels = (output: RenderPass, uniforms: UniformLocs) => {
     for (let i = 0; i < output.shader_inputs.length; i++) {
       const iChannel = output.shader_inputs[i];
-      if (!iChannel || !uniforms.iChannels[i]) {
+      if (!iChannel) {
         continue;
       }
-      const loc = uniforms.iChannels[i]!;
+      const loc = uniforms.get(`iChannel${i}`);
+      if (!loc) continue;
       if (iChannel.type === "keyboard") {
         bindTexture(loc, kbTex.texture, i);
       } else if (iChannel.type === "buffer") {
@@ -903,6 +896,73 @@ const webGL2Renderer = () => {
       }
     };
     mediaRecorder.start();
+  };
+  const compileShaders = async (shaderOutputs: ShaderOutputFull[]) => {
+    for (const out of shaderOutputs) {
+      if (out.shader_inputs === null) {
+        out.shader_inputs = [];
+      }
+    }
+
+    //get the common output if exists
+    let commonOutput: ShaderOutput | null = null;
+    for (let i = 0; i < shaderOutputs.length; i++) {
+      if (shaderOutputs[i].type === "common") {
+        commonOutput = shaderOutputs[i];
+        break;
+      }
+    }
+
+    const compilePromises: Promise<{
+      res: Result<CompileShaderResult>;
+      output: ShaderOutputFull;
+    }>[] = [];
+    for (const output of shaderOutputs) {
+      if (output.type === "common") continue;
+      compilePromises.push(
+        new Promise((resolve) => {
+          resolve({
+            res: compileShader(
+              output.type,
+              commonOutput?.code || "",
+              output.code,
+            ),
+            output,
+          });
+        }),
+      );
+    }
+
+    try {
+      const results = await Promise.all(compilePromises);
+      for (const { res, output } of results) {
+        if (res.error) {
+          console.error("error compiling shader", res.message);
+          return;
+        }
+        const doubleBuffer = output.name !== "Image";
+        if (checkGLError(gl)) {
+          throw new Error("GL error");
+        }
+
+        if (output.name !== "Common") {
+          const existing = state.outputs[output.name];
+          if (existing) {
+            existing.shader.setProgram(gl, res.data!.program);
+          } else {
+            state.outputs[output.name] = new RenderPass(
+              gl,
+              res.data!.program,
+              canvas.width,
+              canvas.height,
+              doubleBuffer,
+            );
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Shader compilation failed", error);
+    }
   };
 
   const stopRecording = () => {
@@ -993,18 +1053,30 @@ const webGL2Renderer = () => {
         output.renderTarget.bindAndSetTex(gl);
       }
       gl.viewport(0, 0, canvas.width, canvas.height);
-      gl.useProgram(output.program);
-      const uniforms = output.uniformLocs;
-      bindUniforms(output, uniforms, dates, mouse);
-      // if (bufferName === "Image") {
+      output.shader.bind(gl);
+      if (checkGLError(gl)) {
+        console.error("e");
+      }
+      bindUniforms(output, output.shader.uniformLocs, dates, mouse);
       gl.clearColor(0.0, 0.0, 0.0, 0.0);
       gl.clear(gl.COLOR_BUFFER_BIT);
-      // }
-      bindIChannels(output, uniforms);
+      if (checkGLError(gl)) {
+        console.error("e");
+      }
+      bindIChannels(output, output.shader.uniformLocs);
+      if (checkGLError(gl)) {
+        console.error("e");
+      }
       drawScreen();
+      if (checkGLError(gl)) {
+        console.error("e");
+      }
       if (bufferName !== "Image") {
         output?.renderTarget.swapTextures();
       }
+    }
+    if (checkGLError(gl)) {
+      console.error("e");
     }
 
     // for (const output of getBufferOutputs()) {
@@ -1271,7 +1343,7 @@ ${commonBufferText}
   const addKeyboardIChannel = (outputName: BufferName, inputIdx: number) => {
     const output = state.outputs[outputName];
     if (!output) {
-      throw new Error("output not existent");
+      throw new Error("output not existent:" + outputName);
     }
     output.shader_inputs.splice(inputIdx, 0, {
       type: "keyboard",
@@ -1286,7 +1358,7 @@ ${commonBufferText}
   ) => {
     const output = state.outputs[outputName];
     if (!output) {
-      throw new Error("output not existent");
+      throw new Error("output not existent:" + outputName);
     }
     output.shader_inputs.splice(idx, 0, {
       type: "buffer",
@@ -1330,10 +1402,10 @@ ${commonBufferText}
           gl.bindFramebuffer(gl.FRAMEBUFFER, newRenderTarget.fbo);
           // draw previous
           const tex = output.renderTarget.getPrevTex()!;
-          bindTexture(singleTextureShader.uniformLocs.locs.get("tex")!, tex, 0);
+          bindTexture(singleTextureShader.uniformLocs.get("tex")!, tex, 0);
           tex.setFilterMode(gl, "nearest");
           gl.uniform2f(
-            singleTextureShader.uniformLocs.locs.get("iResolution")!,
+            singleTextureShader.uniformLocs.get("iResolution")!,
             newDims[0],
             newDims[1],
           );
@@ -1351,14 +1423,10 @@ ${commonBufferText}
 
           if (output.renderTarget.doubleBuffer) {
             const tex = output.renderTarget.getCurrTex()!;
-            bindTexture(
-              singleTextureShader.uniformLocs.locs.get("tex")!,
-              tex,
-              0,
-            );
+            bindTexture(singleTextureShader.uniformLocs.get("tex")!, tex, 0);
             tex.setFilterMode(gl, "nearest");
             gl.uniform2f(
-              singleTextureShader.uniformLocs.locs.get("iResolution")!,
+              singleTextureShader.uniformLocs.get("iResolution")!,
               newDims[0],
               newDims[1],
             );
@@ -1381,7 +1449,7 @@ ${commonBufferText}
       const oldRenderTarget = output.renderTarget;
       output.renderTarget = newRenderTarget;
 
-      oldRenderTarget.cleanup(gl);
+      oldRenderTarget.destroy(gl);
       output.renderTarget.swapTextures();
     }
   };
@@ -1451,8 +1519,6 @@ ${commonBufferText}
     }
     return res;
   };
-  let shaderTime = 0;
-  let lastRealTime = 0;
   const getShaderInput = (outputName: ShaderOutputName, idx: number) => {
     const output = state.outputs[outputName];
     if (!output) {
@@ -1555,7 +1621,7 @@ ${commonBufferText}
               "Invalid state: iChannel refers to output that doesn't exist",
             );
           }
-          output.renderTarget.cleanup(gl);
+          output.renderTarget.destroy(gl);
           output.renderTarget = new RenderTarget(
             gl,
             canvas.width,
@@ -1590,6 +1656,7 @@ ${commonBufferText}
       );
       const commonOutput = shaderOutputs[commonBufferIdx]?.code || "";
 
+      // TODO: async and call compileShaders
       const lineCnts = new Map<ShaderOutputName, number>();
       for (let i = 0; i < shaderOutputs.length; i++) {
         const output = shaderOutputs[i];
@@ -1610,13 +1677,14 @@ ${commonBufferText}
       if (!anyError) {
         const bufferOutputs = getBufferOutputsWithNames();
         for (const { name, output } of bufferOutputs) {
-          if (output === null) continue;
-          if (output.program) {
-            gl.deleteProgram(output.program);
+          if (output === null) {
+            const newOutput = shaderOutputs.find((s) => s.name);
+            if (newOutput) {
+            }
           }
+          if (output === null) continue;
           const program = programOrErrStrs.get(name) as WebGLProgram;
-          output.uniformLocs = new FragShaderUniforms(program, gl);
-          output.program = program;
+          output.shader.setProgram(gl, program);
         }
         validPipelines = true;
       } else {
@@ -1661,43 +1729,47 @@ ${commonBufferText}
         return;
       }
 
-      canvas.onmouseout = () => {
-        mouseState.mouseSignalDown = false;
-        mouseState.mouseDown = false;
-      };
-      canvas.onmousedown = (ev: MouseEvent) => {
-        const rect = canvas.getBoundingClientRect();
-        mouseState.mouseOriginX = Math.floor(
-          ((ev.clientX - rect.left) / (rect.right - rect.left)) * canvas.width,
-        );
-        mouseState.mouseOriginY = Math.floor(
-          canvas.height -
-            ((ev.clientY - rect.top) / (rect.bottom - rect.top)) *
-              canvas.height,
-        );
-        mouseState.mouseCurrX = mouseState.mouseOriginX;
-        mouseState.mouseCurrY = mouseState.mouseOriginY;
-        mouseState.mouseDown = true;
-        mouseState.mouseSignalDown = true;
-      };
-      canvas.onmousemove = (ev: MouseEvent) => {
-        if (mouseState.mouseDown) {
+      {
+        // mouse state
+        canvas.onmouseout = () => {
+          mouseState.mouseSignalDown = false;
+          mouseState.mouseDown = false;
+        };
+        canvas.onmousedown = (ev: MouseEvent) => {
           const rect = canvas.getBoundingClientRect();
-          mouseState.mouseCurrX = Math.floor(
+          mouseState.mouseOriginX = Math.floor(
             ((ev.clientX - rect.left) / (rect.right - rect.left)) *
               canvas.width,
           );
-          mouseState.mouseCurrY = Math.floor(
+          mouseState.mouseOriginY = Math.floor(
             canvas.height -
               ((ev.clientY - rect.top) / (rect.bottom - rect.top)) *
                 canvas.height,
           );
-        }
-      };
-      canvas.onmouseup = () => {
-        mouseState.mouseDown = false;
-        mouseState.mouseSignalDown = false;
-      };
+          mouseState.mouseCurrX = mouseState.mouseOriginX;
+          mouseState.mouseCurrY = mouseState.mouseOriginY;
+          mouseState.mouseDown = true;
+          mouseState.mouseSignalDown = true;
+        };
+        canvas.onmousemove = (ev: MouseEvent) => {
+          if (mouseState.mouseDown) {
+            const rect = canvas.getBoundingClientRect();
+            mouseState.mouseCurrX = Math.floor(
+              ((ev.clientX - rect.left) / (rect.right - rect.left)) *
+                canvas.width,
+            );
+            mouseState.mouseCurrY = Math.floor(
+              canvas.height -
+                ((ev.clientY - rect.top) / (rect.bottom - rect.top)) *
+                  canvas.height,
+            );
+          }
+        };
+        canvas.onmouseup = () => {
+          mouseState.mouseDown = false;
+          mouseState.mouseSignalDown = false;
+        };
+      }
 
       if (!gl) {
         const glResult = canvas.getContext("webgl2", {
@@ -1710,88 +1782,14 @@ ${commonBufferText}
         }
         gl = glResult;
       }
-      if (checkGLError(gl)) {
-        throw new Error("GL error");
-      }
       util = webgl2Utils(gl);
       if (!enableExtensions()) {
         return;
       }
 
       const { shaderOutputs } = params;
-      for (const out of shaderOutputs) {
-        if (out.shader_inputs === null) {
-          out.shader_inputs = [];
-        }
-      }
 
-      //get the common output if exists
-      let commonOutput: ShaderOutput | null = null;
-      for (let i = 0; i < shaderOutputs.length; i++) {
-        if (shaderOutputs[i].type === "common") {
-          commonOutput = shaderOutputs[i];
-          break;
-        }
-      }
-
-      const compileTasks: ShaderOutputFull[] = [];
-      for (const output of shaderOutputs) {
-        if (output.type !== "common") {
-          compileTasks.push(output);
-        }
-      }
-
-      try {
-        const compilePromises = compileTasks.map(
-          (
-            output,
-          ): Promise<{
-            res: Result<CompileShaderResult>;
-            output: ShaderOutputFull;
-          }> =>
-            new Promise((resolve, reject) => {
-              const res = compileShader(
-                output.type,
-                commonOutput?.code || "",
-                output.code,
-              );
-              if (res.error) {
-                console.error("Error compiling shader", res.message);
-                reject(res.message);
-              } else {
-                resolve({ res, output });
-              }
-            }),
-        );
-        const results = await Promise.all(compilePromises);
-        for (const { res, output } of results) {
-          if (res.error) {
-            console.error("error compiling shader", res.message);
-            return;
-          }
-          const doubleBuffer = output.name !== "Image";
-          if (checkGLError(gl)) {
-            throw new Error("GL error");
-          }
-
-          const pass = new RenderPass(
-            gl,
-            res.data!.program,
-            canvas.width,
-            canvas.height,
-            doubleBuffer,
-          );
-          if (checkGLError(gl)) {
-            throw new Error("GL error");
-          }
-          if (output.name !== "Common") {
-            state.outputs[output.name] = pass;
-          }
-        }
-      } catch (error) {
-        console.error("Shader compilation failed", error);
-      }
-
+      await compileShaders(shaderOutputs);
       if (checkGLError(gl)) {
         throw new Error("GL error");
       }
@@ -1853,8 +1851,32 @@ ${commonBufferText}
 
     onResize,
     render,
+    /*
+    *    let loopCheckCompletion = function ()
+                                {
+                                    if( mGL.getProgramParameter(pr, mAsynchCompile.COMPLETION_STATUS_KHR) === true )
+                                        checkErrors();
+                                    else
+                                        setTimeout(loopCheckCompletion, 10);
+                                };
+                                setTimeout(loopCheckCompletion, 10);
+    */
+    addOutput: async (output: ShaderOutputFull) => {
+      await compileShaders([output]);
+      // TODO: compile shader, etc.
+      // state.outputs[outputName] = new RenderPass(gl)
+    },
     forceRender: () => forceRender || screenshotRequested,
     startRecording,
+    removeOutput: (outputName: ShaderOutputName) => {
+      if (outputName === "Image") return;
+      const out = state.outputs[outputName];
+      if (out === null) {
+        return;
+      }
+      out.destroy(gl);
+      state.outputs[outputName] = null;
+    },
     stopRecording,
     getFps: () => {
       const avgFrameTime = fpsCounter.getAvg();
