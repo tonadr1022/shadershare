@@ -8,6 +8,7 @@ import (
 	"mime/multipart"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -18,7 +19,7 @@ import (
 
 type FileStore interface {
 	UploadFile(file *multipart.FileHeader) (string, error)
-	UpdateFile(file *multipart.FileHeader, fileURL string) error
+	UpdateFile(file *multipart.FileHeader, fileURL string) (string, error)
 	RemoveFile(ctx context.Context, file string) error
 }
 
@@ -85,26 +86,39 @@ func (s *s3FileStore) setupS3(isProd bool) {
 	}
 }
 
-func (s *s3FileStore) UpdateFile(file *multipart.FileHeader, fileURL string) error {
+func (s *s3FileStore) getFileUrl(filename string) string {
+	if s.isProd {
+		return fmt.Sprintf("https://media.shader-share.com/%s?version=%d", filename, time.Now().Unix())
+	}
+	return fmt.Sprintf("http://%s/%s/%s?version=%d", "localhost:9000", s.bucketName, filename, time.Now().Unix())
+}
+
+func (s *s3FileStore) UpdateFile(file *multipart.FileHeader, fileURL string) (string, error) {
 	src, err := file.Open()
 	if err != nil {
-		return fmt.Errorf("failed to open file: %v", err)
+		return "", fmt.Errorf("failed to open file: %v", err)
 	}
-	// extract filename
-	// comes after last slash
-	filename := fileURL[strings.LastIndex(fileURL, "/")+1:]
+	slashIndex := strings.LastIndex(fileURL, "/")
+	queryIndex := strings.LastIndex(fileURL, "?")
+	var filename string
+	if queryIndex == -1 {
+		filename = fileURL[slashIndex+1:]
+	} else {
+		filename = fileURL[slashIndex+1 : queryIndex]
+	}
 	defer src.Close()
 	_, err = s.client.PutObject(context.TODO(), &s3.PutObjectInput{
-		Bucket:      &s.bucketName,
-		Key:         aws.String(filename),
-		Body:        src,
-		ACL:         s3types.ObjectCannedACLPublicRead,
-		ContentType: aws.String(file.Header.Get("Content-Type")),
+		Bucket:       &s.bucketName,
+		Key:          aws.String(filename),
+		Body:         src,
+		ACL:          s3types.ObjectCannedACLPublicRead,
+		ContentType:  aws.String(file.Header.Get("Content-Type")),
+		CacheControl: aws.String("public, max-age=86400"),
 	})
 	if err != nil {
-		return fmt.Errorf("failed to upload file: %v", err)
+		return "", fmt.Errorf("failed to upload file: %v", err)
 	}
-	return nil
+	return s.getFileUrl(filename), nil
 }
 
 func (s *s3FileStore) RemoveFile(ctx context.Context, file string) error {
@@ -122,18 +136,15 @@ func (s *s3FileStore) UploadFile(file *multipart.FileHeader) (string, error) {
 	}
 	defer src.Close()
 	_, err = s.client.PutObject(context.TODO(), &s3.PutObjectInput{
-		Bucket:      &s.bucketName,
-		Key:         aws.String(file.Filename),
-		Body:        src,
-		ACL:         s3types.ObjectCannedACLPublicRead,
-		ContentType: aws.String(file.Header.Get("Content-Type")),
+		Bucket:       &s.bucketName,
+		Key:          aws.String(file.Filename),
+		Body:         src,
+		ACL:          s3types.ObjectCannedACLPublicRead,
+		ContentType:  aws.String(file.Header.Get("Content-Type")),
+		CacheControl: aws.String("public, max-age=86400"),
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to upload file: %v", err)
 	}
-	if s.isProd {
-		return fmt.Sprintf("https://media.shader-share.com/%s", file.Filename), nil
-	}
-	minioURL := fmt.Sprintf("http://%s/%s/%s", "localhost:9000", s.bucketName, file.Filename)
-	return minioURL, nil
+	return s.getFileUrl(file.Filename), nil
 }

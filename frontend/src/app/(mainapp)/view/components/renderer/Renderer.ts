@@ -69,12 +69,6 @@ export const getPreviewImgFile = async (
       const file = new File([blob], "preview.png", {
         type: "image/png",
       });
-      const a = document.createElement("a");
-      const url = window.URL.createObjectURL(blob!);
-      a.style.display = "none";
-      a.download = "shader.png";
-      a.href = url;
-      a.click();
       renderer.shutdown();
       resolve(file);
     });

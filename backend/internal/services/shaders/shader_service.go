@@ -2,8 +2,6 @@ package shaders
 
 import (
 	"context"
-	"fmt"
-	"log"
 	"mime/multipart"
 	"shadershare/internal/domain"
 	"shadershare/internal/e"
@@ -39,19 +37,19 @@ func (s shaderService) DeleteShader(ctx context.Context, userID uuid.UUID, shade
 }
 
 func (s shaderService) UpdateShader(ctx context.Context, userID uuid.UUID, shaderID uuid.UUID, updatePayload domain.UpdateShaderPayload, file *multipart.FileHeader) (*domain.Shader, error) {
+	// update if exists already
+	var newUrl string
+	if updatePayload.PreviewImgURL != nil && file != nil {
+		var err error
+		newUrl, err = s.fileStore.UpdateFile(file, *updatePayload.PreviewImgURL)
+		if err != nil {
+			return nil, err
+		}
+		updatePayload.PreviewImgURL = &newUrl
+	}
 	shader, err := s.repo.UpdateShader(ctx, userID, shaderID, updatePayload)
 	if err != nil {
 		return nil, err
-	}
-	// update if exists already
-	if updatePayload.PreviewImgURL != nil && file != nil {
-		err = s.fileStore.UpdateFile(file, *updatePayload.PreviewImgURL)
-		if err != nil {
-			log.Println("Error updating file", err)
-			return nil, err
-		} else {
-			fmt.Println("updated: ", *updatePayload.PreviewImgURL)
-		}
 	}
 
 	for _, id := range updatePayload.DeletedInputIds {
@@ -112,7 +110,6 @@ func (s shaderService) GetShaders(ctx context.Context, req domain.ShaderListReq)
 	}
 	shaders, err := s.repo.GetShaders(ctx, req)
 	if err != nil {
-		fmt.Println(err, "err occur")
 		return nil, err
 	}
 	if shaders == nil {
