@@ -169,6 +169,7 @@ export type ErrMsg = {
 
 export type IRendererInitPararms = {
   canvas: HTMLCanvasElement;
+  ignoreInputs?: boolean;
   shaderOutputs: ShaderOutputFull[];
 };
 

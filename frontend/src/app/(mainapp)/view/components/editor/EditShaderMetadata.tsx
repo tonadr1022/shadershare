@@ -26,7 +26,7 @@ import {
   createShaderWithPreview,
   updateShaderWithPreview,
 } from "@/api/shader-api";
-import { toastAxiosErrors } from "@/lib/utils";
+import { deepCopy, toastAxiosErrors } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -130,11 +130,12 @@ const EditShaderMetadata = ({ initialData }: Props) => {
         payload.user_id = initialData.user_id;
       }
       // TODO: check images etc
-      const shaderDirty =
+      let shaderDirty =
         shaderDataDirty ||
         codeDirtyRef.current.values().some((val: boolean) => val);
       // get the outputs that have dirty inputs or are dirty themselves
-      payload.shader_outputs = [...shaderDataRef.current.shader_outputs];
+      payload.shader_outputs = deepCopy(shaderDataRef.current.shader_outputs);
+
       if (isUpdate) {
         for (const out of payload.shader_outputs) {
           if (!out.shader_inputs) {
@@ -143,6 +144,7 @@ const EditShaderMetadata = ({ initialData }: Props) => {
           out.shader_inputs = out.shader_inputs.filter(
             (inp) => inp.dirty || inp.new,
           );
+          shaderDirty = shaderDirty || out.shader_inputs.length > 0;
         }
         payload.shader_outputs = payload.shader_outputs.filter((out) => {
           if (codeDirtyRef.current.get(out.name)) {
@@ -161,34 +163,8 @@ const EditShaderMetadata = ({ initialData }: Props) => {
           }
           return false;
         });
+        shaderDirty = shaderDirty || payload.shader_outputs.length > 0;
       }
-
-      // for (const out of shaderDataRef.current.shader_outputs) {
-      //   if (!isUpdate || out.dirty || codeDirtyRef.current.get(out.name)) {
-      //     payload.shader_outputs.push(out);
-      //   }
-      //
-      //   if (out.shader_inputs) {
-      //     for (const input of out.shader_inputs) {
-      //       // if update, check if new or dirty, otherwise push anyway since create
-      //       if (isUpdate && !input.new && !input.dirty) {
-      //         continue;
-      //       }
-      //       const payloadOut = payload.shader_outputs?.find(
-      //         (o) => o.name === out.name,
-      //       );
-      //       if (payloadOut) {
-      //         if (!payloadOut.shader_inputs) {
-      //           payloadOut.shader_inputs = [];
-      //         }
-      //         console.log(payloadOut.shader_inputs.length);
-      //         payloadOut.shader_inputs.push(input);
-      //       } else {
-      //         console.error("uh oh no output for the input");
-      //       }
-      //     }
-      //   }
-      // }
 
       let previewFile: File | null = null;
       const needNewPreview = (shaderDirty && isUpdate) || !isUpdate;
@@ -202,11 +178,9 @@ const EditShaderMetadata = ({ initialData }: Props) => {
           return;
         }
       }
-
       payload.access_level = parseInt(values.access_level) as AccessLevel;
       if (isUpdate) {
         updateShaderMut.mutate({ data: payload, previewFile: previewFile });
-        console.log(payload);
       } else {
         createShaderMut.mutate({ shader: payload, previewFile: previewFile! });
       }

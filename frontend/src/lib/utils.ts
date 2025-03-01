@@ -52,3 +52,4 @@ export function generatePagination(currentPage: number, totalPages: number) {
 
   return pagination;
 }
+export const deepCopy = <T>(obj: T): T => JSON.parse(JSON.stringify(obj));

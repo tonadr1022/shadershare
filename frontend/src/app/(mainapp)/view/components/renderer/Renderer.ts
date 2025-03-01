@@ -37,32 +37,41 @@ export const getPreviewImgFile = async (
     }
     const renderer = createRenderer();
     const canvas = document.createElement("canvas");
-    await renderer.initialize({
+    const init = await renderer.initialize({
+      ignoreInputs: true,
       canvas: canvas,
       shaderOutputs: shaderData.shader_outputs as ShaderOutputFull[],
     });
+    if (!init) {
+      console.error("failed to initialize renderer");
+      reject();
+    }
 
     renderer.onResize(320, 180);
+    let tries = 0;
     let i = 0;
-    while (i < 2) {
-      console.log("rendering");
-      if (renderer.render({ checkResize: false, dt: 0.0007 })) {
+    let t = performance.now();
+    while (i < 2 && tries < 100) {
+      const t2 = performance.now();
+      if (renderer.render({ checkResize: false, dt: t2 - t, print: true })) {
         i++;
       }
+      t = t2;
+      tries++;
     }
-    await new Promise((resolve) => setTimeout(resolve, 100));
 
     canvas.toBlob((blob) => {
       if (!blob) {
+        renderer.shutdown();
         resolve(null);
         return;
       }
       const file = new File([blob], "preview.png", {
         type: "image/png",
       });
+      renderer.shutdown();
       resolve(file);
     });
-    renderer.shutdown();
   });
 };
 
@@ -839,7 +848,6 @@ const webGL2Renderer = () => {
       return;
     }
     asyncCompile = gl.getExtension("KHR_parallel_shader_compile");
-    console.log("KHR_parallel_shader_compile: ", asyncCompile !== null);
 
     // TODO: handle fail case
     return true;
@@ -1013,7 +1021,11 @@ const webGL2Renderer = () => {
     screenshotCallback = callback;
   };
 
-  const render = (options?: { checkResize?: boolean; dt: number }): boolean => {
+  const render = (options?: {
+    checkResize?: boolean;
+    dt: number;
+    print?: boolean;
+  }): boolean => {
     if (!initialized || !gl || !canvas) {
       console.log("not initialized");
       return false;
@@ -1078,29 +1090,14 @@ const webGL2Renderer = () => {
       }
       gl.viewport(0, 0, canvas.width, canvas.height);
       output.shader.bind(gl);
-      if (checkGLError(gl)) {
-        console.error("e");
-      }
       bindUniforms(output, output.shader.uniformLocs, dates, mouse);
       gl.clearColor(0.0, 0.0, 0.0, 0.0);
       gl.clear(gl.COLOR_BUFFER_BIT);
-      if (checkGLError(gl)) {
-        console.error("e");
-      }
       bindIChannels(output, output.shader.uniformLocs);
-      if (checkGLError(gl)) {
-        console.error("e");
-      }
       drawScreen();
-      if (checkGLError(gl)) {
-        console.error("e");
-      }
       if (bufferName !== "Image") {
         output?.renderTarget.swapTextures();
       }
-    }
-    if (checkGLError(gl)) {
-      console.error("e");
     }
 
     // for (const output of getBufferOutputs()) {
@@ -1115,6 +1112,9 @@ const webGL2Renderer = () => {
       screenshotRequested = false;
       canvas.toBlob(screenshotCallback, "image/png");
       screenshotCallback = null;
+    }
+    if (options?.print) {
+      console.log("rendered");
     }
     return true;
   };
@@ -1672,14 +1672,14 @@ ${commonBufferText}
       state.outputs[name].dirty = true;
     },
     // TODO: initialize should return shader compile errors
-    initialize: async (params: IRendererInitPararms) => {
-      if (initialized) return;
+    initialize: async (params: IRendererInitPararms): Promise<boolean> => {
+      if (initialized) return true;
       canvas = params.canvas;
       if (!canvas) {
-        return;
+        return false;
       }
 
-      {
+      if (params.ignoreInputs) {
         // mouse state
         canvas.onmouseout = () => {
           mouseState.mouseSignalDown = false;
@@ -1728,13 +1728,13 @@ ${commonBufferText}
           powerPreference: "high-performance",
         });
         if (!glResult) {
-          return;
+          return false;
         }
         gl = glResult;
       }
       util = webgl2Utils(gl);
       if (!enableExtensions()) {
-        return;
+        return false;
       }
       const { shaderOutputs } = params;
 
@@ -1795,10 +1795,15 @@ ${commonBufferText}
       currFrame = 0;
       validPipelines = true;
       initialized = true;
+      return true;
     },
 
     onResize,
     render,
+    flush: () => {
+      gl.flush();
+      gl.finish();
+    },
     compileShaders,
     addOutput: async (
       shaderOutput: ShaderOutputFull,

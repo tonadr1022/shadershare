@@ -76,15 +76,12 @@ const webgl2Utils = (gl: WebGL2RenderingContext) => {
       if (asyncCompile === null) {
         checkErrorsAndCallback();
         return;
-      } else {
       }
 
-      const t1 = performance.now();
       const waitAndCheck = () => {
         if (
           gl.getProgramParameter(program, asyncCompile.COMPLETION_STATUS_KHR)
         ) {
-          console.log(performance.now() - t1);
           checkErrorsAndCallback();
         } else {
           setTimeout(waitAndCheck, 1);
