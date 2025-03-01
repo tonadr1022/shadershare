@@ -11,6 +11,11 @@ const ShaderMetadata = ({ shaderData }: Props) => {
     <div>
       <h2>{shaderData.title}</h2>
       <p>{shaderData.description}</p>
+      <p>
+        {shaderData.tags.map((tag) => (
+          <span key={tag}>{tag}</span>
+        ))}
+      </p>
     </div>
   );
 };

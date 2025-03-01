@@ -31,7 +31,9 @@ LIMIT sqlc.narg(lim)::int
 OFFSET @off::int;
 
 -- name: ListShadersWithUser :many
-SELECT s.*
+SELECT s.id, s.title, s.description, s.user_id, 
+    s.access_level, s.preview_img_url, s.created_at, 
+    s.updated_at, s.flags, s.tags, s.username
 FROM shader_with_user s
 WHERE 
   (s.access_level = sqlc.narg(access_level) OR sqlc.narg(access_level) IS NULL) AND
@@ -48,7 +50,9 @@ LIMIT sqlc.narg(lim)::int
 OFFSET @off::int;
 
 -- name: ListShadersDetailed :many
-SELECT sd.*
+SELECT sd.id, sd.title, sd.description, sd.user_id, 
+    sd.access_level, sd.preview_img_url, sd.created_at, 
+    sd.updated_at, sd.flags, sd.tags, sd.outputs
 FROM shader_details sd
 WHERE 
   (user_id = sqlc.narg(user_id) OR sqlc.narg(user_id) IS NULL) AND
@@ -66,8 +70,10 @@ LIMIT sqlc.narg(lim)::int
 OFFSET @off::int;
 
 -- name: ListShadersDetailedWithUser :many
-SELECT 
-sd.* from shader_details_with_user sd
+SELECT sd.id, sd.title, sd.description, sd.user_id, 
+    sd.access_level, sd.preview_img_url, sd.created_at, 
+    sd.updated_at, sd.flags, sd.tags, sd.outputs,sd.username
+FROM shader_details_with_user sd
 JOIN users u ON sd.user_id = u.id
 WHERE 
   (access_level = sqlc.narg(access_level) OR sqlc.narg(access_level) IS NULL) AND 
@@ -128,5 +134,21 @@ id, title, description, user_id,
 
 
 -- name: GetShaderWithUser :one 
-SELECT * FROM shader_with_user s
+SELECT s.id, s.title, s.description, s.user_id, 
+    s.access_level, s.preview_img_url, s.created_at, 
+    s.updated_at, s.flags, s.tags, s.username
+FROM shader_with_user s
 WHERE s.id = $1;
+
+-- name: GetShaderDetailed :one
+SELECT sd.id, sd.title, sd.description, sd.user_id, 
+    sd.access_level, sd.preview_img_url, sd.created_at, 
+    sd.updated_at, sd.flags, sd.tags, sd.outputs
+FROM shader_details sd WHERE sd.id = $1;
+
+-- name: GetShaderDetailedWithUser :one
+SELECT sd.id, sd.title, sd.description, sd.user_id, 
+    sd.access_level, sd.preview_img_url, sd.created_at, 
+    sd.updated_at, sd.flags, sd.tags, sd.outputs,sd.username
+FROM shader_details_with_user sd
+WHERE sd.id = $1;

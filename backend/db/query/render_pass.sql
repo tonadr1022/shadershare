@@ -57,14 +57,3 @@ WHERE id = $1 RETURNING *;
 
 -- name: GetShaderCount :one
 SELECT COUNT(*) FROM shaders;
-
--- name: GetShaderDetailed :one
-SELECT *
-FROM 
-  shader_details s
-WHERE 
-  s.id = $1;
-
--- name: GetShaderDetailedWithUser :one
-SELECT * from shader_details_with_user
-WHERE id = $1;

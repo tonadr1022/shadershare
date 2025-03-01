@@ -45,6 +45,7 @@ const formSchema = z.object({
     message: "Title must be at least 2 characters.",
   }),
   description: z.string().optional(),
+  tags: z.string(),
   access_level: z.string(),
 });
 
@@ -64,6 +65,7 @@ const EditShaderMetadata = ({ initialData }: Props) => {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      tags: initialData?.tags.join(" ") || "",
       title: initialData?.title || "",
       description: initialData?.description || "",
       access_level: accessLevel.toString(),
@@ -115,6 +117,7 @@ const EditShaderMetadata = ({ initialData }: Props) => {
         title: values.title,
         flags: initialData?.flags || 0,
         description: values.description,
+        tags: values.tags.trim().split(" "),
       };
       // deleted inputs and outputs
       // TODO: outputs
@@ -254,6 +257,23 @@ const EditShaderMetadata = ({ initialData }: Props) => {
                     rows={6}
                   />
                 </FormControl>
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="tags"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Tags</FormLabel>
+                <FormControl>
+                  <Input
+                    {...field}
+                    placeholder="Add tags for search."
+                    className="w-96"
+                  />
+                </FormControl>
+                <FormMessage />
               </FormItem>
             )}
           />

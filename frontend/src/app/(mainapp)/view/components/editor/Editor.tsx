@@ -284,7 +284,7 @@ export const MultiBufferEditor = React.memo(() => {
     }
     return () => ref?.removeEventListener("keydown", handleKeyDown);
   }, [handleCompile, renderer, setPaused, shaderDataRef]);
-  console.log("render");
+  console.log(shaderDataRef.current);
 
   const onTextUpdate = useCallback(
     (newText: string, name: ShaderOutputName) => {

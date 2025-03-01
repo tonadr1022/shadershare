@@ -27,9 +27,43 @@ func makeStrFromTags(tags pgtype.Text) []string {
 	return strings.Split(tags.String, " ")
 }
 
+// https://github.com/golang/go/issues/36616
 func mapShaderFields(row interface{}) domain.Shader {
 	res := domain.Shader{}
 	switch r := row.(type) {
+	case db.GetShaderWithUserRow:
+		res.PreviewImgURL = r.PreviewImgUrl.String
+		res.ID = r.ID
+		res.Title = r.Title
+		res.Tags = makeStrFromTags(r.Tags)
+		res.Description = r.Description.String
+		res.AccessLevel = domain.AccessLevel(r.AccessLevel)
+		res.Flags = r.Flags
+		res.UserID = r.UserID
+		res.CreatedAt = r.CreatedAt.Time
+		res.UpdatedAt = r.UpdatedAt.Time
+	case db.GetShaderDetailedWithUserRow:
+		res.PreviewImgURL = r.PreviewImgUrl.String
+		res.ID = r.ID
+		res.Title = r.Title
+		res.Tags = makeStrFromTags(r.Tags)
+		res.Description = r.Description.String
+		res.AccessLevel = domain.AccessLevel(r.AccessLevel)
+		res.Flags = r.Flags
+		res.UserID = r.UserID
+		res.CreatedAt = r.CreatedAt.Time
+		res.UpdatedAt = r.UpdatedAt.Time
+	case db.GetShaderDetailedRow:
+		res.PreviewImgURL = r.PreviewImgUrl.String
+		res.ID = r.ID
+		res.Title = r.Title
+		res.Tags = makeStrFromTags(r.Tags)
+		res.Description = r.Description.String
+		res.AccessLevel = domain.AccessLevel(r.AccessLevel)
+		res.Flags = r.Flags
+		res.UserID = r.UserID
+		res.CreatedAt = r.CreatedAt.Time
+		res.UpdatedAt = r.UpdatedAt.Time
 	case db.ShaderDetail:
 		res.PreviewImgURL = r.PreviewImgUrl.String
 		res.ID = r.ID
@@ -118,6 +152,39 @@ func mapShaderFields(row interface{}) domain.Shader {
 		res.UserID = r.UserID
 		res.CreatedAt = r.CreatedAt.Time
 		res.UpdatedAt = r.UpdatedAt.Time
+	case db.ListShadersDetailedRow:
+		res.PreviewImgURL = r.PreviewImgUrl.String
+		res.ID = r.ID
+		res.Tags = makeStrFromTags(r.Tags)
+		res.Flags = r.Flags
+		res.Title = r.Title
+		res.Description = r.Description.String
+		res.AccessLevel = domain.AccessLevel(r.AccessLevel)
+		res.UserID = r.UserID
+		res.CreatedAt = r.CreatedAt.Time
+		res.UpdatedAt = r.UpdatedAt.Time
+	case db.ListShadersDetailedWithUserRow:
+		res.PreviewImgURL = r.PreviewImgUrl.String
+		res.ID = r.ID
+		res.Tags = makeStrFromTags(r.Tags)
+		res.Flags = r.Flags
+		res.Title = r.Title
+		res.Description = r.Description.String
+		res.AccessLevel = domain.AccessLevel(r.AccessLevel)
+		res.UserID = r.UserID
+		res.CreatedAt = r.CreatedAt.Time
+		res.UpdatedAt = r.UpdatedAt.Time
+	case db.ListShadersWithUserRow:
+		res.PreviewImgURL = r.PreviewImgUrl.String
+		res.ID = r.ID
+		res.Tags = makeStrFromTags(r.Tags)
+		res.Flags = r.Flags
+		res.Title = r.Title
+		res.Description = r.Description.String
+		res.AccessLevel = domain.AccessLevel(r.AccessLevel)
+		res.UserID = r.UserID
+		res.CreatedAt = r.CreatedAt.Time
+		res.UpdatedAt = r.UpdatedAt.Time
 	case db.ShaderWithUser:
 		res.PreviewImgURL = r.PreviewImgUrl.String
 		res.ID = r.ID
@@ -131,15 +198,32 @@ func mapShaderFields(row interface{}) domain.Shader {
 		res.UpdatedAt = r.UpdatedAt.Time
 	}
 	switch r := row.(type) {
+	case db.ListShadersDetailedRow:
+		res.ShaderOutput = r.Outputs
+	case db.ListShadersDetailedWithUserRow:
+		res.ShaderOutput = r.Outputs
+	case db.GetShaderDetailedRow:
+		res.ShaderOutput = r.Outputs
 	case db.ShaderDetail:
 		res.ShaderOutput = r.Outputs
 	case db.ShaderDetailsWithUser:
 		res.ShaderOutput = r.Outputs
+	case db.GetShaderDetailedWithUserRow:
+		res.ShaderOutput = r.Outputs
 	}
+
 	switch r := row.(type) {
+	case db.GetShaderWithUserRow:
+		res.Username = r.Username
+	case db.ListShadersDetailedWithUserRow:
+		res.Username = r.Username
+	case db.ListShadersWithUserRow:
+		res.Username = r.Username
 	case db.ShaderDetailsWithUser:
 		res.Username = r.Username
 	case db.ShaderWithUser:
+		res.Username = r.Username
+	case db.GetShaderDetailedWithUserRow:
 		res.Username = r.Username
 	}
 	return res
@@ -626,6 +710,12 @@ func (r shaderRepository) GetShaders(ctx context.Context, req domain.ShaderListR
 	case []db.ShaderDetailsWithUser:
 		return processShaders(v)
 	case []db.ShaderWithUser:
+		return processShaders(v)
+	case []db.ListShadersDetailedRow:
+		return processShaders(v)
+	case []db.ListShadersDetailedWithUserRow:
+		return processShaders(v)
+	case []db.ListShadersWithUserRow:
 		return processShaders(v)
 	case []db.ListShaders4Row:
 		return processShaders(v)

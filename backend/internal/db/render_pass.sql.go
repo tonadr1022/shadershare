@@ -118,58 +118,6 @@ func (q *Queries) GetShaderCount(ctx context.Context) (int64, error) {
 	return count, err
 }
 
-const getShaderDetailed = `-- name: GetShaderDetailed :one
-SELECT id, title, description, user_id, access_level, preview_img_url, created_at, updated_at, flags, tags, outputs
-FROM 
-  shader_details s
-WHERE 
-  s.id = $1
-`
-
-func (q *Queries) GetShaderDetailed(ctx context.Context, id uuid.UUID) (ShaderDetail, error) {
-	row := q.db.QueryRow(ctx, getShaderDetailed, id)
-	var i ShaderDetail
-	err := row.Scan(
-		&i.ID,
-		&i.Title,
-		&i.Description,
-		&i.UserID,
-		&i.AccessLevel,
-		&i.PreviewImgUrl,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.Flags,
-		&i.Tags,
-		&i.Outputs,
-	)
-	return i, err
-}
-
-const getShaderDetailedWithUser = `-- name: GetShaderDetailedWithUser :one
-SELECT id, title, description, user_id, access_level, preview_img_url, created_at, updated_at, flags, tags, outputs, username from shader_details_with_user
-WHERE id = $1
-`
-
-func (q *Queries) GetShaderDetailedWithUser(ctx context.Context, id uuid.UUID) (ShaderDetailsWithUser, error) {
-	row := q.db.QueryRow(ctx, getShaderDetailedWithUser, id)
-	var i ShaderDetailsWithUser
-	err := row.Scan(
-		&i.ID,
-		&i.Title,
-		&i.Description,
-		&i.UserID,
-		&i.AccessLevel,
-		&i.PreviewImgUrl,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.Flags,
-		&i.Tags,
-		&i.Outputs,
-		&i.Username,
-	)
-	return i, err
-}
-
 const getShaderInput = `-- name: GetShaderInput :one
 SELECT id, shader_id, output_id, url, type, idx, properties FROM shader_inputs
 WHERE id = $1

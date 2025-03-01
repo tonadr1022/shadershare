@@ -37,32 +37,34 @@ type Shader struct {
 }
 
 type ShaderDetail struct {
-	ID            uuid.UUID
-	Title         string
-	Description   pgtype.Text
-	UserID        uuid.UUID
-	AccessLevel   int16
-	PreviewImgUrl pgtype.Text
-	CreatedAt     pgtype.Timestamptz
-	UpdatedAt     pgtype.Timestamptz
-	Flags         int32
-	Tags          pgtype.Text
-	Outputs       []byte
+	ID                     uuid.UUID
+	Title                  string
+	Description            pgtype.Text
+	UserID                 uuid.UUID
+	AccessLevel            int16
+	PreviewImgUrl          pgtype.Text
+	CreatedAt              pgtype.Timestamptz
+	UpdatedAt              pgtype.Timestamptz
+	Flags                  int32
+	Tags                   pgtype.Text
+	TextsearchableIndexCol interface{}
+	Outputs                []byte
 }
 
 type ShaderDetailsWithUser struct {
-	ID            uuid.UUID
-	Title         string
-	Description   pgtype.Text
-	UserID        uuid.UUID
-	AccessLevel   int16
-	PreviewImgUrl pgtype.Text
-	CreatedAt     pgtype.Timestamptz
-	UpdatedAt     pgtype.Timestamptz
-	Flags         int32
-	Tags          pgtype.Text
-	Outputs       []byte
-	Username      string
+	ID                     uuid.UUID
+	Title                  string
+	Description            pgtype.Text
+	UserID                 uuid.UUID
+	AccessLevel            int16
+	PreviewImgUrl          pgtype.Text
+	CreatedAt              pgtype.Timestamptz
+	UpdatedAt              pgtype.Timestamptz
+	Flags                  int32
+	Tags                   pgtype.Text
+	TextsearchableIndexCol interface{}
+	Outputs                []byte
+	Username               string
 }
 
 type ShaderInput struct {
@@ -85,17 +87,18 @@ type ShaderOutput struct {
 }
 
 type ShaderWithUser struct {
-	ID            uuid.UUID
-	Title         string
-	Description   pgtype.Text
-	UserID        uuid.UUID
-	AccessLevel   int16
-	PreviewImgUrl pgtype.Text
-	CreatedAt     pgtype.Timestamptz
-	UpdatedAt     pgtype.Timestamptz
-	Flags         int32
-	Tags          pgtype.Text
-	Username      string
+	ID                     uuid.UUID
+	Title                  string
+	Description            pgtype.Text
+	UserID                 uuid.UUID
+	AccessLevel            int16
+	PreviewImgUrl          pgtype.Text
+	CreatedAt              pgtype.Timestamptz
+	UpdatedAt              pgtype.Timestamptz
+	Flags                  int32
+	Tags                   pgtype.Text
+	TextsearchableIndexCol interface{}
+	Username               string
 }
 
 type User struct {

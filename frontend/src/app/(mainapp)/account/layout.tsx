@@ -4,13 +4,19 @@ import { UsersSidebar } from "./_components/UsersSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { useGetMeRedirect } from "@/hooks/hooks";
 import { Spinner } from "@/components/ui/spinner";
+import { useRouter } from "next/navigation";
 
 export default function UserPageLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const router = useRouter();
   const { data, isPending } = useGetMeRedirect();
+  console.log(data, isPending, "render");
+  if (!isPending && !data) {
+    router.push("/login");
+  }
 
   return (
     <div className="p-4">

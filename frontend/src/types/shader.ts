@@ -179,6 +179,7 @@ export type ShaderUpdateCreatePayload = {
   id?: string;
   title?: string;
   user_id?: string;
+  tags?: string[];
   flags: number;
   access_level?: AccessLevel;
   preview_img_url?: string;

@@ -5,7 +5,7 @@ import React, { Suspense, useCallback, useState } from "react";
 import ShaderTable from "../_components/ShaderTable";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { assembleParams, useGetMe, useSortParams } from "@/hooks/hooks";
+import { assembleParams, useGetMeRedirect, useSortParams } from "@/hooks/hooks";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import PaginationButtons from "@/components/PaginationButtons";
@@ -148,7 +148,11 @@ const ProfileShaders = () => {
 };
 const ProfileShadersPage = () => {
   const router = useRouter();
-  const { data: user, isPending: userPending, isError: userError } = useGetMe();
+  const {
+    data: user,
+    isPending: userPending,
+    isError: userError,
+  } = useGetMeRedirect();
   if (userError) {
     router.push("/login");
     return <Spinner />;
