@@ -124,9 +124,11 @@ export const getUserShaders = async (
   detailed?: boolean,
   sort?: string | null,
   desc?: boolean | null,
+  query?: string | null,
 ): Promise<ShaderListResp> => {
+  const queryParam = query ? encodeURIComponent(query) : null;
   const res = await axiosInstance.get("/me/shaders", {
-    params: { detailed, offset, limit, sort, desc },
+    params: { detailed, offset, limit, sort, desc, query: queryParam },
   });
   return res.data;
 };

@@ -40,7 +40,7 @@ const SortableHeader = ({
   name: string;
   id: string;
 }) => {
-  const { page, perPage, desc, sort } = useSortParams();
+  const { page, perPage, desc, sort, query } = useSortParams();
   const pathname = usePathname();
   const router = useRouter();
 
@@ -57,7 +57,7 @@ const SortableHeader = ({
       newSort = id;
     }
     router.replace(
-      `${pathname}?view=table&${assembleParams(page, perPage, newSort, newDesc)}`,
+      `${pathname}?view=table&${assembleParams(page, perPage, newSort, newDesc, query)}`,
     );
   };
 

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"shadershare/internal/domain"
 	"shadershare/internal/e"
@@ -154,6 +155,7 @@ func (h ShaderHandler) createShader(c *gin.Context) {
 	} else {
 		var payload domain.CreateShaderPayload
 		if ok := util.ValidateMultiPartJSONAndSetErrors(c, &payload); !ok {
+			fmt.Println("tags:", payload.Tags)
 			return
 		}
 		file, err := c.FormFile("file")
@@ -205,6 +207,13 @@ func (h ShaderHandler) getShaders(c *gin.Context) {
 	includeQuery := c.DefaultQuery("include", "")
 	includes := strings.Split(includeQuery, ",")
 	includeUser := slices.Contains(includes, "username")
+	query := c.Query("query")
+	decodedQuery, err := url.QueryUnescape(query)
+	if err != nil {
+		query = ""
+	}
+	decodedQuery = strings.Replace(decodedQuery, " ", "&", -1)
+
 	getShadersReq := domain.ShaderListReq{
 		Sort:        c.DefaultQuery("sort", ""),
 		SortReverse: com.StrToBool(c.DefaultQuery("desc", "false")),
@@ -213,6 +222,7 @@ func (h ShaderHandler) getShaders(c *gin.Context) {
 		Filter: domain.GetShaderFilter{
 			UserID:      userID,
 			AccessLevel: domain.AccessLevelPublic,
+			Query:       decodedQuery,
 		},
 		ShaderReqBase: domain.ShaderReqBase{
 			Detailed:        detailed,

@@ -92,9 +92,6 @@ const ImportFromShadertoy = () => {
       for (const e of errors) {
         newErrs.push(e);
       }
-      if (newErrs.length) {
-        return;
-      }
       const newShaders = [];
       for (const stShader of shaderToyShaders) {
         const { shader, errors } = shaderToyToShader(
@@ -122,9 +119,14 @@ const ImportFromShadertoy = () => {
       }
       if (uploads.length) {
         bulkCreateShaderMut.mutate(uploads);
+      } else {
+        setAddShaderPending(false);
       }
       if (newErrs.length) {
-        setErrors((old) => [...old, ...newErrs]);
+        setAddShaderPending(false);
+        setErrors(newErrs);
+      } else {
+        setErrors([]);
       }
     },
     [bulkCreateShaderMut, creditAuthor, creditShadertoy],
@@ -146,11 +148,15 @@ const ImportFromShadertoy = () => {
         for (const err of errors) {
           setErrors((existing) => [...existing, err]);
         }
+      }
+      if (shader) {
         try {
           await addShader(shader);
           // eslint-disable-next-line @typescript-eslint/no-unused-vars
         } catch (err) {
           toast.error(`Failed to upload "${shader.title}"`);
+        } finally {
+          setAddShaderPending(false);
         }
       }
     },

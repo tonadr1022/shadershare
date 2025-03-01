@@ -1,0 +1,2 @@
+ALTER TABLE shaders
+DROP COLUMN tags;

@@ -71,12 +71,39 @@ export const useResolvedTheme = (): "light" | "dark" => {
   }, [theme, resolvedTheme, systemTheme]);
 };
 
+export const useSortParams = (): {
+  desc: boolean;
+  sort: string | null;
+  page: number;
+  perPage: number;
+  query: string | null;
+} => {
+  const p = useSearchParams();
+  const page = parseInt(p.get("page") || "1");
+  const sort = p.get("sort");
+  const desc = p.get("desc");
+  const perPage = parseInt(p.get("perpage") || "25");
+
+  return {
+    perPage,
+    query: p.get("query"),
+    page,
+    sort,
+    desc: desc === "true",
+  };
+};
+
 export const useDeleteShader = (onSuccess?: () => void) => {
   const queryClient = useQueryClient();
+  const router = useRouter();
+  // const { page, perPage, sort, desc, query } = useSortParams();
   return useMutation({
     mutationFn: deleteShader,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["shaders"] });
+      queryClient.invalidateQueries({
+        queryKey: ["shaders"],
+      });
+      router.refresh();
       if (onSuccess) onSuccess();
     },
   });
@@ -87,29 +114,14 @@ export const assembleParams = (
   perPage: number,
   sort: string | null,
   desc: boolean,
+  query: string | null,
 ) => {
   let res = `page=${page}&perpage=${perPage}&desc=${desc}`;
   if (sort) {
     res += `&sort=${sort}`;
   }
+  if (query) {
+    res += `&query=${encodeURIComponent(query)}`;
+  }
   return res;
-};
-
-export const useSortParams = (): {
-  desc: boolean;
-  sort: string | null;
-  page: number;
-  perPage: number;
-} => {
-  const p = useSearchParams();
-  const page = parseInt(p.get("page") || "1");
-  const sort = p.get("sort");
-  const desc = p.get("desc");
-  const perPage = parseInt(p.get("perpage") || "25");
-  return {
-    perPage,
-    page,
-    sort,
-    desc: desc === "true",
-  };
 };

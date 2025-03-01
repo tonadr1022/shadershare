@@ -149,6 +149,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
 
 export const DefaultNewShader: ShaderData = {
   created_at: "",
+  tags: [],
   description: "",
   updated_at: "",
   flags: 0,

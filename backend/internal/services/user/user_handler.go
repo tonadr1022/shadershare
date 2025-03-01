@@ -4,12 +4,14 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"shadershare/internal/auth"
 	"shadershare/internal/domain"
 	"shadershare/internal/e"
 	"shadershare/internal/middleware"
 	"shadershare/internal/pkg/com"
 	"shadershare/internal/util"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/markbates/goth/gothic"
@@ -92,6 +94,13 @@ func (h userHandler) getUserShaders(c *gin.Context) {
 	if err != nil {
 		return
 	}
+	query := c.Query("query")
+	decodedQuery, err := url.QueryUnescape(query)
+	if err != nil {
+		query = ""
+	}
+	decodedQuery = strings.Replace(decodedQuery, " ", "&", -1)
+	fmt.Println(decodedQuery)
 
 	getShadersReq := domain.ShaderListReq{
 		Limit:       limit,
@@ -101,6 +110,7 @@ func (h userHandler) getUserShaders(c *gin.Context) {
 		Filter: domain.GetShaderFilter{
 			UserID:      userctx.ID,
 			AccessLevel: domain.AccessLevelNull,
+			Query:       decodedQuery,
 		},
 		ShaderReqBase: domain.ShaderReqBase{
 			Detailed:        detailed,

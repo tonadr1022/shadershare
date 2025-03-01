@@ -18,6 +18,7 @@ type (
 		AccessLevel   AccessLevel     `json:"access_level"`
 		PreviewImgURL string          `json:"preview_img_url"`
 		Flags         int32           `json:"flags"`
+		Tags          []string        `json:"tags"`
 		CreatedAt     time.Time       `json:"created_at"`
 		UpdatedAt     time.Time       `json:"updated_at"`
 		Username      string          `json:"username,omitempty"`
@@ -87,6 +88,7 @@ type (
 		Description     *string                     `json:"description,omitempty"`
 		PreviewImgURL   *string                     `json:"preview_img_url,omitempty"`
 		AccessLevel     *AccessLevel                `json:"access_level,omitempty"`
+		Tags            []string                    `json:"tags"`
 		DeletedInputIds []string                    `json:"deleted_input_ids"`
 		ShaderOutputs   []UpdateShaderOutputPayload `json:"shader_outputs,omitempty"`
 	}
@@ -96,6 +98,7 @@ type (
 		Description   string                      `json:"description" binding:"required"`
 		PreviewImgURL string                      `json:"preview_img_url"`
 		Flags         int32                       `json:"flags" binding:"required"`
+		Tags          []string                    `json:"tags"`
 		AccessLevel   AccessLevel                 `json:"access_level" binding:"required"`
 		ShaderOutputs []CreateShaderOutputPayload `json:"shader_outputs" binding:"required"`
 	}
@@ -107,6 +110,7 @@ type (
 	GetShaderFilter struct {
 		UserID      uuid.UUID
 		AccessLevel AccessLevel
+		Query       string
 	}
 
 	ShaderReqBase struct {

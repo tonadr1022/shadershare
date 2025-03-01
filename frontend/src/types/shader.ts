@@ -113,6 +113,7 @@ export type ShaderMetadata = {
   access_level: AccessLevel;
   flags: number;
   created_at: string;
+  tags: string[];
   updated_at: string;
   preview_img_url: string;
 };

@@ -274,6 +274,7 @@ export const shaderToyToShader = (
   }
   const newShader: ShaderData = {
     id: "",
+    tags: stShader.info.tags,
     flags: 0,
     user_id: "",
     access_level: AccessLevel.PRIVATE,

@@ -940,6 +940,7 @@ const webGL2Renderer = () => {
     let anyError = false;
     await Promise.all(
       req.map(async (output) => {
+        if (output.type === "common") return;
         const { err, errString, program, headerLineCnt } = await compileShader(
           output.type,
           commonOutput?.code || "",
@@ -1138,7 +1139,7 @@ const webGL2Renderer = () => {
     } else if (outputType === "image") {
       fragmentHeader = makeHeaderImage();
     } else {
-      throw new Error("can't compile: invalid output type");
+      throw new Error("can't compile: invalid output type" + outputType);
     }
     const completeHeader = `${fragmentHeader}
 ${commonBufferText}

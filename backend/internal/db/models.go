@@ -9,7 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-type Shader struct {
+type FullShaderView struct {
 	ID            uuid.UUID
 	Title         string
 	Description   pgtype.Text
@@ -19,6 +19,21 @@ type Shader struct {
 	CreatedAt     pgtype.Timestamptz
 	UpdatedAt     pgtype.Timestamptz
 	Flags         int32
+	Tags          pgtype.Text
+}
+
+type Shader struct {
+	ID                     uuid.UUID
+	Title                  string
+	Description            pgtype.Text
+	UserID                 uuid.UUID
+	AccessLevel            int16
+	PreviewImgUrl          pgtype.Text
+	CreatedAt              pgtype.Timestamptz
+	UpdatedAt              pgtype.Timestamptz
+	Flags                  int32
+	Tags                   pgtype.Text
+	TextsearchableIndexCol interface{}
 }
 
 type ShaderDetail struct {
@@ -31,6 +46,7 @@ type ShaderDetail struct {
 	CreatedAt     pgtype.Timestamptz
 	UpdatedAt     pgtype.Timestamptz
 	Flags         int32
+	Tags          pgtype.Text
 	Outputs       []byte
 }
 
@@ -44,6 +60,7 @@ type ShaderDetailsWithUser struct {
 	CreatedAt     pgtype.Timestamptz
 	UpdatedAt     pgtype.Timestamptz
 	Flags         int32
+	Tags          pgtype.Text
 	Outputs       []byte
 	Username      string
 }
@@ -77,6 +94,7 @@ type ShaderWithUser struct {
 	CreatedAt     pgtype.Timestamptz
 	UpdatedAt     pgtype.Timestamptz
 	Flags         int32
+	Tags          pgtype.Text
 	Username      string
 }
 

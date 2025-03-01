@@ -2,6 +2,7 @@ package shaders
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"mime/multipart"
 	"shadershare/internal/domain"
@@ -100,8 +101,10 @@ func (s shaderService) GetShaders(ctx context.Context, req domain.ShaderListReq)
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println(count, "count")
 	shaders, err := s.repo.GetShaders(ctx, req)
 	if err != nil {
+		fmt.Println(err, "err occur")
 		return nil, err
 	}
 	if shaders == nil {

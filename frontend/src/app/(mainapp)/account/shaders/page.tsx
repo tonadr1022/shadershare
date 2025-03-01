@@ -1,7 +1,7 @@
 "use client";
 import { getUserShaders } from "@/api/shader-api";
 import { useQuery } from "@tanstack/react-query";
-import React, { Suspense, useCallback } from "react";
+import React, { Suspense, useCallback, useState } from "react";
 import ShaderTable from "../_components/ShaderTable";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,6 +9,8 @@ import { assembleParams, useGetMe, useSortParams } from "@/hooks/hooks";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import PaginationButtons from "@/components/PaginationButtons";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 const perPages = [10, 25, 50];
 
@@ -18,8 +20,9 @@ const getUrl = (
   view: string,
   sort: string | null,
   desc: boolean,
+  query: string | null,
 ) => {
-  return `/account/shaders?view=${view}&${assembleParams(page, perPage, sort, desc)}`;
+  return `/account/shaders?view=${view}&${assembleParams(page, perPage, sort, desc, query)}`;
 };
 
 const ProfileShaders = () => {
@@ -27,35 +30,64 @@ const ProfileShaders = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const view = searchParams.get("view") || "table";
+  const query = searchParams.get("query");
   if (!perPages.includes(perPage)) {
-    router.replace(getUrl(0, perPages[0], view, sort, desc));
+    router.replace(getUrl(0, perPages[0], view, sort, desc, query));
   }
 
   const { data, isPending, isError } = useQuery({
-    queryKey: ["shaders", { isUserShaders: true }, page, perPage, sort, desc],
+    queryKey: [
+      "shaders",
+      { isUserShaders: true },
+      page,
+      perPage,
+      sort,
+      desc,
+      query,
+    ],
     queryFn: () =>
-      getUserShaders((page - 1) * perPage, perPage, false, sort, desc),
+      getUserShaders((page - 1) * perPage, perPage, false, sort, desc, query),
   });
 
   const onPageButtonClick = useCallback(
     (page: number) => {
-      router.push(getUrl(page, perPage, view, sort, desc));
+      router.push(getUrl(page, perPage, view, sort, desc, query));
     },
-    [desc, perPage, router, sort, view],
+    [desc, perPage, query, router, sort, view],
   );
   const onValueChangeClick = useCallback(
-    (val: string) => router.push(getUrl(page, perPage, val, sort, desc)),
-    [desc, page, perPage, router, sort],
+    (val: string) => router.push(getUrl(page, perPage, val, sort, desc, query)),
+    [desc, page, perPage, query, router, sort],
   );
+  const [inputQuery, setInputQuery] = useState("");
 
   return (
     <div className="w-full flex flex-col gap-6">
       <h2>Shaders</h2>
       <Tabs value={view} onValueChange={onValueChangeClick}>
-        <TabsList>
-          <TabsTrigger value="table">Table</TabsTrigger>
-          <TabsTrigger value="card">Card</TabsTrigger>
-        </TabsList>
+        <div className="flex gap-2">
+          <TabsList>
+            <TabsTrigger value="table">Table</TabsTrigger>
+            <TabsTrigger value="card">Card</TabsTrigger>
+          </TabsList>
+          <div className="flex gap-2 w-fit">
+            <Input
+              id="shader-query-input"
+              value={inputQuery}
+              onChange={(e) => setInputQuery(e.target.value)}
+              placeholder=""
+            />
+            <Button
+              onClick={() => {
+                router.push(
+                  getUrl(page, perPage, view, sort, desc, inputQuery),
+                );
+              }}
+            >
+              Search
+            </Button>
+          </div>
+        </div>
         {isPending ? (
           <div className="flex items-center justify-center w-full h-full">
             <Spinner className="self-center" />
@@ -67,10 +99,13 @@ const ProfileShaders = () => {
         ) : (
           <div className="p-4 flex flex-col gap-4">
             <div className="flex items-center gap-2">
+              <div className="flex flex-col gap-2"></div>
               <p>Results: ({data.total}):</p>
               <PaginationButtons
                 onPerPageChange={(newPage: number, newPerPage: number) => {
-                  router.push(getUrl(newPage, newPerPage, view, sort, desc));
+                  router.push(
+                    getUrl(newPage, newPerPage, view, sort, desc, query),
+                  );
                 }}
                 onPageChange={onPageButtonClick}
                 perPage={perPage}

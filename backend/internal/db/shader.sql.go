@@ -17,16 +17,21 @@ SELECT COUNT(*)
 FROM shaders
 WHERE
     (user_id = $1 OR $1 IS NULL) AND
-    (access_level = $2 OR $2 IS NULL)
+    (access_level = $2 OR $2 IS NULL) AND
+  (
+  $3::text IS NULL OR $3::text = '' OR
+  textsearchable_index_col @@ plainto_tsquery($3::text)
+  )
 `
 
 type CountShadersParams struct {
 	UserID      pgtype.UUID
 	AccessLevel pgtype.Int2
+	Query       pgtype.Text
 }
 
 func (q *Queries) CountShaders(ctx context.Context, arg CountShadersParams) (int64, error) {
-	row := q.db.QueryRow(ctx, countShaders, arg.UserID, arg.AccessLevel)
+	row := q.db.QueryRow(ctx, countShaders, arg.UserID, arg.AccessLevel, arg.Query)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -34,12 +39,14 @@ func (q *Queries) CountShaders(ctx context.Context, arg CountShadersParams) (int
 
 const createShader = `-- name: CreateShader :one
 INSERT INTO shaders (
-    title, description, user_id, preview_img_url, access_level, flags
+    title, description, user_id, preview_img_url, access_level, flags, tags
 ) VALUES (
-    $1, $2, $3, $4, $5, $6
+    $1, $2, $3, $4, $5, $6, $7
 )
 ON CONFLICT (title) DO NOTHING
-RETURNING id, title, description, user_id, access_level, preview_img_url, created_at, updated_at, flags
+RETURNING id, title, description, user_id, 
+    access_level, preview_img_url, created_at, 
+    updated_at, flags, tags
 `
 
 type CreateShaderParams struct {
@@ -49,9 +56,23 @@ type CreateShaderParams struct {
 	PreviewImgUrl pgtype.Text
 	AccessLevel   int16
 	Flags         int32
+	Tags          pgtype.Text
 }
 
-func (q *Queries) CreateShader(ctx context.Context, arg CreateShaderParams) (Shader, error) {
+type CreateShaderRow struct {
+	ID            uuid.UUID
+	Title         string
+	Description   pgtype.Text
+	UserID        uuid.UUID
+	AccessLevel   int16
+	PreviewImgUrl pgtype.Text
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+	Flags         int32
+	Tags          pgtype.Text
+}
+
+func (q *Queries) CreateShader(ctx context.Context, arg CreateShaderParams) (CreateShaderRow, error) {
 	row := q.db.QueryRow(ctx, createShader,
 		arg.Title,
 		arg.Description,
@@ -59,8 +80,9 @@ func (q *Queries) CreateShader(ctx context.Context, arg CreateShaderParams) (Sha
 		arg.PreviewImgUrl,
 		arg.AccessLevel,
 		arg.Flags,
+		arg.Tags,
 	)
-	var i Shader
+	var i CreateShaderRow
 	err := row.Scan(
 		&i.ID,
 		&i.Title,
@@ -71,13 +93,17 @@ func (q *Queries) CreateShader(ctx context.Context, arg CreateShaderParams) (Sha
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Flags,
+		&i.Tags,
 	)
 	return i, err
 }
 
 const deleteShader = `-- name: DeleteShader :one
 DELETE FROM shaders
-WHERE id = $1 AND user_id = $2 RETURNING id, title, description, user_id, access_level, preview_img_url, created_at, updated_at, flags
+WHERE id = $1 AND user_id = $2 RETURNING 
+id, title, description, user_id, 
+    access_level, preview_img_url, created_at, 
+    updated_at, flags, tags
 `
 
 type DeleteShaderParams struct {
@@ -85,9 +111,22 @@ type DeleteShaderParams struct {
 	UserID uuid.UUID
 }
 
-func (q *Queries) DeleteShader(ctx context.Context, arg DeleteShaderParams) (Shader, error) {
+type DeleteShaderRow struct {
+	ID            uuid.UUID
+	Title         string
+	Description   pgtype.Text
+	UserID        uuid.UUID
+	AccessLevel   int16
+	PreviewImgUrl pgtype.Text
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+	Flags         int32
+	Tags          pgtype.Text
+}
+
+func (q *Queries) DeleteShader(ctx context.Context, arg DeleteShaderParams) (DeleteShaderRow, error) {
 	row := q.db.QueryRow(ctx, deleteShader, arg.ID, arg.UserID)
-	var i Shader
+	var i DeleteShaderRow
 	err := row.Scan(
 		&i.ID,
 		&i.Title,
@@ -98,18 +137,22 @@ func (q *Queries) DeleteShader(ctx context.Context, arg DeleteShaderParams) (Sha
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Flags,
+		&i.Tags,
 	)
 	return i, err
 }
 
 const getShader = `-- name: GetShader :one
-SELECT id, title, description, user_id, access_level, preview_img_url, created_at, updated_at, flags FROM shaders
+SELECT id, title, description, user_id, 
+    access_level, preview_img_url, created_at, 
+    updated_at, flags, tags
+FROM full_shader_view
 WHERE id = $1 LIMIT 1
 `
 
-func (q *Queries) GetShader(ctx context.Context, id uuid.UUID) (Shader, error) {
+func (q *Queries) GetShader(ctx context.Context, id uuid.UUID) (FullShaderView, error) {
 	row := q.db.QueryRow(ctx, getShader, id)
-	var i Shader
+	var i FullShaderView
 	err := row.Scan(
 		&i.ID,
 		&i.Title,
@@ -120,12 +163,13 @@ func (q *Queries) GetShader(ctx context.Context, id uuid.UUID) (Shader, error) {
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Flags,
+		&i.Tags,
 	)
 	return i, err
 }
 
 const getShaderWithUser = `-- name: GetShaderWithUser :one
-SELECT id, title, description, user_id, access_level, preview_img_url, created_at, updated_at, flags, username FROM shader_with_user s
+SELECT id, title, description, user_id, access_level, preview_img_url, created_at, updated_at, flags, tags, username FROM shader_with_user s
 WHERE s.id = $1
 `
 
@@ -142,122 +186,65 @@ func (q *Queries) GetShaderWithUser(ctx context.Context, id uuid.UUID) (ShaderWi
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Flags,
+		&i.Tags,
 		&i.Username,
 	)
 	return i, err
 }
 
-const getUserShaderList = `-- name: GetUserShaderList :many
-SELECT id, title, description, user_id, access_level, preview_img_url, created_at, updated_at, flags FROM shaders 
-WHERE user_id = $1
-LIMIT $2 OFFSET $3
-`
-
-type GetUserShaderListParams struct {
-	UserID uuid.UUID
-	Limit  int32
-	Offset int32
-}
-
-func (q *Queries) GetUserShaderList(ctx context.Context, arg GetUserShaderListParams) ([]Shader, error) {
-	rows, err := q.db.Query(ctx, getUserShaderList, arg.UserID, arg.Limit, arg.Offset)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Shader
-	for rows.Next() {
-		var i Shader
-		if err := rows.Scan(
-			&i.ID,
-			&i.Title,
-			&i.Description,
-			&i.UserID,
-			&i.AccessLevel,
-			&i.PreviewImgUrl,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.Flags,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listShaders = `-- name: ListShaders :many
-SELECT id, title, description, user_id, access_level, preview_img_url, created_at, updated_at, flags FROM shaders
-WHERE access_level = $3
-ORDER BY id LIMIT $1 OFFSET $2
-`
-
-type ListShadersParams struct {
-	Limit       int32
-	Offset      int32
-	AccessLevel int16
-}
-
-func (q *Queries) ListShaders(ctx context.Context, arg ListShadersParams) ([]Shader, error) {
-	rows, err := q.db.Query(ctx, listShaders, arg.Limit, arg.Offset, arg.AccessLevel)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Shader
-	for rows.Next() {
-		var i Shader
-		if err := rows.Scan(
-			&i.ID,
-			&i.Title,
-			&i.Description,
-			&i.UserID,
-			&i.AccessLevel,
-			&i.PreviewImgUrl,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.Flags,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const listShaders4 = `-- name: ListShaders4 :many
-SELECT id, title, description, user_id, access_level, preview_img_url, created_at, updated_at, flags
+
+SELECT id, title, description, user_id, 
+    access_level, preview_img_url, created_at, 
+    updated_at, flags, tags
 FROM shaders
 WHERE 
   (user_id = $1 OR $1 IS NULL) AND
-  (access_level = $2 OR $2 IS NULL)
+  (access_level = $2 OR $2 IS NULL) AND 
+  (
+  $3::text IS NULL OR $3::text = '' OR
+  textsearchable_index_col @@ plainto_tsquery('english',$3::text)
+  )
 ORDER BY
-    CASE WHEN $3::text = 'created_at_asc' THEN created_at END ASC,
-    CASE WHEN $3::text = 'created_at_desc' THEN created_at END DESC,
-    CASE WHEN $3::text = 'title_asc' THEN title END ASC,
-    CASE WHEN $3::text = 'title_desc' THEN title END DESC
-LIMIT $5::int
-OFFSET $4::int
+    CASE WHEN $4::text = 'created_at_asc' THEN created_at END ASC,
+    CASE WHEN $4::text = 'created_at_desc' THEN created_at END DESC,
+    CASE WHEN $4::text = 'title_asc' THEN title END ASC,
+    CASE WHEN $4::text = 'title_desc' THEN title END DESC
+LIMIT $6::int
+OFFSET $5::int
 `
 
 type ListShaders4Params struct {
 	UserID      pgtype.UUID
 	AccessLevel pgtype.Int2
+	Query       pgtype.Text
 	OrderBy     pgtype.Text
 	Off         int32
 	Lim         pgtype.Int4
 }
 
-func (q *Queries) ListShaders4(ctx context.Context, arg ListShaders4Params) ([]Shader, error) {
+type ListShaders4Row struct {
+	ID            uuid.UUID
+	Title         string
+	Description   pgtype.Text
+	UserID        uuid.UUID
+	AccessLevel   int16
+	PreviewImgUrl pgtype.Text
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+	Flags         int32
+	Tags          pgtype.Text
+}
+
+// -- name: ListShaders :many
+// SELECT * FROM shaders
+// WHERE access_level = $3
+// ORDER BY id LIMIT $1 OFFSET $2;
+func (q *Queries) ListShaders4(ctx context.Context, arg ListShaders4Params) ([]ListShaders4Row, error) {
 	rows, err := q.db.Query(ctx, listShaders4,
 		arg.UserID,
 		arg.AccessLevel,
+		arg.Query,
 		arg.OrderBy,
 		arg.Off,
 		arg.Lim,
@@ -266,9 +253,9 @@ func (q *Queries) ListShaders4(ctx context.Context, arg ListShaders4Params) ([]S
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Shader
+	var items []ListShaders4Row
 	for rows.Next() {
-		var i Shader
+		var i ListShaders4Row
 		if err := rows.Scan(
 			&i.ID,
 			&i.Title,
@@ -279,6 +266,7 @@ func (q *Queries) ListShaders4(ctx context.Context, arg ListShaders4Params) ([]S
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.Flags,
+			&i.Tags,
 		); err != nil {
 			return nil, err
 		}
@@ -291,23 +279,28 @@ func (q *Queries) ListShaders4(ctx context.Context, arg ListShaders4Params) ([]S
 }
 
 const listShadersDetailed = `-- name: ListShadersDetailed :many
-SELECT sd.id, sd.title, sd.description, sd.user_id, sd.access_level, sd.preview_img_url, sd.created_at, sd.updated_at, sd.flags, sd.outputs
+SELECT sd.id, sd.title, sd.description, sd.user_id, sd.access_level, sd.preview_img_url, sd.created_at, sd.updated_at, sd.flags, sd.tags, sd.outputs
 FROM shader_details sd
 WHERE 
   (user_id = $1 OR $1 IS NULL) AND
-  (access_level = $2 OR $2 IS NULL)
+  (access_level = $2 OR $2 IS NULL) AND 
+  (
+  $3::text IS NULL OR $3::text = '' OR
+  textsearchable_index_col @@ plainto_tsquery($3::text)
+  )
 ORDER BY
-    CASE WHEN $3::text = 'created_at_asc' THEN sd.created_at END ASC,
-    CASE WHEN $3::text = 'created_at_desc' THEN sd.created_at END DESC,
-    CASE WHEN $3::text = 'title_asc' THEN sd.title END ASC,
-    CASE WHEN $3::text = 'title_desc' THEN sd.title END DESC
-LIMIT $5::int
-OFFSET $4::int
+    CASE WHEN $4::text = 'created_at_asc' THEN sd.created_at END ASC,
+    CASE WHEN $4::text = 'created_at_desc' THEN sd.created_at END DESC,
+    CASE WHEN $4::text = 'title_asc' THEN sd.title END ASC,
+    CASE WHEN $4::text = 'title_desc' THEN sd.title END DESC
+LIMIT $6::int
+OFFSET $5::int
 `
 
 type ListShadersDetailedParams struct {
 	UserID      pgtype.UUID
 	AccessLevel pgtype.Int2
+	Query       pgtype.Text
 	OrderBy     pgtype.Text
 	Off         int32
 	Lim         pgtype.Int4
@@ -317,6 +310,7 @@ func (q *Queries) ListShadersDetailed(ctx context.Context, arg ListShadersDetail
 	rows, err := q.db.Query(ctx, listShadersDetailed,
 		arg.UserID,
 		arg.AccessLevel,
+		arg.Query,
 		arg.OrderBy,
 		arg.Off,
 		arg.Lim,
@@ -338,6 +332,7 @@ func (q *Queries) ListShadersDetailed(ctx context.Context, arg ListShadersDetail
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.Flags,
+			&i.Tags,
 			&i.Outputs,
 		); err != nil {
 			return nil, err
@@ -352,21 +347,26 @@ func (q *Queries) ListShadersDetailed(ctx context.Context, arg ListShadersDetail
 
 const listShadersDetailedWithUser = `-- name: ListShadersDetailedWithUser :many
 SELECT 
-sd.id, sd.title, sd.description, sd.user_id, sd.access_level, sd.preview_img_url, sd.created_at, sd.updated_at, sd.flags, sd.outputs, sd.username from shader_details_with_user sd
+sd.id, sd.title, sd.description, sd.user_id, sd.access_level, sd.preview_img_url, sd.created_at, sd.updated_at, sd.flags, sd.tags, sd.outputs, sd.username from shader_details_with_user sd
 JOIN users u ON sd.user_id = u.id
 WHERE 
-  (access_level = $1 OR $1 IS NULL)
+  (access_level = $1 OR $1 IS NULL) AND 
+  (
+  $2::text IS NULL OR $2::text = '' OR
+  textsearchable_index_col @@ plainto_tsquery($2::text)
+  )
 ORDER BY
-    CASE WHEN $2::text = 'created_at_asc' THEN sd.created_at END ASC,
-    CASE WHEN $2::text = 'created_at_desc' THEN sd.created_at END DESC,
-    CASE WHEN $2::text = 'title_asc' THEN sd.title END ASC,
-    CASE WHEN $2::text = 'title_desc' THEN sd.title END DESC
-LIMIT $4::int
-OFFSET $3::int
+    CASE WHEN $3::text = 'created_at_asc' THEN sd.created_at END ASC,
+    CASE WHEN $3::text = 'created_at_desc' THEN sd.created_at END DESC,
+    CASE WHEN $3::text = 'title_asc' THEN sd.title END ASC,
+    CASE WHEN $3::text = 'title_desc' THEN sd.title END DESC
+LIMIT $5::int
+OFFSET $4::int
 `
 
 type ListShadersDetailedWithUserParams struct {
 	AccessLevel pgtype.Int2
+	Query       pgtype.Text
 	OrderBy     pgtype.Text
 	Off         pgtype.Int4
 	Lim         pgtype.Int4
@@ -375,6 +375,7 @@ type ListShadersDetailedWithUserParams struct {
 func (q *Queries) ListShadersDetailedWithUser(ctx context.Context, arg ListShadersDetailedWithUserParams) ([]ShaderDetailsWithUser, error) {
 	rows, err := q.db.Query(ctx, listShadersDetailedWithUser,
 		arg.AccessLevel,
+		arg.Query,
 		arg.OrderBy,
 		arg.Off,
 		arg.Lim,
@@ -396,6 +397,7 @@ func (q *Queries) ListShadersDetailedWithUser(ctx context.Context, arg ListShade
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.Flags,
+			&i.Tags,
 			&i.Outputs,
 			&i.Username,
 		); err != nil {
@@ -410,21 +412,26 @@ func (q *Queries) ListShadersDetailedWithUser(ctx context.Context, arg ListShade
 }
 
 const listShadersWithUser = `-- name: ListShadersWithUser :many
-SELECT s.id, s.title, s.description, s.user_id, s.access_level, s.preview_img_url, s.created_at, s.updated_at, s.flags, s.username
+SELECT s.id, s.title, s.description, s.user_id, s.access_level, s.preview_img_url, s.created_at, s.updated_at, s.flags, s.tags, s.username
 FROM shader_with_user s
 WHERE 
-  (s.access_level = $1 OR $1 IS NULL)
+  (s.access_level = $1 OR $1 IS NULL) AND
+  (
+  $2::text IS NULL OR $2::text = '' OR
+  textsearchable_index_col @@ plainto_tsquery($2::text)
+  )
 ORDER BY
-    CASE WHEN $2::text = 'created_at_asc' THEN s.created_at END ASC,
-    CASE WHEN $2::text = 'created_at_desc' THEN s.created_at END DESC,
-    CASE WHEN $2::text = 'title_asc' THEN s.title END ASC,
-    CASE WHEN $2::text = 'title_desc' THEN s.title END DESC
-LIMIT $4::int
-OFFSET $3::int
+    CASE WHEN $3::text = 'created_at_asc' THEN s.created_at END ASC,
+    CASE WHEN $3::text = 'created_at_desc' THEN s.created_at END DESC,
+    CASE WHEN $3::text = 'title_asc' THEN s.title END ASC,
+    CASE WHEN $3::text = 'title_desc' THEN s.title END DESC
+LIMIT $5::int
+OFFSET $4::int
 `
 
 type ListShadersWithUserParams struct {
 	AccessLevel pgtype.Int2
+	Query       pgtype.Text
 	OrderBy     pgtype.Text
 	Off         int32
 	Lim         pgtype.Int4
@@ -433,6 +440,7 @@ type ListShadersWithUserParams struct {
 func (q *Queries) ListShadersWithUser(ctx context.Context, arg ListShadersWithUserParams) ([]ShaderWithUser, error) {
 	rows, err := q.db.Query(ctx, listShadersWithUser,
 		arg.AccessLevel,
+		arg.Query,
 		arg.OrderBy,
 		arg.Off,
 		arg.Lim,
@@ -454,6 +462,7 @@ func (q *Queries) ListShadersWithUser(ctx context.Context, arg ListShadersWithUs
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.Flags,
+			&i.Tags,
 			&i.Username,
 		); err != nil {
 			return nil, err
@@ -472,9 +481,12 @@ SET title = COALESCE(NULLIF($3::TEXT,''), title),
     description = COALESCE($4, description),
     preview_img_url = COALESCE($5, preview_img_url),
     access_level = COALESCE($6, access_level),
-    flags = COALESCE($7, flags)
+    flags = COALESCE($7, flags),
+    tags = COALESCE($8, tags)
 WHERE id = $1 AND user_id = $2
-RETURNING id, title, description, user_id, access_level, preview_img_url, created_at, updated_at, flags
+RETURNING id, title, description, user_id, 
+    access_level, preview_img_url, created_at, 
+    updated_at, flags, tags
 `
 
 type UpdateShaderParams struct {
@@ -485,9 +497,23 @@ type UpdateShaderParams struct {
 	PreviewImgUrl pgtype.Text
 	AccessLevel   int16
 	Flags         int32
+	Tags          pgtype.Text
 }
 
-func (q *Queries) UpdateShader(ctx context.Context, arg UpdateShaderParams) (Shader, error) {
+type UpdateShaderRow struct {
+	ID            uuid.UUID
+	Title         string
+	Description   pgtype.Text
+	UserID        uuid.UUID
+	AccessLevel   int16
+	PreviewImgUrl pgtype.Text
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+	Flags         int32
+	Tags          pgtype.Text
+}
+
+func (q *Queries) UpdateShader(ctx context.Context, arg UpdateShaderParams) (UpdateShaderRow, error) {
 	row := q.db.QueryRow(ctx, updateShader,
 		arg.ID,
 		arg.UserID,
@@ -496,8 +522,9 @@ func (q *Queries) UpdateShader(ctx context.Context, arg UpdateShaderParams) (Sha
 		arg.PreviewImgUrl,
 		arg.AccessLevel,
 		arg.Flags,
+		arg.Tags,
 	)
-	var i Shader
+	var i UpdateShaderRow
 	err := row.Scan(
 		&i.ID,
 		&i.Title,
@@ -508,6 +535,7 @@ func (q *Queries) UpdateShader(ctx context.Context, arg UpdateShaderParams) (Sha
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Flags,
+		&i.Tags,
 	)
 	return i, err
 }

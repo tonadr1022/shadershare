@@ -7,6 +7,7 @@ import (
 	"shadershare/internal/db"
 	"shadershare/internal/domain"
 	"shadershare/internal/e"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -19,6 +20,13 @@ type shaderRepository struct {
 	db      *pgxpool.Pool
 }
 
+func makeStrFromTags(tags pgtype.Text) []string {
+	if !tags.Valid {
+		return []string{}
+	}
+	return strings.Split(tags.String, " ")
+}
+
 func mapShaderFields(row interface{}) domain.Shader {
 	res := domain.Shader{}
 	switch r := row.(type) {
@@ -26,6 +34,7 @@ func mapShaderFields(row interface{}) domain.Shader {
 		res.PreviewImgURL = r.PreviewImgUrl.String
 		res.ID = r.ID
 		res.Title = r.Title
+		res.Tags = makeStrFromTags(r.Tags)
 		res.Description = r.Description.String
 		res.AccessLevel = domain.AccessLevel(r.AccessLevel)
 		res.Flags = r.Flags
@@ -36,10 +45,33 @@ func mapShaderFields(row interface{}) domain.Shader {
 		res.PreviewImgURL = r.PreviewImgUrl.String
 		res.ID = r.ID
 		res.Title = r.Title
+		res.Tags = makeStrFromTags(r.Tags)
 		res.Description = r.Description.String
 		res.AccessLevel = domain.AccessLevel(r.AccessLevel)
 		res.UserID = r.UserID
 		res.Flags = r.Flags
+		res.CreatedAt = r.CreatedAt.Time
+		res.UpdatedAt = r.UpdatedAt.Time
+	case db.FullShaderView:
+		res.PreviewImgURL = r.PreviewImgUrl.String
+		res.ID = r.ID
+		res.Title = r.Title
+		res.Description = r.Description.String
+		res.Tags = makeStrFromTags(r.Tags)
+		res.Flags = r.Flags
+		res.AccessLevel = domain.AccessLevel(r.AccessLevel)
+		res.UserID = r.UserID
+		res.CreatedAt = r.CreatedAt.Time
+		res.UpdatedAt = r.UpdatedAt.Time
+	case db.ListShaders4Row:
+		res.PreviewImgURL = r.PreviewImgUrl.String
+		res.ID = r.ID
+		res.Title = r.Title
+		res.Description = r.Description.String
+		res.Tags = makeStrFromTags(r.Tags)
+		res.Flags = r.Flags
+		res.AccessLevel = domain.AccessLevel(r.AccessLevel)
+		res.UserID = r.UserID
 		res.CreatedAt = r.CreatedAt.Time
 		res.UpdatedAt = r.UpdatedAt.Time
 	case db.Shader:
@@ -47,6 +79,40 @@ func mapShaderFields(row interface{}) domain.Shader {
 		res.ID = r.ID
 		res.Title = r.Title
 		res.Description = r.Description.String
+		res.Tags = makeStrFromTags(r.Tags)
+		res.Flags = r.Flags
+		res.AccessLevel = domain.AccessLevel(r.AccessLevel)
+		res.UserID = r.UserID
+		res.CreatedAt = r.CreatedAt.Time
+		res.UpdatedAt = r.UpdatedAt.Time
+	case db.DeleteShaderRow:
+		res.PreviewImgURL = r.PreviewImgUrl.String
+		res.ID = r.ID
+		res.Title = r.Title
+		res.Description = r.Description.String
+		res.Tags = makeStrFromTags(r.Tags)
+		res.Flags = r.Flags
+		res.AccessLevel = domain.AccessLevel(r.AccessLevel)
+		res.UserID = r.UserID
+		res.CreatedAt = r.CreatedAt.Time
+		res.UpdatedAt = r.UpdatedAt.Time
+	case db.UpdateShaderRow:
+		res.PreviewImgURL = r.PreviewImgUrl.String
+		res.ID = r.ID
+		res.Title = r.Title
+		res.Description = r.Description.String
+		res.Tags = makeStrFromTags(r.Tags)
+		res.Flags = r.Flags
+		res.AccessLevel = domain.AccessLevel(r.AccessLevel)
+		res.UserID = r.UserID
+		res.CreatedAt = r.CreatedAt.Time
+		res.UpdatedAt = r.UpdatedAt.Time
+	case db.CreateShaderRow:
+		res.PreviewImgURL = r.PreviewImgUrl.String
+		res.ID = r.ID
+		res.Title = r.Title
+		res.Description = r.Description.String
+		res.Tags = makeStrFromTags(r.Tags)
 		res.Flags = r.Flags
 		res.AccessLevel = domain.AccessLevel(r.AccessLevel)
 		res.UserID = r.UserID
@@ -55,6 +121,7 @@ func mapShaderFields(row interface{}) domain.Shader {
 	case db.ShaderWithUser:
 		res.PreviewImgURL = r.PreviewImgUrl.String
 		res.ID = r.ID
+		res.Tags = makeStrFromTags(r.Tags)
 		res.Flags = r.Flags
 		res.Title = r.Title
 		res.Description = r.Description.String
@@ -86,7 +153,7 @@ func (r shaderRepository) DeleteShader(ctx context.Context, userID uuid.UUID, sh
 		}
 		return nil, err
 	}
-	apiShader := r.ShaderFromDB(shader)
+	apiShader := mapShaderFields(shader)
 	return &apiShader, nil
 }
 
@@ -183,16 +250,30 @@ func (r shaderRepository) shaderOutputFromDB(dbShaderOutput db.ShaderOutput) dom
 	}
 }
 
+func makeTagStr(tags []string) string {
+	res := ""
+	for _, tag := range tags {
+		res += tag + " "
+	}
+	return res
+}
+
+func makePgText(str string) pgtype.Text {
+	return pgtype.Text{Valid: str != "", String: str}
+}
+
 func (r shaderRepository) CreateShader(ctx context.Context, userID uuid.UUID, shaderPayload domain.CreateShaderPayload) (uuid.UUID, error) {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
 		return uuid.Nil, err
 	}
+
 	defer tx.Rollback(ctx)
-	var shader db.Shader
+	var shader db.CreateShaderRow
 	params := db.CreateShaderParams{
 		Title:       shaderPayload.Title,
 		Description: pgtype.Text{String: shaderPayload.Description, Valid: true},
+		Tags:        makePgText(makeTagStr(shaderPayload.Tags)),
 		UserID:      userID,
 		AccessLevel: int16(shaderPayload.AccessLevel),
 	}
@@ -286,6 +367,10 @@ func (r shaderRepository) UpdateShader(ctx context.Context, userID uuid.UUID, sh
 		UserID: userID,
 	}
 
+	if len(updatePayload.Tags) > 0 {
+		params.Tags = makePgText(makeTagStr(updatePayload.Tags))
+	}
+
 	if updatePayload.PreviewImgURL != nil {
 		params.PreviewImgUrl = pgtype.Text{String: *updatePayload.PreviewImgURL, Valid: true}
 	}
@@ -301,7 +386,7 @@ func (r shaderRepository) UpdateShader(ctx context.Context, userID uuid.UUID, sh
 		params.AccessLevel = int16(*updatePayload.AccessLevel)
 	}
 
-	dbshader, err := r.queries.UpdateShader(ctx, params)
+	dbShader, err := r.queries.UpdateShader(ctx, params)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, e.ErrNotFound
@@ -405,7 +490,7 @@ func (r shaderRepository) UpdateShader(ctx context.Context, userID uuid.UUID, sh
 
 	}
 
-	shader := r.ShaderFromDB(dbshader)
+	shader := mapShaderFields(dbShader)
 	return &shader, nil
 }
 
@@ -460,6 +545,7 @@ func (r shaderRepository) GetShaderCount(ctx context.Context, filter domain.GetS
 	return r.queries.CountShaders(ctx, db.CountShadersParams{
 		UserID:      toPGUUID(filter.UserID),
 		AccessLevel: accessLevelToPgInt(filter.AccessLevel),
+		Query:       makePgText(filter.Query),
 	})
 }
 
@@ -490,13 +576,14 @@ func (r shaderRepository) GetShaders(ctx context.Context, req domain.ShaderListR
 	lim := offLimToPgType(req.Limit)
 	access := accessLevelToPgInt(req.Filter.AccessLevel)
 	off := int32(req.Offset)
-	fmt.Println(orderBy.String)
+	query := makePgText(req.Filter.Query)
 	if req.Detailed {
 		if req.IncludeUserData {
 			dbShaders, err = r.queries.ListShadersDetailedWithUser(ctx, db.ListShadersDetailedWithUserParams{
 				Lim:         lim,
 				Off:         offLimToPgType(req.Offset),
 				OrderBy:     orderBy,
+				Query:       query,
 				AccessLevel: access,
 			})
 		} else {
@@ -504,6 +591,7 @@ func (r shaderRepository) GetShaders(ctx context.Context, req domain.ShaderListR
 				UserID:      toPGUUID(req.Filter.UserID),
 				AccessLevel: access,
 				Off:         off,
+				Query:       query,
 				OrderBy:     orderBy,
 				Lim:         lim,
 			})
@@ -513,6 +601,7 @@ func (r shaderRepository) GetShaders(ctx context.Context, req domain.ShaderListR
 			dbShaders, err = r.queries.ListShadersWithUser(ctx, db.ListShadersWithUserParams{
 				Lim:         lim,
 				Off:         off,
+				Query:       query,
 				OrderBy:     orderBy,
 				AccessLevel: access,
 			})
@@ -520,6 +609,7 @@ func (r shaderRepository) GetShaders(ctx context.Context, req domain.ShaderListR
 			dbShaders, err = r.queries.ListShaders4(ctx, db.ListShaders4Params{
 				Lim:         lim,
 				Off:         off,
+				Query:       query,
 				OrderBy:     orderBy,
 				AccessLevel: access,
 			})
@@ -536,6 +626,8 @@ func (r shaderRepository) GetShaders(ctx context.Context, req domain.ShaderListR
 	case []db.ShaderDetailsWithUser:
 		return processShaders(v)
 	case []db.ShaderWithUser:
+		return processShaders(v)
+	case []db.ListShaders4Row:
 		return processShaders(v)
 	default:
 		return nil, fmt.Errorf("unexpected type: %T", dbShaders)

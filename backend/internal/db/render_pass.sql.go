@@ -119,7 +119,7 @@ func (q *Queries) GetShaderCount(ctx context.Context) (int64, error) {
 }
 
 const getShaderDetailed = `-- name: GetShaderDetailed :one
-SELECT id, title, description, user_id, access_level, preview_img_url, created_at, updated_at, flags, outputs
+SELECT id, title, description, user_id, access_level, preview_img_url, created_at, updated_at, flags, tags, outputs
 FROM 
   shader_details s
 WHERE 
@@ -139,13 +139,14 @@ func (q *Queries) GetShaderDetailed(ctx context.Context, id uuid.UUID) (ShaderDe
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Flags,
+		&i.Tags,
 		&i.Outputs,
 	)
 	return i, err
 }
 
 const getShaderDetailedWithUser = `-- name: GetShaderDetailedWithUser :one
-SELECT id, title, description, user_id, access_level, preview_img_url, created_at, updated_at, flags, outputs, username from shader_details_with_user
+SELECT id, title, description, user_id, access_level, preview_img_url, created_at, updated_at, flags, tags, outputs, username from shader_details_with_user
 WHERE id = $1
 `
 
@@ -162,6 +163,7 @@ func (q *Queries) GetShaderDetailedWithUser(ctx context.Context, id uuid.UUID) (
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Flags,
+		&i.Tags,
 		&i.Outputs,
 		&i.Username,
 	)
