@@ -99,7 +99,10 @@ const EditShaderMetadata = ({ initialData }: Props) => {
         toast.error("Failed to save, renderer not initialized");
         return;
       }
-      const res = renderer!.setShaders(shaderDataRef.current.shader_outputs);
+      const res = await renderer!.compileShaders(
+        shaderDataRef.current.shader_outputs,
+        false,
+      );
 
       if (res.error) {
         toast.error("Cannot save, shader has errors. Compile to see them");

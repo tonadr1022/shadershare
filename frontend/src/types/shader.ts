@@ -10,6 +10,9 @@ export type BufferName =
   | "Buffer E"
   | "Image";
 export type ShaderOutputName = BufferName | "Common";
+export type ShaderCompileErrMsgState = {
+  [K in ShaderOutputName]: ErrMsg[] | null;
+};
 
 export const shaderOutputNamesStrs = [
   "Common",

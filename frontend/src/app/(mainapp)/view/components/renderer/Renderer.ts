@@ -3,7 +3,6 @@ import {
   FilterMode,
   IRendererInitPararms,
   RenderData,
-  Result,
   ShaderData,
   ShaderInputType,
   ShaderOutput,
@@ -14,9 +13,19 @@ import {
   ShaderOutputFull,
   ShaderUpdateCreatePayload,
   ShaderOutputType,
+  ShaderCompileErrMsgState,
 } from "@/types/shader";
-import { createErrorResult, createSuccessResult } from "../util";
 import { webgl2Utils, WebGL2Utils } from "./Util";
+
+export type CompileReqCallback = (
+  error: boolean,
+  name: ShaderOutputName,
+  errMsgs: ErrMsg[] | null,
+) => void;
+export type CompileShaderReq = {
+  shaderOutput: ShaderOutputFull;
+  callback?: CompileReqCallback;
+};
 
 // TODO: higher res?
 export const getPreviewImgFile = async (
@@ -40,7 +49,6 @@ export const getPreviewImgFile = async (
         i++;
       }
     }
-    console.log("done");
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     canvas.toBlob((blob) => {
@@ -630,7 +638,7 @@ const destroyShaderInput = (
   input: RShaderInput,
 ) => {
   switch (input.type) {
-    case "buffer":
+    case "texture":
       (input.data as Texture).destroy(gl);
     default:
       break;
@@ -661,7 +669,6 @@ class RenderPass {
     this.shader.destroy(gl);
     this.renderTarget.destroy(gl);
     for (const inp of this.shader_inputs) {
-      console.log("destroying input", inp);
       destroyShaderInput(gl, inp);
     }
   }
@@ -746,6 +753,7 @@ class KeyboardTexture {
 }
 
 const webGL2Renderer = () => {
+  let asyncCompile: KHR_parallel_shader_compile | null = null;
   let canvas: HTMLCanvasElement;
   let gl: WebGL2RenderingContext;
   let currFrame = 0;
@@ -824,12 +832,15 @@ const webGL2Renderer = () => {
 
   const enableExtensions = () => {
     // get EXT_color_buffer_float extension
-    const ext = gl.getExtension("EXT_color_buffer_float");
     gl.getExtension("OES_texture_float_linear");
+    const ext = gl.getExtension("EXT_color_buffer_float");
     if (!ext) {
-      alert('"EXT_color_buffer_float" not supported');
-      return false;
+      return;
     }
+    asyncCompile = gl.getExtension("KHR_parallel_shader_compile");
+    console.log("KHR_parallel_shader_compile: ", asyncCompile !== null);
+
+    // TODO: handle fail case
     return true;
   };
   const getBufferOutputsWithNames = (): {
@@ -897,72 +908,79 @@ const webGL2Renderer = () => {
     };
     mediaRecorder.start();
   };
-  const compileShaders = async (shaderOutputs: ShaderOutputFull[]) => {
-    for (const out of shaderOutputs) {
+  const compileShaders = async (
+    req: ShaderOutputFull[],
+    parseErrors: boolean,
+  ): Promise<{ res: ShaderCompileErrMsgState; error: boolean }> => {
+    for (const out of req) {
       if (out.shader_inputs === null) {
         out.shader_inputs = [];
       }
     }
 
+    const res: ShaderCompileErrMsgState = {
+      "Buffer A": null,
+      "Buffer B": null,
+      "Buffer C": null,
+      "Buffer D": null,
+      "Buffer E": null,
+      Image: null,
+      Common: null,
+    };
+
     //get the common output if exists
     let commonOutput: ShaderOutput | null = null;
-    for (let i = 0; i < shaderOutputs.length; i++) {
-      if (shaderOutputs[i].type === "common") {
-        commonOutput = shaderOutputs[i];
+    for (let i = 0; i < req.length; i++) {
+      if (req[i].type === "common") {
+        commonOutput = req[i];
         break;
       }
     }
-
-    const compilePromises: Promise<{
-      res: Result<CompileShaderResult>;
-      output: ShaderOutputFull;
-    }>[] = [];
-    for (const output of shaderOutputs) {
-      if (output.type === "common") continue;
-      compilePromises.push(
-        new Promise((resolve) => {
-          resolve({
-            res: compileShader(
-              output.type,
-              commonOutput?.code || "",
-              output.code,
-            ),
-            output,
-          });
-        }),
-      );
-    }
-
-    try {
-      const results = await Promise.all(compilePromises);
-      for (const { res, output } of results) {
-        if (res.error) {
-          console.error("error compiling shader", res.message);
-          return;
+    let anyError = false;
+    await Promise.all(
+      req.map(async (output) => {
+        const { err, errString, program, headerLineCnt } = await compileShader(
+          output.type,
+          commonOutput?.code || "",
+          output.code,
+        );
+        anyError = anyError || err !== 0;
+        if (parseErrors) {
+          let msgs: ErrMsg[] = [];
+          if (res.Common === null) {
+            const commonBufferErrMsgs: ErrMsg[] = [];
+            msgs = getErrorMessages(
+              errString,
+              headerLineCnt,
+              true,
+              commonBufferErrMsgs,
+            );
+            res.Common = commonBufferErrMsgs;
+          } else {
+            msgs = getErrorMessages(errString, headerLineCnt, false);
+          }
+          res[output.name] = msgs;
         }
+
+        if (err || !program) return;
         const doubleBuffer = output.name !== "Image";
-        if (checkGLError(gl)) {
-          throw new Error("GL error");
-        }
-
         if (output.name !== "Common") {
           const existing = state.outputs[output.name];
           if (existing) {
-            existing.shader.setProgram(gl, res.data!.program);
+            existing.shader.setProgram(gl, program);
           } else {
             state.outputs[output.name] = new RenderPass(
               gl,
-              res.data!.program,
+              program,
               canvas.width,
               canvas.height,
               doubleBuffer,
             );
           }
         }
-      }
-    } catch (error) {
-      console.error("Shader compilation failed", error);
-    }
+      }),
+    );
+    return { res, error: anyError };
   };
 
   const stopRecording = () => {
@@ -1099,15 +1117,16 @@ const webGL2Renderer = () => {
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   }
 
-  type CompileShaderResult = {
-    program: WebGLProgram;
-    headerLineCnt: number;
-  };
-  const compileShader = (
+  const compileShader = async (
     outputType: ShaderOutputType,
     commonBufferText: string,
     fragmentText: string,
-  ): Result<CompileShaderResult> => {
+  ): Promise<{
+    err: number;
+    errString: string;
+    program: WebGLProgram | null;
+    headerLineCnt: number;
+  }> => {
     // TODO: dynamically create the header based on what is actually used in the shader
     let fragmentHeader = "";
     if (outputType === "buffer") {
@@ -1120,21 +1139,20 @@ const webGL2Renderer = () => {
     const completeHeader = `${fragmentHeader}
 ${commonBufferText}
 `;
+
     const fragmentCode = `${completeHeader}${fragmentText}`;
-
-    const compileRes = util.createShaderProgram(vertexCode, fragmentCode);
+    const res = await util.createShaderProgram(
+      vertexCode,
+      fragmentCode,
+      asyncCompile,
+    );
     const headerLineCnt = getLineCnt(completeHeader);
-    if (compileRes.error) {
-      return createErrorResult(compileRes.message, {
-        program: 0,
-        headerLineCnt,
-      });
-    }
-
-    return createSuccessResult<CompileShaderResult>({
-      program: compileRes.data!,
+    return {
+      err: res.err,
+      errString: res.errString,
+      program: res.program,
       headerLineCnt,
-    });
+    };
   };
 
   const state: {
@@ -1491,7 +1509,7 @@ ${commonBufferText}
     text: string,
     completeHeaderLineCnt: number,
     processCommonBuffer: boolean,
-    commonBufferErrMsgs: ErrMsg[],
+    commonBufferErrMsgs?: ErrMsg[],
   ): ErrMsg[] => {
     const lines = text.split(/\r\n|\r|\n/);
     const res: ErrMsg[] = [];
@@ -1511,7 +1529,7 @@ ${commonBufferText}
         }
         const message = match[2];
         if (isCommonBufferErr && processCommonBuffer) {
-          commonBufferErrMsgs.push({ line, message });
+          commonBufferErrMsgs?.push({ line, message });
         } else {
           res.push({ line, message });
         }
@@ -1642,79 +1660,6 @@ ${commonBufferText}
       }
     },
 
-    // TODO: compilation stats and character counts and line counts
-    setShaders: (
-      shaderOutputs: ShaderOutput[],
-    ): { error: boolean; errMsgs: Map<ShaderOutputName, ErrMsg[] | null> } => {
-      const programOrErrStrs = new Map<
-        ShaderOutputName,
-        string | WebGLProgram
-      >();
-      let anyError = false;
-      const commonBufferIdx = shaderOutputs.findIndex(
-        (output) => output.type === "common",
-      );
-      const commonOutput = shaderOutputs[commonBufferIdx]?.code || "";
-
-      // TODO: async and call compileShaders
-      const lineCnts = new Map<ShaderOutputName, number>();
-      for (let i = 0; i < shaderOutputs.length; i++) {
-        const output = shaderOutputs[i];
-        if (output.type === "common") {
-          continue;
-        }
-        const res = compileShader(output.type, commonOutput, output.code);
-        lineCnts.set(output.name, res.data!.headerLineCnt);
-        if (res.error) {
-          anyError = true;
-          programOrErrStrs.set(output.name, res.message!);
-        } else {
-          const program = res.data!.program;
-          programOrErrStrs.set(output.name, program);
-        }
-      }
-
-      if (!anyError) {
-        const bufferOutputs = getBufferOutputsWithNames();
-        for (const { name, output } of bufferOutputs) {
-          if (output === null) {
-            const newOutput = shaderOutputs.find((s) => s.name);
-            if (newOutput) {
-            }
-          }
-          if (output === null) continue;
-          const program = programOrErrStrs.get(name) as WebGLProgram;
-          output.shader.setProgram(gl, program);
-        }
-        validPipelines = true;
-      } else {
-        console.error("error occurred during shader compilation");
-      }
-      const errMsgs = new Map<ShaderOutputName, ErrMsg[] | null>();
-      const commonBufferErrs: ErrMsg[] = [];
-      let commonBufferErrProcessed = false;
-      for (const [name, progOrErrStr] of programOrErrStrs) {
-        if (typeof progOrErrStr === "string") {
-          errMsgs.set(
-            name,
-            getErrorMessages(
-              progOrErrStr as string,
-              lineCnts.get(name)!,
-              !commonBufferErrProcessed,
-              commonBufferErrs,
-            ),
-          );
-          commonBufferErrProcessed = true;
-        }
-      }
-      errMsgs.set("Common", commonBufferErrs);
-
-      return {
-        error: anyError,
-        errMsgs: errMsgs,
-      };
-    },
-
     setShaderDirty(name: BufferName) {
       if (!state.outputs[name]) {
         throw new Error("Invalid state: shader output is null");
@@ -1786,10 +1731,10 @@ ${commonBufferText}
       if (!enableExtensions()) {
         return;
       }
-
       const { shaderOutputs } = params;
 
-      await compileShaders(shaderOutputs);
+      await compileShaders(shaderOutputs, false);
+
       if (checkGLError(gl)) {
         throw new Error("GL error");
       }
@@ -1830,16 +1775,13 @@ ${commonBufferText}
         }
       }
 
-      {
-        const res = util.createShaderProgram(
-          vertexCode,
-          singleTextureFragmentCode,
-        );
-        if (res.error) {
-          console.error("error creating shader program", res.message);
-          return;
-        }
-        singleTextureShader = new Shader(gl, res.data!);
+      const res = await util.createShaderProgram(
+        vertexCode,
+        singleTextureFragmentCode,
+        null,
+      );
+      if (!res.err) {
+        singleTextureShader = new Shader(gl, res.program!);
       }
 
       kbTex.initialize(gl);
@@ -1851,20 +1793,15 @@ ${commonBufferText}
 
     onResize,
     render,
-    /*
-    *    let loopCheckCompletion = function ()
-                                {
-                                    if( mGL.getProgramParameter(pr, mAsynchCompile.COMPLETION_STATUS_KHR) === true )
-                                        checkErrors();
-                                    else
-                                        setTimeout(loopCheckCompletion, 10);
-                                };
-                                setTimeout(loopCheckCompletion, 10);
-    */
-    addOutput: async (output: ShaderOutputFull) => {
-      await compileShaders([output]);
-      // TODO: compile shader, etc.
-      // state.outputs[outputName] = new RenderPass(gl)
+    compileShaders,
+    addOutput: async (
+      shaderOutput: ShaderOutputFull,
+      commonOutput?: ShaderOutputFull,
+    ) => {
+      await compileShaders(
+        commonOutput ? [shaderOutput, commonOutput] : [shaderOutput],
+        false,
+      );
     },
     forceRender: () => forceRender || screenshotRequested,
     startRecording,

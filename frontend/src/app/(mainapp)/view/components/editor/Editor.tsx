@@ -31,13 +31,18 @@ import {
 } from "@codemirror/view";
 import { useRendererCtx } from "@/context/RendererContext";
 import { ErrorWidget } from "./ErrorWidget";
-import { ErrMsg, ShaderOutputFull, ShaderOutputName } from "@/types/shader";
+import {
+  ErrMsg,
+  ShaderCompileErrMsgState,
+  ShaderOutputFull,
+  ShaderOutputName,
+} from "@/types/shader";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useResolvedTheme } from "@/hooks/hooks";
 import ShaderInputEdit from "./ShaderInputEdit";
 import { Button } from "@/components/ui/button";
-import { CircleHelp, Plus, Settings, X } from "lucide-react";
+import { CircleHelp, Play, Plus, Settings, X } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -222,13 +227,35 @@ export const MultiBufferEditor = React.memo(() => {
   const [shaderOutputName, setShaderOutputName] = useState("Image");
   const [activeOutputEditTab, setActiveOutputEditTab] = useState("code");
   // const [renderPassEditIdx, setRenderPassEditIdx] = useState();
-  const [errMsgs, setErrMsgs] = useState<Map<
-    ShaderOutputName,
-    ErrMsg[] | null
-  > | null>(null);
+  const [errMsgs, setErrMsgs] = useState<ShaderCompileErrMsgState>({
+    "Buffer A": null,
+    "Buffer B": null,
+    "Buffer C": null,
+    "Buffer D": null,
+    "Buffer E": null,
+    Image: null,
+    Common: null,
+  });
 
   const { codeDirtyRef, setPaused, renderer, shaderDataRef } = useRendererCtx();
   const [, forceUpdate] = useState(0);
+
+  const handleCompile = useCallback(() => {
+    if (!renderer) return;
+    const dirtyShaders: ShaderOutputFull[] = [];
+    for (const out of shaderDataRef.current.shader_outputs) {
+      if (codeDirtyRef.current.get(out.name)) {
+        dirtyShaders.push(out);
+      }
+    }
+    renderer.compileShaders(dirtyShaders, true).then((res) => {
+      setErrMsgs(res.res);
+      setOutlineMode(res.error ? 2 : 1);
+      setTimeout(() => {
+        setOutlineMode(0);
+      }, 250);
+    });
+  }, [codeDirtyRef, renderer, shaderDataRef]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -243,20 +270,7 @@ export const MultiBufferEditor = React.memo(() => {
               renderer.restart();
               break;
             case "compile":
-              const res = renderer.setShaders(
-                shaderDataRef.current.shader_outputs,
-              );
-
-              if (res.error) {
-                setOutlineMode(2);
-              } else {
-                setOutlineMode(1);
-              }
-
-              setTimeout(() => {
-                setOutlineMode(0);
-              }, 500);
-              setErrMsgs(res.errMsgs);
+              handleCompile();
               break;
             default:
               break;
@@ -269,7 +283,8 @@ export const MultiBufferEditor = React.memo(() => {
       ref.addEventListener("keydown", handleKeyDown);
     }
     return () => ref?.removeEventListener("keydown", handleKeyDown);
-  }, [renderer, setPaused, shaderDataRef]);
+  }, [handleCompile, renderer, setPaused, shaderDataRef]);
+  console.log("render");
 
   const onTextUpdate = useCallback(
     (newText: string, name: ShaderOutputName) => {
@@ -455,6 +470,12 @@ export const MultiBufferEditor = React.memo(() => {
                     ) : (
                       <></>
                     )}
+                    <Button
+                      className="bg-green-500 hover:bg-green-500/90"
+                      onClick={handleCompile}
+                    >
+                      <Play />
+                    </Button>
                     {activeOutputEditTab === "code" && (
                       <Dialog>
                         <DialogTrigger asChild>
@@ -485,7 +506,7 @@ export const MultiBufferEditor = React.memo(() => {
                     )}
                   >
                     <Editor
-                      errMsgs={!errMsgs ? null : errMsgs.get(output.name)}
+                      errMsgs={!errMsgs ? null : errMsgs[output.name]}
                       name={output.name}
                       visible={shaderOutputName === output.name}
                       text={output.code}
