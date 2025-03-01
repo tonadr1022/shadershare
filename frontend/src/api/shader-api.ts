@@ -105,6 +105,7 @@ const getShadersWithUsernamesImpl = async (
   user_id?: string,
   offset?: number,
   limit?: number,
+  query?: string | null,
 ): Promise<ShaderListResp | ShaderListDetailedResp> => {
   const res = await axiosInstance.get("/shaders", {
     params: {
@@ -113,6 +114,7 @@ const getShadersWithUsernamesImpl = async (
       limit,
       user_id,
       detailed,
+      query,
     },
   });
   return res.data;
@@ -149,6 +151,7 @@ export const getShadersWithUsernames = async (
   detailed: boolean,
   offset?: number,
   limit?: number,
+  query?: string | null,
 ): Promise<ShaderListResp | ShaderListDetailedResp> => {
   if (detailed) {
     return getShadersWithUsernamesImpl(
@@ -156,6 +159,7 @@ export const getShadersWithUsernames = async (
       undefined,
       offset,
       limit,
+      query,
     ) as Promise<ShaderListDetailedResp>;
   } else {
     return getShadersWithUsernamesImpl(
@@ -163,6 +167,7 @@ export const getShadersWithUsernames = async (
       undefined,
       offset,
       limit,
+      query,
     ) as Promise<ShaderListResp>;
   }
 };

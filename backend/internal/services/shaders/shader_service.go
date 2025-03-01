@@ -59,6 +59,13 @@ func (s shaderService) UpdateShader(ctx context.Context, userID uuid.UUID, shade
 		}
 		s.repo.DeleteShaderInput(ctx, parsed)
 	}
+	for _, id := range updatePayload.DeletedOutputIds {
+		parsed, err := uuid.Parse(id)
+		if err != nil {
+			continue
+		}
+		s.repo.DeleteShaderOutput(ctx, parsed)
+	}
 	return shader, nil
 }
 

@@ -124,6 +124,9 @@ const EditShaderMetadata = ({ initialData }: Props) => {
       if (editState.current.deletedInputIds.length) {
         payload.deleted_input_ids = editState.current.deletedInputIds;
       }
+      if (editState.current.deletedOutputIds.length) {
+        payload.deleted_output_ids = editState.current.deletedOutputIds;
+      }
 
       if (isUpdate) {
         payload.id = initialData.id;

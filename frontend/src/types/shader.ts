@@ -186,6 +186,7 @@ export type ShaderUpdateCreatePayload = {
   preview_img_url?: string;
   description?: string;
   deleted_input_ids?: string[];
+  deleted_output_ids?: string[];
   shader_outputs?: ShaderOutputFull[];
 };
 

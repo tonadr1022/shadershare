@@ -24,7 +24,6 @@ export const useGetMeRedirect = () => {
     queryFn: async () => {
       const res = await getMeAuth();
       if (res.status >= 400) {
-        console.log("nope");
         router.push("/login");
       }
       return res.data;

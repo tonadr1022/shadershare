@@ -237,7 +237,8 @@ export const MultiBufferEditor = React.memo(() => {
     Common: null,
   });
 
-  const { codeDirtyRef, setPaused, renderer, shaderDataRef } = useRendererCtx();
+  const { editState, codeDirtyRef, setPaused, renderer, shaderDataRef } =
+    useRendererCtx();
   const [, forceUpdate] = useState(0);
 
   const handleCompile = useCallback(() => {
@@ -360,16 +361,18 @@ export const MultiBufferEditor = React.memo(() => {
       if (!found) {
         return;
       }
+      // delete on backend if saved
+      const output = shaderDataRef.current.shader_outputs[i];
+      if (output.id) {
+        editState.current.deletedOutputIds.push(output.id);
+      }
       shaderDataRef.current.shader_outputs.splice(i, 1);
       setShaderOutputName(
         shaderDataRef.current.shader_outputs[Math.max(i - 1, 0)].name,
       );
-      console.log(
-        shaderDataRef.current.shader_outputs[Math.max(i - 1, 0)].name,
-      );
       renderer?.removeOutput(name);
     },
-    [renderer, shaderDataRef],
+    [editState, renderer, shaderDataRef],
   );
   return (
     <div ref={multiEditorRef} className="flex flex-col w-full h-full">
@@ -454,7 +457,9 @@ export const MultiBufferEditor = React.memo(() => {
                             <AlertDialogTitle>
                               Are you sure you want to delete {output.name}?
                             </AlertDialogTitle>
-                            <AlertDialogDescription></AlertDialogDescription>
+                            <AlertDialogDescription>
+                              If you save. This cannot be undone.
+                            </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>

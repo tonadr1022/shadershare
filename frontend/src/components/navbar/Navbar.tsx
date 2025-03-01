@@ -14,12 +14,38 @@ import Link from "next/link";
 import ProfileDropdown from "@/components/navbar/ProfileDropdown";
 import { useGetMe } from "@/hooks/hooks";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Input } from "../ui/input";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 const navbarItems = [
   { href: url.browse, label: "Browse" },
   { href: url.usershaders, label: "My Shaders" },
   { href: url.new, label: "New" },
 ];
+
+const ShaderSearch = () => {
+  const router = useRouter();
+  const [inputQuery, setInputQuery] = useState("");
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        router.push(`/browse?query=${encodeURIComponent(inputQuery)}`);
+      }}
+      id="shader-page-query"
+      className="flex gap-2 w-fit"
+    >
+      <Input
+        id="shader-query-input"
+        value={inputQuery}
+        className="bg-secondary"
+        onChange={(e) => setInputQuery(e.target.value)}
+        placeholder="Search..."
+      />
+    </form>
+  );
+};
 
 export default function Navbar() {
   const { data: user, isPending } = useGetMe();
@@ -36,6 +62,7 @@ export default function Navbar() {
             {/* TODO: LOGO */}
             <p className="hidden font-bold sm:inline-block">Shader Share</p>
           </Link>
+          <ShaderSearch />
           {navbarItems.map((item) => (
             <nav key={item.href}>
               <Link

@@ -13,7 +13,6 @@ export default function UserPageLayout({
 }) {
   const router = useRouter();
   const { data, isPending } = useGetMeRedirect();
-  console.log(data, isPending, "render");
   if (!isPending && !data) {
     router.push("/login");
   }

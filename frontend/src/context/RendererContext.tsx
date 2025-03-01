@@ -20,6 +20,7 @@ import React, {
 
 export type ShaderEditState = {
   deletedInputIds: string[];
+  deletedOutputIds: string[];
 };
 interface RendererContextType {
   paused: boolean;
@@ -48,7 +49,10 @@ export const RendererProvider: React.FC<RendererProviderProps> = ({
 }) => {
   const [paused, setPaused] = useState<boolean>(false);
   const [renderer, setRenderer] = useState<IRenderer | null>(null);
-  const editState = useRef<ShaderEditState>({ deletedInputIds: [] });
+  const editState = useRef<ShaderEditState>({
+    deletedOutputIds: [],
+    deletedInputIds: [],
+  });
   const [shaderDataDirty, setShaderDataDirty] = useState<boolean>(false);
   const initialized = useRef(false);
   const shaderDataRef = React.useRef<ShaderDataWithUser>(

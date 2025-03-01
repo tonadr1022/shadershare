@@ -70,23 +70,22 @@ const ProfileShaders = () => {
             <TabsTrigger value="table">Table</TabsTrigger>
             <TabsTrigger value="card">Card</TabsTrigger>
           </TabsList>
-          <div className="flex gap-2 w-fit">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              router.push(getUrl(page, perPage, view, sort, desc, inputQuery));
+            }}
+            id="shader-page-query"
+            className="flex gap-2 w-fit"
+          >
             <Input
               id="shader-query-input"
               value={inputQuery}
               onChange={(e) => setInputQuery(e.target.value)}
-              placeholder=""
+              placeholder="Search..."
             />
-            <Button
-              onClick={() => {
-                router.push(
-                  getUrl(page, perPage, view, sort, desc, inputQuery),
-                );
-              }}
-            >
-              Search
-            </Button>
-          </div>
+            <Button type="submit">Search</Button>
+          </form>
         </div>
         {isPending ? (
           <div className="flex items-center justify-center w-full h-full">

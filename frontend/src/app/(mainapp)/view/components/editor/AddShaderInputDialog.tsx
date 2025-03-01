@@ -84,7 +84,6 @@ const AddShaderInputDialog = ({ children, onSave, bufferName }: Props) => {
         (out) => out.name === bufferName,
       );
 
-      console.log("data", data);
       if (output) {
         if (!output.shader_inputs) {
           output.shader_inputs = [];
@@ -146,7 +145,6 @@ const AddShaderInputDialog = ({ children, onSave, bufferName }: Props) => {
       throw new Error("invalid type");
     }
     newInput.output_id = output.id;
-    console.log(output.id);
     createShaderInput(newInput);
     onSave(newInput.idx);
   });

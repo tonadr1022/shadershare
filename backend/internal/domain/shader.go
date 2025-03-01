@@ -82,15 +82,16 @@ type (
 		ShaderInputs []CreateShaderInputPayload `json:"shader_inputs" binding:"required"`
 	}
 	UpdateShaderPayload struct {
-		ID              uuid.UUID                   `json:"id" binding:"required"`
-		UserID          uuid.UUID                   `json:"user_id" binding:"required"`
-		Title           *string                     `json:"title,omitempty"`
-		Description     *string                     `json:"description,omitempty"`
-		PreviewImgURL   *string                     `json:"preview_img_url,omitempty"`
-		AccessLevel     *AccessLevel                `json:"access_level,omitempty"`
-		Tags            []string                    `json:"tags"`
-		DeletedInputIds []string                    `json:"deleted_input_ids"`
-		ShaderOutputs   []UpdateShaderOutputPayload `json:"shader_outputs,omitempty"`
+		ID               uuid.UUID                   `json:"id" binding:"required"`
+		UserID           uuid.UUID                   `json:"user_id" binding:"required"`
+		Title            *string                     `json:"title,omitempty"`
+		Description      *string                     `json:"description,omitempty"`
+		PreviewImgURL    *string                     `json:"preview_img_url,omitempty"`
+		AccessLevel      *AccessLevel                `json:"access_level,omitempty"`
+		Tags             []string                    `json:"tags"`
+		DeletedInputIds  []string                    `json:"deleted_input_ids"`
+		DeletedOutputIds []string                    `json:"deleted_output_ids"`
+		ShaderOutputs    []UpdateShaderOutputPayload `json:"shader_outputs,omitempty"`
 	}
 
 	CreateShaderPayload struct {
