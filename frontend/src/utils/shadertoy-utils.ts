@@ -141,8 +141,7 @@ export const getShadertoyShaders = async (
 
 export const shaderToyToShader = (
   stShader: ShaderToyShader,
-  creditAuthor?: boolean,
-  creditShadertoy?: boolean,
+  accessLevel?: number,
 ) => {
   const errors: string[] = [];
   const shader_outputs = [];
@@ -256,36 +255,27 @@ export const shaderToyToShader = (
   }
 
   const info = stShader.info;
-  let description = "Imported From Shadertoy";
+  let description = "Imported From Shadertoy\n";
   if (info.username) {
-    description += "Shader authored by: " + info.username + "\n";
+    description += "Authored by: " + info.username + "\n";
   }
-  if (!info.username) {
-    console.log("no username", stShader);
-  }
-  description += `See original at https://shadertoy.com/view/${info.id}`;
-
-  let title = info.name;
-  if (creditAuthor) {
-    title += ` [by ${info.username}]`;
-  }
-  if (creditShadertoy) {
-    title += ` [from Shadertoy]`;
-  }
+  description += `See original at https://shadertoy.com/view/${info.id}\n\n${info.description}`;
   const newShader: ShaderData = {
     id: "",
     tags: stShader.info.tags.join(" ").trim().split(" "),
     flags: 0,
     user_id: "",
     access_level:
-      process.env.NODE_ENV === "development"
-        ? AccessLevel.PUBLIC
-        : AccessLevel.PRIVATE,
+      accessLevel !== undefined
+        ? accessLevel
+        : process.env.NODE_ENV === "development"
+          ? AccessLevel.PUBLIC
+          : AccessLevel.PRIVATE,
     created_at: "",
     preview_img_url: "",
     updated_at: "",
     description,
-    title,
+    title: info.name,
     shader_outputs,
   };
 

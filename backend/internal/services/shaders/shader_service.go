@@ -49,6 +49,8 @@ func (s shaderService) UpdateShader(ctx context.Context, userID uuid.UUID, shade
 		if err != nil {
 			log.Println("Error updating file", err)
 			return nil, err
+		} else {
+			fmt.Println("updated: ", *updatePayload.PreviewImgURL)
 		}
 	}
 
@@ -108,7 +110,6 @@ func (s shaderService) GetShaders(ctx context.Context, req domain.ShaderListReq)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println(count, "count")
 	shaders, err := s.repo.GetShaders(ctx, req)
 	if err != nil {
 		fmt.Println(err, "err occur")

@@ -25,12 +25,18 @@ import { Input } from "./ui/input";
 import { toast } from "sonner";
 import axios, { AxiosError } from "axios";
 import { Spinner } from "./ui/spinner";
-import { Checkbox } from "./ui/checkbox";
 import { Label } from "./ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const ImportFromShadertoy = () => {
-  const [creditAuthor, setCreditAuthor] = useState(false);
-  const [creditShadertoy, setCreditShadertoy] = useState(false);
+  const [accessLevel, setAccessLevel] = useState(AccessLevel.PRIVATE);
   const [addShaderPending, setAddShaderPending] = useState(false);
   const queryClient = useQueryClient();
   const createShaderMut = useMutation({
@@ -94,11 +100,7 @@ const ImportFromShadertoy = () => {
       }
       const newShaders = [];
       for (const stShader of shaderToyShaders) {
-        const { shader, errors } = shaderToyToShader(
-          stShader,
-          creditAuthor,
-          creditShadertoy,
-        );
+        const { shader, errors } = shaderToyToShader(stShader, accessLevel);
         if (!shader || errors.length) {
           for (const err of errors) {
             newErrs.push(`${shader?.title || ""} ${err}`);
@@ -129,7 +131,7 @@ const ImportFromShadertoy = () => {
         setErrors([]);
       }
     },
-    [bulkCreateShaderMut, creditAuthor, creditShadertoy],
+    [bulkCreateShaderMut, accessLevel],
   );
   const addShaderByIdMut = useMutation({
     mutationFn: async (id: string) => {
@@ -139,11 +141,7 @@ const ImportFromShadertoy = () => {
       return res.data;
     },
     onSuccess: async (data: ShaderToyShaderResp) => {
-      const { shader, errors } = shaderToyToShader(
-        data.Shader,
-        creditAuthor,
-        creditShadertoy,
-      );
+      const { shader, errors } = shaderToyToShader(data.Shader, accessLevel);
       if (!shader || errors.length) {
         for (const err of errors) {
           setErrors((existing) => [...existing, err]);
@@ -168,21 +166,29 @@ const ImportFromShadertoy = () => {
 
   return (
     <div className="flex flex-col gap-4 h-24">
-      <div className="flex items-center gap-2 cursor-pointer">
-        <Label htmlFor="credit-author">Credit Author in Title</Label>
-        <Checkbox
-          id="credit-author"
-          checked={creditAuthor}
-          onCheckedChange={(c) => setCreditAuthor(c.valueOf() !== false)}
-        />
-      </div>
-      <div className="flex items-center gap-2 cursor-pointer">
-        <Label htmlFor="credit-shadertoy">Credit Shadertoy in Title</Label>
-        <Checkbox
-          id="credit-shadertoy"
-          checked={creditShadertoy}
-          onCheckedChange={(c) => setCreditShadertoy(c.valueOf() !== false)}
-        />
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="access-level-select">Access Level</Label>
+        <Select
+          onValueChange={(val) => setAccessLevel(parseInt(val))}
+          value={accessLevel.toString()}
+        >
+          <SelectTrigger className="w-[180px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent id="access-level-select">
+            <SelectGroup>
+              <SelectItem value={AccessLevel.PRIVATE.toString()}>
+                Private
+              </SelectItem>
+              <SelectItem value={AccessLevel.PUBLIC.toString()}>
+                Public
+              </SelectItem>
+              <SelectItem value={AccessLevel.UNLISTED.toString()}>
+                Unlisted
+              </SelectItem>
+            </SelectGroup>
+          </SelectContent>
+        </Select>
       </div>
       <Dropzone onDrop={handleUploadFiles}>
         {(dropzone: DropzoneState) => (
