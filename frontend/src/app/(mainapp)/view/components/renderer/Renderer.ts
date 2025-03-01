@@ -45,6 +45,7 @@ export const getPreviewImgFile = async (
     renderer.onResize(320, 180);
     let i = 0;
     while (i < 2) {
+      console.log("rendering");
       if (renderer.render({ checkResize: false, dt: 0.0007 })) {
         i++;
       }
@@ -1013,12 +1014,15 @@ const webGL2Renderer = () => {
 
   const render = (options?: { checkResize?: boolean; dt: number }): boolean => {
     if (!initialized || !gl || !canvas) {
+      console.log("not initialized");
       return false;
     }
     if (!validPipelines) {
+      console.log("no valid pipelines");
       return false;
     }
     if (loadingImagesCnt > 0) {
+      console.log("loading images");
       return false;
     }
     timeDelta = options?.dt || 0;
@@ -1029,6 +1033,7 @@ const webGL2Renderer = () => {
       const displayHeight = canvas.clientHeight;
       if (canvas.width !== displayWidth || canvas.height !== displayHeight) {
         if (canvas.width == 0 || canvas.height == 0) {
+          console.log("no width or height");
           return false;
         }
         onResize(displayWidth, displayHeight, true);
@@ -1127,7 +1132,6 @@ const webGL2Renderer = () => {
     program: WebGLProgram | null;
     headerLineCnt: number;
   }> => {
-    // TODO: dynamically create the header based on what is actually used in the shader
     let fragmentHeader = "";
     if (outputType === "buffer") {
       fragmentHeader = makeHeaderBuffer();
@@ -1774,6 +1778,7 @@ ${commonBufferText}
           }
         }
       }
+      await Promise.all(imageLoadPromises);
 
       const res = await util.createShaderProgram(
         vertexCode,

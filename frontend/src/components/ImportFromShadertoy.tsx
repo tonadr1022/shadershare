@@ -92,6 +92,9 @@ const ImportFromShadertoy = () => {
       for (const e of errors) {
         newErrs.push(e);
       }
+      if (newErrs.length) {
+        return;
+      }
       const newShaders = [];
       for (const stShader of shaderToyShaders) {
         const { shader, errors } = shaderToyToShader(

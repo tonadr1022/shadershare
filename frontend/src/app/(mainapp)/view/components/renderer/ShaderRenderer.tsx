@@ -122,7 +122,7 @@ const ShaderRenderer = ({
     canvas.addEventListener("keydown", onKeyDown);
     canvas.addEventListener("keyup", onKeyUp);
     const initializeRenderer = async () => {
-      await renderer.initialize({
+      renderer.initialize({
         canvas,
         shaderOutputs: shaderDataRef.current.shader_outputs,
       });
