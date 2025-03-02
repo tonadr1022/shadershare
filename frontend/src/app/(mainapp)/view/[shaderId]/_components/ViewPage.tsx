@@ -14,12 +14,11 @@ const ViewPage = () => {
     queryFn: () => getShader(params.shaderId, true),
     queryKey: ["shaders", params.shaderId],
   });
-  const anyError = meQuery.isError || dataQuery.isError;
   const anyLoading = meQuery.isLoading || dataQuery.isLoading;
   return (
     <div className="p-4 ">
       {anyLoading && <Spinner />}
-      {anyError && <p>Error loading shader</p>}
+      {dataQuery.isError && <p>Error loading shader</p>}
       {dataQuery.data && (
         <ShaderEditor editable={!meQuery.isError} shaderData={dataQuery.data} />
       )}

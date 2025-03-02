@@ -292,6 +292,46 @@ func (q *Queries) GetShaderWithUser(ctx context.Context, id uuid.UUID) (GetShade
 	return i, err
 }
 
+const getTopTags = `-- name: GetTopTags :many
+WITH tokenized_tags AS (
+    SELECT unnest(
+            regexp_split_to_array(COALESCE(tags, ''), '\s* \s*')
+        ) AS word
+    FROM shaders
+)
+SELECT word,
+    COUNT(*) AS frequency
+FROM tokenized_tags
+GROUP BY word
+ORDER BY frequency DESC
+OFFSET 2 LIMIT 20
+`
+
+type GetTopTagsRow struct {
+	Word      interface{}
+	Frequency int64
+}
+
+func (q *Queries) GetTopTags(ctx context.Context) ([]GetTopTagsRow, error) {
+	rows, err := q.db.Query(ctx, getTopTags)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetTopTagsRow
+	for rows.Next() {
+		var i GetTopTagsRow
+		if err := rows.Scan(&i.Word, &i.Frequency); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listShaders4 = `-- name: ListShaders4 :many
 
 SELECT id, title, description, user_id, 
@@ -302,25 +342,34 @@ WHERE
   (user_id = $1 OR $1 IS NULL) AND
   (access_level = $2 OR $2 IS NULL) AND 
   (
-  $3::text IS NULL OR $3::text = '' OR
-  textsearchable_index_col @@ plainto_tsquery('english',$3::text)
+    $3::text IS NULL OR $3::text = '' OR
+    (
+      -- Search in title and tags combined
+      ($4::boolean IS NULL OR $4::boolean = false)
+      AND textsearchable_index_col @@ plainto_tsquery('english', $3::text)
+      OR
+      -- Search only in tags
+      ($4::boolean IS NOT NULL AND $4::boolean = true)
+      AND tags @@ plainto_tsquery('english', $3::text)
+    )
   )
 ORDER BY
-    CASE WHEN $4::text = 'created_at_asc' THEN created_at END ASC,
-    CASE WHEN $4::text = 'created_at_desc' THEN created_at END DESC,
-    CASE WHEN $4::text = 'title_asc' THEN title END ASC,
-    CASE WHEN $4::text = 'title_desc' THEN title END DESC
-LIMIT $6::int
-OFFSET $5::int
+    CASE WHEN $5::text = 'created_at_asc' THEN created_at END ASC,
+    CASE WHEN $5::text = 'created_at_desc' THEN created_at END DESC,
+    CASE WHEN $5::text = 'title_asc' THEN title END ASC,
+    CASE WHEN $5::text = 'title_desc' THEN title END DESC
+LIMIT $7::int
+OFFSET $6::int
 `
 
 type ListShaders4Params struct {
-	UserID      pgtype.UUID
-	AccessLevel pgtype.Int2
-	Query       pgtype.Text
-	OrderBy     pgtype.Text
-	Off         int32
-	Lim         pgtype.Int4
+	UserID         pgtype.UUID
+	AccessLevel    pgtype.Int2
+	Query          pgtype.Text
+	SearchTagsOnly pgtype.Bool
+	OrderBy        pgtype.Text
+	Off            int32
+	Lim            pgtype.Int4
 }
 
 type ListShaders4Row struct {
@@ -345,6 +394,7 @@ func (q *Queries) ListShaders4(ctx context.Context, arg ListShaders4Params) ([]L
 		arg.UserID,
 		arg.AccessLevel,
 		arg.Query,
+		arg.SearchTagsOnly,
 		arg.OrderBy,
 		arg.Off,
 		arg.Lim,
@@ -387,25 +437,34 @@ WHERE
   (user_id = $1 OR $1 IS NULL) AND
   (access_level = $2 OR $2 IS NULL) AND 
   (
-  $3::text IS NULL OR $3::text = '' OR
-  textsearchable_index_col @@ plainto_tsquery($3::text)
+    $3::text IS NULL OR $3::text = '' OR
+    (
+      -- Search in title and tags combined
+      ($4::boolean IS NULL OR $4::boolean = false)
+      AND textsearchable_index_col @@ plainto_tsquery('english', $3::text)
+      OR
+      -- Search only in tags
+      ($4::boolean IS NOT NULL AND $4::boolean = true)
+      AND tags @@ plainto_tsquery('english', $3::text)
+    )
   )
 ORDER BY
-    CASE WHEN $4::text = 'created_at_asc' THEN sd.created_at END ASC,
-    CASE WHEN $4::text = 'created_at_desc' THEN sd.created_at END DESC,
-    CASE WHEN $4::text = 'title_asc' THEN sd.title END ASC,
-    CASE WHEN $4::text = 'title_desc' THEN sd.title END DESC
-LIMIT $6::int
-OFFSET $5::int
+    CASE WHEN $5::text = 'created_at_asc' THEN sd.created_at END ASC,
+    CASE WHEN $5::text = 'created_at_desc' THEN sd.created_at END DESC,
+    CASE WHEN $5::text = 'title_asc' THEN sd.title END ASC,
+    CASE WHEN $5::text = 'title_desc' THEN sd.title END DESC
+LIMIT $7::int
+OFFSET $6::int
 `
 
 type ListShadersDetailedParams struct {
-	UserID      pgtype.UUID
-	AccessLevel pgtype.Int2
-	Query       pgtype.Text
-	OrderBy     pgtype.Text
-	Off         int32
-	Lim         pgtype.Int4
+	UserID         pgtype.UUID
+	AccessLevel    pgtype.Int2
+	Query          pgtype.Text
+	SearchTagsOnly pgtype.Bool
+	OrderBy        pgtype.Text
+	Off            int32
+	Lim            pgtype.Int4
 }
 
 type ListShadersDetailedRow struct {
@@ -427,6 +486,7 @@ func (q *Queries) ListShadersDetailed(ctx context.Context, arg ListShadersDetail
 		arg.UserID,
 		arg.AccessLevel,
 		arg.Query,
+		arg.SearchTagsOnly,
 		arg.OrderBy,
 		arg.Off,
 		arg.Lim,
@@ -470,24 +530,33 @@ JOIN users u ON sd.user_id = u.id
 WHERE 
   (access_level = $1 OR $1 IS NULL) AND 
   (
-  $2::text IS NULL OR $2::text = '' OR
-  textsearchable_index_col @@ plainto_tsquery($2::text)
+    $2::text IS NULL OR $2::text = '' OR
+    (
+      -- Search in title and tags combined
+      ($3::boolean IS NULL OR $3::boolean = false)
+      AND textsearchable_index_col @@ plainto_tsquery('english', $2::text)
+      OR
+      -- Search only in tags
+      ($3::boolean IS NOT NULL AND $3::boolean = true)
+      AND tags @@ plainto_tsquery('english', $2::text)
+    )
   )
 ORDER BY
-    CASE WHEN $3::text = 'created_at_asc' THEN sd.created_at END ASC,
-    CASE WHEN $3::text = 'created_at_desc' THEN sd.created_at END DESC,
-    CASE WHEN $3::text = 'title_asc' THEN sd.title END ASC,
-    CASE WHEN $3::text = 'title_desc' THEN sd.title END DESC
-LIMIT $5::int
-OFFSET $4::int
+    CASE WHEN $4::text = 'created_at_asc' THEN sd.created_at END ASC,
+    CASE WHEN $4::text = 'created_at_desc' THEN sd.created_at END DESC,
+    CASE WHEN $4::text = 'title_asc' THEN sd.title END ASC,
+    CASE WHEN $4::text = 'title_desc' THEN sd.title END DESC
+LIMIT $6::int
+OFFSET $5::int
 `
 
 type ListShadersDetailedWithUserParams struct {
-	AccessLevel pgtype.Int2
-	Query       pgtype.Text
-	OrderBy     pgtype.Text
-	Off         pgtype.Int4
-	Lim         pgtype.Int4
+	AccessLevel    pgtype.Int2
+	Query          pgtype.Text
+	SearchTagsOnly pgtype.Bool
+	OrderBy        pgtype.Text
+	Off            pgtype.Int4
+	Lim            pgtype.Int4
 }
 
 type ListShadersDetailedWithUserRow struct {
@@ -509,6 +578,7 @@ func (q *Queries) ListShadersDetailedWithUser(ctx context.Context, arg ListShade
 	rows, err := q.db.Query(ctx, listShadersDetailedWithUser,
 		arg.AccessLevel,
 		arg.Query,
+		arg.SearchTagsOnly,
 		arg.OrderBy,
 		arg.Off,
 		arg.Lim,
@@ -552,24 +622,33 @@ FROM shader_with_user s
 WHERE 
   (s.access_level = $1 OR $1 IS NULL) AND
   (
-  $2::text IS NULL OR $2::text = '' OR
-  textsearchable_index_col @@ plainto_tsquery($2::text)
+    $2::text IS NULL OR $2::text = '' OR
+    (
+      -- Search in title and tags combined
+      ($3::boolean IS NULL OR $3::boolean = false)
+      AND textsearchable_index_col @@ plainto_tsquery('english', $2::text)
+      OR
+      -- Search only in tags
+      ($3::boolean IS NOT NULL AND $3::boolean = true)
+      AND tags @@ plainto_tsquery('english', $2::text)
+    )
   )
 ORDER BY
-    CASE WHEN $3::text = 'created_at_asc' THEN s.created_at END ASC,
-    CASE WHEN $3::text = 'created_at_desc' THEN s.created_at END DESC,
-    CASE WHEN $3::text = 'title_asc' THEN s.title END ASC,
-    CASE WHEN $3::text = 'title_desc' THEN s.title END DESC
-LIMIT $5::int
-OFFSET $4::int
+    CASE WHEN $4::text = 'created_at_asc' THEN s.created_at END ASC,
+    CASE WHEN $4::text = 'created_at_desc' THEN s.created_at END DESC,
+    CASE WHEN $4::text = 'title_asc' THEN s.title END ASC,
+    CASE WHEN $4::text = 'title_desc' THEN s.title END DESC
+LIMIT $6::int
+OFFSET $5::int
 `
 
 type ListShadersWithUserParams struct {
-	AccessLevel pgtype.Int2
-	Query       pgtype.Text
-	OrderBy     pgtype.Text
-	Off         int32
-	Lim         pgtype.Int4
+	AccessLevel    pgtype.Int2
+	Query          pgtype.Text
+	SearchTagsOnly pgtype.Bool
+	OrderBy        pgtype.Text
+	Off            int32
+	Lim            pgtype.Int4
 }
 
 type ListShadersWithUserRow struct {
@@ -590,6 +669,7 @@ func (q *Queries) ListShadersWithUser(ctx context.Context, arg ListShadersWithUs
 	rows, err := q.db.Query(ctx, listShadersWithUser,
 		arg.AccessLevel,
 		arg.Query,
+		arg.SearchTagsOnly,
 		arg.OrderBy,
 		arg.Off,
 		arg.Lim,

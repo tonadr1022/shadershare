@@ -661,41 +661,51 @@ func (r shaderRepository) GetShaders(ctx context.Context, req domain.ShaderListR
 	access := accessLevelToPgInt(req.Filter.AccessLevel)
 	off := int32(req.Offset)
 	query := makePgText(req.Filter.Query)
+
+	isTagOnly := strings.Contains(req.Filter.Query, "tag=")
+	tagonly := pgtype.Bool{Bool: isTagOnly, Valid: isTagOnly}
+	if isTagOnly {
+		query.String = strings.TrimPrefix(query.String, "tag=")
+	}
 	if req.Detailed {
 		if req.IncludeUserData {
 			dbShaders, err = r.queries.ListShadersDetailedWithUser(ctx, db.ListShadersDetailedWithUserParams{
-				Lim:         lim,
-				Off:         offLimToPgType(req.Offset),
-				OrderBy:     orderBy,
-				Query:       query,
-				AccessLevel: access,
+				Lim:            lim,
+				SearchTagsOnly: tagonly,
+				Off:            offLimToPgType(req.Offset),
+				OrderBy:        orderBy,
+				Query:          query,
+				AccessLevel:    access,
 			})
 		} else {
 			dbShaders, err = r.queries.ListShadersDetailed(ctx, db.ListShadersDetailedParams{
-				UserID:      toPGUUID(req.Filter.UserID),
-				AccessLevel: access,
-				Off:         off,
-				Query:       query,
-				OrderBy:     orderBy,
-				Lim:         lim,
+				UserID:         toPGUUID(req.Filter.UserID),
+				AccessLevel:    access,
+				SearchTagsOnly: tagonly,
+				Off:            off,
+				Query:          query,
+				OrderBy:        orderBy,
+				Lim:            lim,
 			})
 		}
 	} else {
 		if req.IncludeUserData {
 			dbShaders, err = r.queries.ListShadersWithUser(ctx, db.ListShadersWithUserParams{
-				Lim:         lim,
-				Off:         off,
-				Query:       query,
-				OrderBy:     orderBy,
-				AccessLevel: access,
+				Lim:            lim,
+				Off:            off,
+				SearchTagsOnly: tagonly,
+				Query:          query,
+				OrderBy:        orderBy,
+				AccessLevel:    access,
 			})
 		} else {
 			dbShaders, err = r.queries.ListShaders4(ctx, db.ListShaders4Params{
-				Lim:         lim,
-				Off:         off,
-				Query:       query,
-				OrderBy:     orderBy,
-				AccessLevel: access,
+				Lim:            lim,
+				SearchTagsOnly: tagonly,
+				Off:            off,
+				Query:          query,
+				OrderBy:        orderBy,
+				AccessLevel:    access,
 			})
 		}
 	}
@@ -730,4 +740,18 @@ func processShaders[T any](shaders []T) ([]domain.Shader, error) {
 		result[i] = mapShaderFields(shader)
 	}
 	return result, nil
+}
+
+func (r shaderRepository) GetTopTags(ctx context.Context) ([]string, error) {
+	dbRes, err := r.queries.GetTopTags(ctx)
+	if err != nil {
+		return nil, err
+	}
+	res := []string{}
+	for _, r := range dbRes {
+		if s, ok := r.Word.(string); ok {
+			res = append(res, s)
+		}
+	}
+	return res, nil
 }

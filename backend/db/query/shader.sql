@@ -19,8 +19,16 @@ WHERE
   (user_id = sqlc.narg(user_id) OR sqlc.narg(user_id) IS NULL) AND
   (access_level = sqlc.narg(access_level) OR sqlc.narg(access_level) IS NULL) AND 
   (
-  sqlc.narg(query)::text IS NULL OR sqlc.narg(query)::text = '' OR
-  textsearchable_index_col @@ plainto_tsquery('english',sqlc.narg(query)::text)
+    sqlc.narg(query)::text IS NULL OR sqlc.narg(query)::text = '' OR
+    (
+      -- Search in title and tags combined
+      (sqlc.narg(search_tags_only)::boolean IS NULL OR sqlc.narg(search_tags_only)::boolean = false)
+      AND textsearchable_index_col @@ plainto_tsquery('english', sqlc.narg(query)::text)
+      OR
+      -- Search only in tags
+      (sqlc.narg(search_tags_only)::boolean IS NOT NULL AND sqlc.narg(search_tags_only)::boolean = true)
+      AND tags @@ plainto_tsquery('english', sqlc.narg(query)::text)
+    )
   )
 ORDER BY
     CASE WHEN sqlc.narg(order_by)::text = 'created_at_asc' THEN created_at END ASC,
@@ -38,8 +46,16 @@ FROM shader_with_user s
 WHERE 
   (s.access_level = sqlc.narg(access_level) OR sqlc.narg(access_level) IS NULL) AND
   (
-  sqlc.narg(query)::text IS NULL OR sqlc.narg(query)::text = '' OR
-  textsearchable_index_col @@ plainto_tsquery(sqlc.narg(query)::text)
+    sqlc.narg(query)::text IS NULL OR sqlc.narg(query)::text = '' OR
+    (
+      -- Search in title and tags combined
+      (sqlc.narg(search_tags_only)::boolean IS NULL OR sqlc.narg(search_tags_only)::boolean = false)
+      AND textsearchable_index_col @@ plainto_tsquery('english', sqlc.narg(query)::text)
+      OR
+      -- Search only in tags
+      (sqlc.narg(search_tags_only)::boolean IS NOT NULL AND sqlc.narg(search_tags_only)::boolean = true)
+      AND tags @@ plainto_tsquery('english', sqlc.narg(query)::text)
+    )
   )
 ORDER BY
     CASE WHEN sqlc.narg(order_by)::text = 'created_at_asc' THEN s.created_at END ASC,
@@ -58,8 +74,16 @@ WHERE
   (user_id = sqlc.narg(user_id) OR sqlc.narg(user_id) IS NULL) AND
   (access_level = sqlc.narg(access_level) OR sqlc.narg(access_level) IS NULL) AND 
   (
-  sqlc.narg(query)::text IS NULL OR sqlc.narg(query)::text = '' OR
-  textsearchable_index_col @@ plainto_tsquery(sqlc.narg(query)::text)
+    sqlc.narg(query)::text IS NULL OR sqlc.narg(query)::text = '' OR
+    (
+      -- Search in title and tags combined
+      (sqlc.narg(search_tags_only)::boolean IS NULL OR sqlc.narg(search_tags_only)::boolean = false)
+      AND textsearchable_index_col @@ plainto_tsquery('english', sqlc.narg(query)::text)
+      OR
+      -- Search only in tags
+      (sqlc.narg(search_tags_only)::boolean IS NOT NULL AND sqlc.narg(search_tags_only)::boolean = true)
+      AND tags @@ plainto_tsquery('english', sqlc.narg(query)::text)
+    )
   )
 ORDER BY
     CASE WHEN sqlc.narg(order_by)::text = 'created_at_asc' THEN sd.created_at END ASC,
@@ -78,8 +102,16 @@ JOIN users u ON sd.user_id = u.id
 WHERE 
   (access_level = sqlc.narg(access_level) OR sqlc.narg(access_level) IS NULL) AND 
   (
-  sqlc.narg(query)::text IS NULL OR sqlc.narg(query)::text = '' OR
-  textsearchable_index_col @@ plainto_tsquery(sqlc.narg(query)::text)
+    sqlc.narg(query)::text IS NULL OR sqlc.narg(query)::text = '' OR
+    (
+      -- Search in title and tags combined
+      (sqlc.narg(search_tags_only)::boolean IS NULL OR sqlc.narg(search_tags_only)::boolean = false)
+      AND textsearchable_index_col @@ plainto_tsquery('english', sqlc.narg(query)::text)
+      OR
+      -- Search only in tags
+      (sqlc.narg(search_tags_only)::boolean IS NOT NULL AND sqlc.narg(search_tags_only)::boolean = true)
+      AND tags @@ plainto_tsquery('english', sqlc.narg(query)::text)
+    )
   )
 ORDER BY
     CASE WHEN sqlc.narg(order_by)::text = 'created_at_asc' THEN sd.created_at END ASC,
@@ -152,3 +184,18 @@ SELECT sd.id, sd.title, sd.description, sd.user_id,
     sd.updated_at, sd.flags, sd.tags, sd.outputs,sd.username
 FROM shader_details_with_user sd
 WHERE sd.id = $1;
+
+
+-- name: GetTopTags :many
+WITH tokenized_tags AS (
+    SELECT unnest(
+            regexp_split_to_array(COALESCE(tags, ''), '\s* \s*')
+        ) AS word
+    FROM shaders
+)
+SELECT word,
+    COUNT(*) AS frequency
+FROM tokenized_tags
+GROUP BY word
+ORDER BY frequency DESC
+OFFSET 1 LIMIT 20;

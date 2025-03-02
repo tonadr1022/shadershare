@@ -138,6 +138,7 @@ type (
 	}
 
 	ShaderRepository interface {
+		GetTopTags(ctx context.Context) ([]string, error)
 		GetShaderCount(ctx context.Context, filter GetShaderFilter) (int64, error)
 		GetShaders(ctx context.Context, req ShaderListReq) ([]Shader, error)
 		GetShader(ctx context.Context, req ShaderByIdReq) (*Shader, error)

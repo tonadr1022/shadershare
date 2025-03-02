@@ -95,7 +95,32 @@ func transformLimit(limit int, detailed bool) int {
 
 var shaderOrderBys = []string{"created_at", "title", ""}
 
+/*
+	*
+
+* TODO: materialzied view
+*
+*
+*CREATE MATERIALIZED VIEW top_tags AS
+WITH tokenized_tags AS (
+
+	SELECT unnest(
+	    regexp_split_to_array(COALESCE(tags, ''), '\s*,\s*')
+	) AS word
+	FROM shaders
+
+)
+SELECT word, COUNT(*) AS frequency
+FROM tokenized_tags
+GROUP BY word
+ORDER BY frequency DESC
+LIMIT 10;
+*/
 func (s shaderService) GetShaders(ctx context.Context, req domain.ShaderListReq) (*domain.ShaderResponse, error) {
+	// t1 := time.Now().UnixMicro()
+	// s.repo.GetTopTags(ctx)
+	// fmt.Println(time.Now().UnixMicro() - t1)
+
 	if !slices.Contains(shaderOrderBys, req.Sort) {
 		return nil, e.ErrInvalidSort
 	}
