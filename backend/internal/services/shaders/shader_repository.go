@@ -755,3 +755,21 @@ func (r shaderRepository) GetTopTags(ctx context.Context) ([]string, error) {
 	}
 	return res, nil
 }
+
+func (r shaderRepository) DeleteShadersBulk(ctx context.Context, userID uuid.UUID, ids []uuid.UUID) (domain.BulkDeleteResp, error) {
+	res := r.queries.DeleteShadersBulk(ctx, ids)
+	tot := 0
+	res.Exec(func(val int, err error) {
+		if err != nil {
+		} else {
+			tot++
+		}
+	})
+	err := res.Close()
+	result := domain.BulkDeleteResp{DeletedCount: 0}
+	if err != nil {
+		return result, err
+	}
+	result.DeletedCount = tot
+	return result, nil
+}

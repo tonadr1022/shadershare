@@ -137,6 +137,14 @@ type (
 		Total   int64    `json:"total"`
 	}
 
+	BulkDeleteReq struct {
+		Ids []uuid.UUID `json:"ids" binding:"required"`
+	}
+
+	BulkDeleteResp struct {
+		DeletedCount int `json:"deleted_count"`
+	}
+
 	ShaderRepository interface {
 		GetTopTags(ctx context.Context) ([]string, error)
 		GetShaderCount(ctx context.Context, filter GetShaderFilter) (int64, error)
@@ -149,6 +157,7 @@ type (
 		DeleteShaderInput(ctx context.Context, inputID uuid.UUID) error
 		DeleteShaderOutput(ctx context.Context, outputID uuid.UUID) error
 		DeleteShader(ctx context.Context, userID uuid.UUID, shaderID uuid.UUID) (*Shader, error)
+		DeleteShadersBulk(ctx context.Context, userID uuid.UUID, ids []uuid.UUID) (BulkDeleteResp, error)
 	}
 
 	ShaderService interface {
@@ -162,5 +171,6 @@ type (
 		DeleteShaderInput(ctx context.Context, inputID uuid.UUID) error
 		DeleteShaderOutput(ctx context.Context, outputID uuid.UUID) error
 		DeleteShader(ctx context.Context, userID uuid.UUID, shaderID uuid.UUID) error
+		DeleteShadersBulk(ctx context.Context, userID uuid.UUID, ids []uuid.UUID) (BulkDeleteResp, error)
 	}
 )

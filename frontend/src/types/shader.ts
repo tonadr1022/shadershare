@@ -239,3 +239,7 @@ export type ShaderToyShader = {
 export type ShaderToyShaderResp = {
   Shader: ShaderToyShader;
 };
+
+export type BulkDeleteResp = {
+  deleted_count: number;
+};

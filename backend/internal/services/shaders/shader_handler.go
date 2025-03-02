@@ -41,9 +41,11 @@ func RegisterHandlers(r *gin.RouterGroup, service domain.ShaderService) {
 	r.POST("/shaders", middleware.Auth(), h.createShader)
 	r.PUT("/shaders/:id", middleware.Auth(), h.updateShader)
 	r.DELETE("/shaders/:id", middleware.Auth(), h.deleteShader)
+	r.POST("/shaders/delete-bulk", middleware.Auth(), h.deleteShadersBulk)
 
 	r.POST("/shaders/output", middleware.Auth(), h.createShaderOutput)
 	r.POST("/shaders/input", middleware.Auth(), h.createShaderInput)
+
 	r.DELETE("/shaders/input/:id", middleware.Auth(), h.deleteShaderInput)
 	r.DELETE("/shaders/output/:id", middleware.Auth(), h.deleteShaderOutput)
 	r.GET("/shadertoy/:id", h.getShadertoyShader)
@@ -212,7 +214,7 @@ func (h ShaderHandler) getShaders(c *gin.Context) {
 	if err != nil {
 		query = ""
 	}
-	decodedQuery = strings.Replace(decodedQuery, " ", "&", -1)
+	decodedQuery = strings.ReplaceAll(decodedQuery, " ", "&")
 
 	getShadersReq := domain.ShaderListReq{
 		Sort:        c.DefaultQuery("sort", ""),
@@ -403,4 +405,21 @@ func (h ShaderHandler) getShadertoyShader(c *gin.Context) {
 		return
 	}
 	c.JSON(resp.StatusCode, jsonData)
+}
+
+func (h ShaderHandler) deleteShadersBulk(c *gin.Context) {
+	userctx, ok := middleware.CurrentUser(c)
+	if !ok {
+		util.SetErrorResponse(c, http.StatusInternalServerError, "Internal Server Error")
+		return
+	}
+	var payload []uuid.UUID
+	if ok := util.ValidateAndSetErrors(c, &payload); !ok {
+		return
+	}
+	res, err := h.service.DeleteShadersBulk(c, userctx.ID, payload)
+	if err != nil {
+		util.SetInternalServiceErrorResponse(c)
+	}
+	c.JSON(http.StatusOK, res)
 }

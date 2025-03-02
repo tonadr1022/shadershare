@@ -181,3 +181,7 @@ func (s shaderService) DeleteShaderOutput(ctx context.Context, outputID uuid.UUI
 func (s shaderService) GetShaderCount(ctx context.Context, filter domain.GetShaderFilter) (int64, error) {
 	return s.repo.GetShaderCount(ctx, filter)
 }
+
+func (s shaderService) DeleteShadersBulk(ctx context.Context, userID uuid.UUID, ids []uuid.UUID) (domain.BulkDeleteResp, error) {
+	return s.repo.DeleteShadersBulk(ctx, userID, ids)
+}

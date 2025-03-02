@@ -199,3 +199,8 @@ FROM tokenized_tags
 GROUP BY word
 ORDER BY frequency DESC
 OFFSET 1 LIMIT 20;
+
+
+-- name: DeleteShadersBulk :batchexec
+DELETE FROM shaders 
+WHERE id = sqlc.arg(id)::uuid;

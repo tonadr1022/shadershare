@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useState } from "react";
 import {
   Column,
   ColumnDef,
@@ -30,6 +30,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { assembleParams, useDeleteShader, useSortParams } from "@/hooks/hooks";
 import { usePathname, useRouter } from "next/navigation";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { deleteShaderBulk } from "@/api/shader-api";
+import { toast } from "sonner";
 
 const SortableHeader = ({
   column,
@@ -81,6 +85,28 @@ const SortableHeader = ({
 };
 
 const columns: ColumnDef<ShaderMetadata>[] = [
+  {
+    id: "select",
+    header: ({ table }) => (
+      <Checkbox
+        checked={
+          table.getIsAllPageRowsSelected() ||
+          (table.getIsSomePageRowsSelected() && "indeterminate")
+        }
+        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+        aria-label="Select all"
+      />
+    ),
+    cell: ({ row }) => (
+      <Checkbox
+        checked={row.getIsSelected()}
+        onCheckedChange={(value) => row.toggleSelected(!!value)}
+        aria-label="Select row"
+      />
+    ),
+    enableSorting: false,
+    enableHiding: false,
+  },
   {
     accessorKey: "preview_img_url",
     header: "",
@@ -180,6 +206,7 @@ type Props = {
   data: ShaderMetadata[];
 };
 const ShaderTable = ({ data }: Props) => {
+  const [rowSelection, setRowSelection] = useState({});
   const table = useReactTable({
     data,
     columns,
@@ -187,52 +214,85 @@ const ShaderTable = ({ data }: Props) => {
     getSortedRowModel: getSortedRowModel(),
     manualPagination: true,
     manualSorting: true,
+    onRowSelectionChange: setRowSelection,
+    state: {
+      rowSelection,
+    },
   });
+
+  const queryClient = useQueryClient();
+  const deleteBulkMut = useMutation({
+    mutationFn: deleteShaderBulk,
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ["shaders"] });
+      toast.success(`Deleted ${res.deleted_count} shaders.`);
+      setRowSelection({});
+    },
+    onError: () => {
+      toast.error("Failed to delete shaders.");
+    },
+  });
+
   return (
-    <Table>
-      <TableHeader>
-        {table.getHeaderGroups().map((headerGroup) => (
-          <TableRow key={headerGroup.id} className="border-none">
-            {headerGroup.headers.map((header) => (
-              <TableHead key={header.id} className="border-none">
-                {header.isPlaceholder
-                  ? null
-                  : flexRender(
-                      header.column.columnDef.header,
-                      header.getContext(),
-                    )}
-              </TableHead>
-            ))}
-          </TableRow>
-        ))}
-      </TableHeader>
-      <TableBody>
-        {table.getRowModel().rows?.length ? (
-          table.getRowModel().rows.map((row) => (
-            <TableRow key={row.id}>
-              {row.getVisibleCells().map((cell) => (
-                <TableCell key={cell.id} className="border-none">
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                </TableCell>
+    <div>
+      <div className="justify-end p-2 flex gap-2">
+        <Button
+          variant="destructive"
+          onClick={() =>
+            deleteBulkMut.mutate(
+              table.getSelectedRowModel().rows.map((val) => val.original.id),
+            )
+          }
+          disabled={table.getSelectedRowModel().rows.length === 0}
+        >
+          Delete {table.getSelectedRowModel().rows.length} Shaders
+        </Button>
+      </div>
+      <Table>
+        <TableHeader>
+          {table.getHeaderGroups().map((headerGroup) => (
+            <TableRow key={headerGroup.id} className="border-none">
+              {headerGroup.headers.map((header) => (
+                <TableHead key={header.id} className="border-none">
+                  {header.isPlaceholder
+                    ? null
+                    : flexRender(
+                        header.column.columnDef.header,
+                        header.getContext(),
+                      )}
+                </TableHead>
               ))}
             </TableRow>
-          ))
-        ) : (
-          <TableRow>
-            <TableCell colSpan={columns.length} className="h-24 text-center">
-              No Shaders...{"  "}
-              <Button
-                asChild
-                variant="link"
-                className="p-0 h-auto text-primary"
-              >
-                <Link href="/new">Create one!</Link>
-              </Button>
-            </TableCell>
-          </TableRow>
-        )}
-      </TableBody>
-    </Table>
+          ))}
+        </TableHeader>
+        <TableBody>
+          {table.getRowModel().rows?.length ? (
+            table.getRowModel().rows.map((row) => (
+              <TableRow key={row.id}>
+                {row.getVisibleCells().map((cell) => (
+                  <TableCell key={cell.id} className="border-none">
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))
+          ) : (
+            <TableRow>
+              <TableCell colSpan={columns.length} className="h-24 text-center">
+                No Shaders...{"  "}
+                <Button
+                  asChild
+                  variant="link"
+                  className="p-0 h-auto text-primary"
+                >
+                  <Link href="/new">Create one!</Link>
+                </Button>
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+    </div>
   );
 };
 

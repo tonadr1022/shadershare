@@ -1,5 +1,6 @@
 "use client";
 import {
+  BulkDeleteResp,
   ShaderData,
   ShaderDataWithUser,
   ShaderInput,
@@ -92,6 +93,13 @@ export const getShaderWithUsername = async (
   const res = await axiosInstance.get(`/shaders/${id}`, {
     params: { include: "username", detailed },
   });
+  return res.data;
+};
+
+export const deleteShaderBulk = async (
+  ids: string[],
+): Promise<BulkDeleteResp> => {
+  const res = await axiosInstance.post(`/shaders/delete-bulk`, ids);
   return res.data;
 };
 

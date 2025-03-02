@@ -304,7 +304,7 @@ SELECT word,
 FROM tokenized_tags
 GROUP BY word
 ORDER BY frequency DESC
-OFFSET 2 LIMIT 20
+OFFSET 1 LIMIT 20
 `
 
 type GetTopTagsRow struct {
