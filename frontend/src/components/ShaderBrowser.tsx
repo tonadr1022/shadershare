@@ -9,6 +9,7 @@ import AddTestShaders from "@/app/(mainapp)/view/components/editor/AddTestShader
 import { useRouter } from "next/navigation";
 import { Checkbox } from "./ui/checkbox";
 import { Label } from "./ui/label";
+import { useLocalSettings } from "@/context/LocalSettingsContext";
 
 type Props = {
   show: { usernames: boolean };
@@ -24,8 +25,8 @@ const ShaderBrowser = ({
   show = { usernames: false },
 }: Props) => {
   const getUrl = useCallback(
-    (page: number, perPage: number, autoPlay: string, query: string | null) => {
-      let res = `${urlPath}?page=${page}&perpage=${perPage}&autoplay=${autoPlay}`;
+    (page: number, perPage: number, query: string | null) => {
+      let res = `${urlPath}?page=${page}&perpage=${perPage}`;
       if (query) {
         res += `&query=${query}`;
       }
@@ -37,21 +38,22 @@ const ShaderBrowser = ({
   const router = useRouter();
   const searchParams = useSearchParams();
   const page = parseInt(searchParams.get("page") || "1");
-  const autoPlay = searchParams.get("autoplay") || "true";
+  const { localSettings, setLocalSettings } = useLocalSettings();
+  const autoPlay = localSettings.general.autoplayShaders;
   const perPage = parseInt(searchParams.get("perpage") || "12");
   const query = searchParams.get("query");
   if (!shaderPerPages.includes(perPage)) {
-    router.replace(getUrl(1, shaderPerPages[0], autoPlay, query));
+    router.replace(getUrl(1, shaderPerPages[0], query));
   }
-  if (autoPlay === "true" && perPage !== 12) {
-    router.push(getUrl(1, 12, autoPlay, query));
+  if (autoPlay && perPage !== 12) {
+    router.push(getUrl(1, 12, query));
   }
 
   const { data: data, isError } = useQuery({
     queryKey: ["shaders", userID, autoPlay, page, perPage, query],
     queryFn: () =>
       getShadersWithUsernamesImpl(
-        autoPlay === "true",
+        autoPlay,
         userID,
         (page - 1) * perPage,
         perPage,
@@ -61,11 +63,10 @@ const ShaderBrowser = ({
 
   const onPageButtonClick = useCallback(
     (page: number) => {
-      router.push(getUrl(page, perPage, autoPlay, query));
+      router.push(getUrl(page, perPage, query));
     },
-    [autoPlay, getUrl, perPage, query, router],
+    [getUrl, perPage, query, router],
   );
-
   return (
     <div className="flex flex-col w-full gap-4">
       {isError ? (
@@ -75,9 +76,9 @@ const ShaderBrowser = ({
           <div className="flex items-center gap-2">
             <p>Results: ({data?.total || 0}):</p>
             <PaginationButtons
-              showPageSizeSelect={autoPlay !== "true"}
+              showPageSizeSelect={!autoPlay}
               onPerPageChange={(newPage: number, newPerPage: number) => {
-                router.replace(getUrl(newPage, newPerPage, autoPlay, query));
+                router.replace(getUrl(newPage, newPerPage, query));
               }}
               pageSizes={[12, 25, 50]}
               perPage={perPage}
@@ -89,15 +90,19 @@ const ShaderBrowser = ({
               <Label htmlFor="autoplay-checkbox">Autoplay</Label>
               <Checkbox
                 id="autoplay-checkbox"
-                checked={autoPlay === "true"}
+                checked={autoPlay}
                 onCheckedChange={(checked) => {
-                  let c = false;
+                  let autoplay = false;
                   if (checked.valueOf()) {
-                    c = true;
+                    autoplay = true;
                   }
-                  router.replace(
-                    getUrl(page, c ? 12 : perPage, c ? "true" : "false", query),
-                  );
+                  setLocalSettings({
+                    ...localSettings,
+                    general: {
+                      ...localSettings.general,
+                      autoplayShaders: autoplay,
+                    },
+                  });
                 }}
               />
             </div>
@@ -108,7 +113,7 @@ const ShaderBrowser = ({
             </div>
           )}
           <ShaderPreviewCards
-            autoPlay={autoPlay === "true"}
+            autoPlay={autoPlay}
             show={show}
             data={data?.shaders}
           />
@@ -117,7 +122,7 @@ const ShaderBrowser = ({
               <p>Results: ({data?.total || 0}):</p>
               <PaginationButtons
                 onPerPageChange={(newPage: number, newPerPage: number) => {
-                  router.push(getUrl(newPage, newPerPage, autoPlay, query));
+                  router.push(getUrl(newPage, newPerPage, query));
                 }}
                 perPage={perPage}
                 onPageChange={onPageButtonClick}

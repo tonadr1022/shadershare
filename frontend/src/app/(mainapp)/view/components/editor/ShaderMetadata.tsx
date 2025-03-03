@@ -27,7 +27,11 @@ const ShaderMetadata = ({ shaderData }: Props) => {
           <></>
         )}
       </div>
-      <p className="text-sm">{shaderData.description}</p>
+      {shaderData.description.split("\n").map((text, i) => (
+        <p key={i} className="text-sm">
+          {text}
+        </p>
+      ))}
 
       {shaderData.tags.length ? (
         <p className="flex gap-2 items-center">

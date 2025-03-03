@@ -3,15 +3,25 @@ import React, { createContext, useContext, useEffect } from "react";
 import { useLocalStorage } from "react-use";
 export type KeyBindingMode = "vim" | "emacs" | "standard";
 export type LocalSettings = {
-  tabSize: number;
-  keyBindingMode: KeyBindingMode;
-  relativeLineNumbers: boolean;
+  editor: {
+    tabSize: number;
+    keyBindingMode: KeyBindingMode;
+    relativeLineNumbers: boolean;
+  };
+  general: {
+    autoplayShaders: boolean;
+  };
 };
 
 const defaultLocalSettings: LocalSettings = {
-  tabSize: 4,
-  keyBindingMode: "standard",
-  relativeLineNumbers: false,
+  editor: {
+    tabSize: 4,
+    keyBindingMode: "standard",
+    relativeLineNumbers: false,
+  },
+  general: {
+    autoplayShaders: false,
+  },
 };
 
 type LocalSettingsContextType = {

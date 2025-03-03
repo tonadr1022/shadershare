@@ -181,14 +181,14 @@ const Editor = React.memo((props: Props2) => {
   const extensions = useMemo(() => {
     const exts = [
       cpp(),
-      indentUnit.of(" ".repeat(settings.tabSize)),
+      indentUnit.of(" ".repeat(settings.editor.tabSize)),
       drawSelection({ cursorBlinkRate: 0 }),
       errorField,
     ];
-    if (settings.relativeLineNumbers) {
+    if (settings.editor.relativeLineNumbers) {
       exts.push(lineNumbersRelative);
     }
-    if (settings.keyBindingMode === "vim") {
+    if (settings.editor.keyBindingMode === "vim") {
       exts.push(vim({ status: true }));
     }
     return exts;
@@ -245,7 +245,7 @@ export const MultiBufferEditor = React.memo(() => {
     if (!renderer) return;
     const dirtyShaders: ShaderOutputFull[] = [];
     for (const out of shaderDataRef.current.shader_outputs) {
-      if (codeDirtyRef.current.get(out.name)) {
+      if (codeDirtyRef.current.get(out.name) || out.name === "Common") {
         dirtyShaders.push(out);
       }
     }

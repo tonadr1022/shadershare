@@ -1,6 +1,7 @@
 "use client";
 import { getUser } from "@/api/shader-api";
 import ShaderBrowser from "@/components/ShaderBrowser";
+import LocalSettingsProvider from "@/context/LocalSettingsContext";
 import { useQuery } from "@tanstack/react-query";
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
@@ -44,12 +45,14 @@ const UserPage = () => {
           </div>
         )}
       </div>
-      <ShaderBrowser
-        hideTestShaders
-        urlPath={`/user/${userId}`}
-        show={{ usernames: false }}
-        userID={userId}
-      />
+      <LocalSettingsProvider>
+        <ShaderBrowser
+          hideTestShaders
+          urlPath={`/user/${userId}`}
+          show={{ usernames: false }}
+          userID={userId}
+        />
+      </LocalSettingsProvider>
     </div>
   );
 };

@@ -14,52 +14,40 @@ import {
 } from "@/context/LocalSettingsContext";
 import { CheckedState } from "@radix-ui/react-checkbox";
 import React from "react";
+import SettingLayout from "./SettingLayout";
 
-type EditorSettingProps = {
-  id: string;
-  labelText: string;
-  children: React.ReactNode;
-};
-const EditorSetting = ({ id, children, labelText }: EditorSettingProps) => {
-  return (
-    <div className="flex justify-between w-full gap-2 h-6 items-center">
-      <label
-        htmlFor={id}
-        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-      >
-        {labelText}
-      </label>
-      {children}
-    </div>
-  );
-};
-
-const EditorSettingsForm = () => {
+const SettingLayoutsForm = () => {
   const { localSettings, setLocalSettings } = useLocalSettings();
   return (
-    <div className="flex flex-col gap-4 max-w-lg">
-      <EditorSetting id="relativeLineNumbers" labelText="Relative Line Numbers">
+    <div className="flex flex-col gap-4">
+      <SettingLayout id="relativeLineNumbers" labelText="Relative Line Numbers">
         <Switch
           id="relativeLineNumbers"
           onCheckedChange={(checked: CheckedState) => {
             setLocalSettings({
               ...localSettings,
-              relativeLineNumbers: checked as boolean,
+              editor: {
+                ...localSettings.editor,
+                relativeLineNumbers: checked as boolean,
+              },
             });
           }}
-          checked={localSettings.relativeLineNumbers}
+          checked={localSettings.editor.relativeLineNumbers}
         />
-      </EditorSetting>
-      <EditorSetting id="keyBindingMode" labelText="Key Binding Mode">
+      </SettingLayout>
+      <SettingLayout id="keyBindingMode" labelText="Key Binding Mode">
         <Select
-          defaultValue={localSettings.keyBindingMode.toString()}
+          defaultValue={localSettings.editor.keyBindingMode.toString()}
           onValueChange={(value) => {
             setLocalSettings({
               ...localSettings,
-              keyBindingMode: value as KeyBindingMode,
+              editor: {
+                ...localSettings.editor,
+                keyBindingMode: value as KeyBindingMode,
+              },
             });
           }}
-          value={localSettings.keyBindingMode.toString()}
+          value={localSettings.editor.keyBindingMode.toString()}
         >
           <SelectTrigger className="w-[180px]">
             <SelectValue />
@@ -72,17 +60,20 @@ const EditorSettingsForm = () => {
             </SelectGroup>
           </SelectContent>
         </Select>
-      </EditorSetting>
-      <EditorSetting id="tabSize" labelText="Tab Size">
+      </SettingLayout>
+      <SettingLayout id="tabSize" labelText="Tab Size">
         <Select
-          defaultValue={localSettings.tabSize.toString()}
+          defaultValue={localSettings.editor.tabSize.toString()}
           onValueChange={(value) => {
             setLocalSettings({
               ...localSettings,
-              tabSize: Number.parseInt(value),
+              editor: {
+                ...localSettings.editor,
+                tabSize: Number.parseInt(value),
+              },
             });
           }}
-          value={localSettings.tabSize.toString()}
+          value={localSettings.editor.tabSize.toString()}
         >
           <SelectTrigger className="w-[180px]">
             <SelectValue />
@@ -95,9 +86,9 @@ const EditorSettingsForm = () => {
             </SelectGroup>
           </SelectContent>
         </Select>
-      </EditorSetting>
+      </SettingLayout>
     </div>
   );
 };
 
-export default EditorSettingsForm;
+export default SettingLayoutsForm;
