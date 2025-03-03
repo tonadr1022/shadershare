@@ -39,9 +39,9 @@ func (q *Queries) CountShaders(ctx context.Context, arg CountShadersParams) (int
 
 const createShader = `-- name: CreateShader :one
 INSERT INTO shaders (
-    title, description, user_id, preview_img_url, access_level, flags, tags
+    title, description, user_id, preview_img_url, access_level, flags, tags, forked_from
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7
+    $1, $2, $3, $4, $5, $6, $7, $8::uuid
 )
 ON CONFLICT (title) DO NOTHING
 RETURNING id, title, description, user_id, 
@@ -57,6 +57,7 @@ type CreateShaderParams struct {
 	AccessLevel   int16
 	Flags         int32
 	Tags          pgtype.Text
+	ForkedFrom    uuid.UUID
 }
 
 type CreateShaderRow struct {
@@ -81,6 +82,7 @@ func (q *Queries) CreateShader(ctx context.Context, arg CreateShaderParams) (Cre
 		arg.AccessLevel,
 		arg.Flags,
 		arg.Tags,
+		arg.ForkedFrom,
 	)
 	var i CreateShaderRow
 	err := row.Scan(
@@ -171,8 +173,11 @@ func (q *Queries) GetShader(ctx context.Context, id uuid.UUID) (FullShaderView, 
 const getShaderDetailed = `-- name: GetShaderDetailed :one
 SELECT sd.id, sd.title, sd.description, sd.user_id, 
     sd.access_level, sd.preview_img_url, sd.created_at, 
-    sd.updated_at, sd.flags, sd.tags, sd.outputs
-FROM shader_details sd WHERE sd.id = $1
+    sd.updated_at, sd.flags, sd.tags, sd.outputs,
+    p.id AS parent_id, p.title AS parent_title
+FROM shader_details sd 
+LEFT JOIN shaders p ON sd.forked_from = p.id 
+WHERE sd.id = $1
 `
 
 type GetShaderDetailedRow struct {
@@ -187,6 +192,8 @@ type GetShaderDetailedRow struct {
 	Flags         int32
 	Tags          pgtype.Text
 	Outputs       []byte
+	ParentID      pgtype.UUID
+	ParentTitle   pgtype.Text
 }
 
 func (q *Queries) GetShaderDetailed(ctx context.Context, id uuid.UUID) (GetShaderDetailedRow, error) {
@@ -204,6 +211,8 @@ func (q *Queries) GetShaderDetailed(ctx context.Context, id uuid.UUID) (GetShade
 		&i.Flags,
 		&i.Tags,
 		&i.Outputs,
+		&i.ParentID,
+		&i.ParentTitle,
 	)
 	return i, err
 }
@@ -211,8 +220,10 @@ func (q *Queries) GetShaderDetailed(ctx context.Context, id uuid.UUID) (GetShade
 const getShaderDetailedWithUser = `-- name: GetShaderDetailedWithUser :one
 SELECT sd.id, sd.title, sd.description, sd.user_id, 
     sd.access_level, sd.preview_img_url, sd.created_at, 
-    sd.updated_at, sd.flags, sd.tags, sd.outputs,sd.username
+    sd.updated_at, sd.flags, sd.tags, sd.outputs,sd.username,
+    p.id AS parent_id, p.title AS parent_title
 FROM shader_details_with_user sd
+LEFT JOIN shaders p ON sd.forked_from = p.id 
 WHERE sd.id = $1
 `
 
@@ -229,6 +240,8 @@ type GetShaderDetailedWithUserRow struct {
 	Tags          pgtype.Text
 	Outputs       []byte
 	Username      string
+	ParentID      pgtype.UUID
+	ParentTitle   pgtype.Text
 }
 
 func (q *Queries) GetShaderDetailedWithUser(ctx context.Context, id uuid.UUID) (GetShaderDetailedWithUserRow, error) {
@@ -247,6 +260,8 @@ func (q *Queries) GetShaderDetailedWithUser(ctx context.Context, id uuid.UUID) (
 		&i.Tags,
 		&i.Outputs,
 		&i.Username,
+		&i.ParentID,
+		&i.ParentTitle,
 	)
 	return i, err
 }

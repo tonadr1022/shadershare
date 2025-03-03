@@ -213,6 +213,24 @@ func mapShaderFields(row interface{}) domain.Shader {
 	}
 
 	switch r := row.(type) {
+	case db.GetShaderDetailedWithUserRow:
+		if r.ParentID.Valid {
+			res.ParentID = r.ParentID.Bytes
+		}
+		if r.ParentTitle.Valid {
+			res.ParentTitle = r.ParentTitle.String
+		}
+
+	case db.GetShaderDetailedRow:
+		if r.ParentID.Valid {
+			res.ParentID = r.ParentID.Bytes
+		}
+		if r.ParentTitle.Valid {
+			res.ParentTitle = r.ParentTitle.String
+		}
+	}
+
+	switch r := row.(type) {
 	case db.GetShaderWithUserRow:
 		res.Username = r.Username
 	case db.ListShadersDetailedWithUserRow:
@@ -361,6 +379,11 @@ func (r shaderRepository) CreateShader(ctx context.Context, userID uuid.UUID, sh
 		UserID:      userID,
 		AccessLevel: int16(shaderPayload.AccessLevel),
 	}
+
+	if shaderPayload.ForkedFrom != uuid.Nil {
+		params.ForkedFrom = shaderPayload.ForkedFrom
+	}
+
 	if shaderPayload.PreviewImgURL != "" {
 		params.PreviewImgUrl = pgtype.Text{String: shaderPayload.PreviewImgURL, Valid: true}
 	}

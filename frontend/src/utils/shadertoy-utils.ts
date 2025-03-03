@@ -262,6 +262,7 @@ export const shaderToyToShader = (
   description += `See original at https://shadertoy.com/view/${info.id}\n\n${info.description}`;
   const newShader: ShaderData = {
     id: "",
+    forked_from: null,
     tags: stShader.info.tags.join(" ").trim().split(" "),
     flags: 0,
     user_id: "",
@@ -279,5 +280,6 @@ export const shaderToyToShader = (
     shader_outputs,
   };
 
+  newShader.tags.push("shadertoy");
   return { shader: newShader, errors: errors };
 };

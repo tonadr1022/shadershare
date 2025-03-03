@@ -134,9 +134,9 @@ WHERE
 
 -- name: CreateShader :one
 INSERT INTO shaders (
-    title, description, user_id, preview_img_url, access_level, flags, tags
+    title, description, user_id, preview_img_url, access_level, flags, tags, forked_from
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7
+    $1, $2, $3, $4, $5, $6, $7, sqlc.arg(forked_from)::uuid
 )
 ON CONFLICT (title) DO NOTHING
 RETURNING id, title, description, user_id, 
@@ -175,14 +175,19 @@ WHERE s.id = $1;
 -- name: GetShaderDetailed :one
 SELECT sd.id, sd.title, sd.description, sd.user_id, 
     sd.access_level, sd.preview_img_url, sd.created_at, 
-    sd.updated_at, sd.flags, sd.tags, sd.outputs
-FROM shader_details sd WHERE sd.id = $1;
+    sd.updated_at, sd.flags, sd.tags, sd.outputs,
+    p.id AS parent_id, p.title AS parent_title
+FROM shader_details sd 
+LEFT JOIN shaders p ON sd.forked_from = p.id 
+WHERE sd.id = $1;
 
 -- name: GetShaderDetailedWithUser :one
 SELECT sd.id, sd.title, sd.description, sd.user_id, 
     sd.access_level, sd.preview_img_url, sd.created_at, 
-    sd.updated_at, sd.flags, sd.tags, sd.outputs,sd.username
+    sd.updated_at, sd.flags, sd.tags, sd.outputs,sd.username,
+    p.id AS parent_id, p.title AS parent_title
 FROM shader_details_with_user sd
+LEFT JOIN shaders p ON sd.forked_from = p.id 
 WHERE sd.id = $1;
 
 

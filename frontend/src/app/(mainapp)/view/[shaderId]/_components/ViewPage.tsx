@@ -22,7 +22,11 @@ const ViewPage = () => {
       ) : dataQuery.isError || !dataQuery.data ? (
         <p>Error loading shader</p>
       ) : (
-        <ShaderEditor editable={!meQuery.isError} shaderData={dataQuery.data} />
+        <ShaderEditor
+          isAuth={!meQuery.isError}
+          editable={dataQuery.data.user_id === meQuery.data?.id}
+          shaderData={dataQuery.data}
+        />
       )}
     </div>
   );

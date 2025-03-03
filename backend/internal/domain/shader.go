@@ -23,6 +23,8 @@ type (
 		UpdatedAt     time.Time       `json:"updated_at"`
 		Username      string          `json:"username,omitempty"`
 		ShaderOutput  json.RawMessage `json:"shader_outputs,omitempty"`
+		ParentID      uuid.UUID       `json:"parent_id,omitempty"`
+		ParentTitle   string          `json:"parent_title,omitempty"`
 	}
 
 	ShaderInput struct {
@@ -100,6 +102,7 @@ type (
 		PreviewImgURL string                      `json:"preview_img_url"`
 		Flags         int32                       `json:"flags" binding:"required"`
 		Tags          []string                    `json:"tags"`
+		ForkedFrom    uuid.UUID                   `json:"forked_from"`
 		AccessLevel   AccessLevel                 `json:"access_level" binding:"required"`
 		ShaderOutputs []CreateShaderOutputPayload `json:"shader_outputs" binding:"required"`
 	}

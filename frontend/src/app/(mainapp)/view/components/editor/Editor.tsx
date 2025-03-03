@@ -226,7 +226,6 @@ export const MultiBufferEditor = React.memo(() => {
   const [outlineMode, setOutlineMode] = useState(0); // 0 is none, 1 is success, 2, is error
   const [shaderOutputName, setShaderOutputName] = useState("Image");
   const [activeOutputEditTab, setActiveOutputEditTab] = useState("code");
-  // const [renderPassEditIdx, setRenderPassEditIdx] = useState();
   const [errMsgs, setErrMsgs] = useState<ShaderCompileErrMsgState>({
     "Buffer A": null,
     "Buffer B": null,

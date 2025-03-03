@@ -16,8 +16,9 @@ import LocalSettingsProvider from "@/context/LocalSettingsContext";
 type Props = {
   shaderData?: ShaderData;
   editable: boolean;
+  isAuth: boolean;
 };
-const ShaderEditor = ({ shaderData, editable }: Props) => {
+const ShaderEditor = ({ shaderData, editable, isAuth }: Props) => {
   return (
     <RendererProvider initialShaderData={shaderData}>
       <ResizablePanelGroup direction="horizontal" className="gap-2">
@@ -32,7 +33,7 @@ const ShaderEditor = ({ shaderData, editable }: Props) => {
           {editable ? (
             <EditShaderMetadata initialData={shaderData} />
           ) : (
-            <ShaderMetadata shaderData={shaderData!} />
+            <ShaderMetadata isAuth={isAuth} shaderData={shaderData!} />
           )}
 
           <div className="self-center">

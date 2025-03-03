@@ -34,6 +34,7 @@ type Shader struct {
 	Flags                  int32
 	Tags                   pgtype.Text
 	TextsearchableIndexCol interface{}
+	ForkedFrom             pgtype.UUID
 }
 
 type ShaderDetail struct {
@@ -48,6 +49,7 @@ type ShaderDetail struct {
 	Flags                  int32
 	Tags                   pgtype.Text
 	TextsearchableIndexCol interface{}
+	ForkedFrom             pgtype.UUID
 	Outputs                []byte
 }
 
@@ -63,6 +65,7 @@ type ShaderDetailsWithUser struct {
 	Flags                  int32
 	Tags                   pgtype.Text
 	TextsearchableIndexCol interface{}
+	ForkedFrom             pgtype.UUID
 	Outputs                []byte
 	Username               string
 }
@@ -98,6 +101,7 @@ type ShaderWithUser struct {
 	Flags                  int32
 	Tags                   pgtype.Text
 	TextsearchableIndexCol interface{}
+	ForkedFrom             pgtype.UUID
 	Username               string
 }
 

@@ -116,6 +116,9 @@ export type ShaderMetadata = {
   tags: string[];
   updated_at: string;
   preview_img_url: string;
+  forked_from: string | null;
+  parent_id?: string;
+  parent_title?: string;
 };
 
 export type ShaderData = ShaderMetadata & {
@@ -188,6 +191,7 @@ export type ShaderUpdateCreatePayload = {
   deleted_input_ids?: string[];
   deleted_output_ids?: string[];
   shader_outputs?: ShaderOutputFull[];
+  forked_from?: string | null;
 };
 
 export type ShadertoyInput = {

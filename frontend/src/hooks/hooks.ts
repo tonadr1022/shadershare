@@ -5,7 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback } from "react";
 import { useTheme } from "next-themes";
 import { useMemo, useEffect, useState } from "react";
-import { deleteShader } from "@/api/shader-api";
+import { createShaderWithPreview, deleteShader } from "@/api/shader-api";
+import { toastAxiosErrors } from "@/lib/utils";
 
 export const useGetMe = () => {
   return useQuery({
@@ -126,4 +127,17 @@ export const assembleParams = (
     res += `&query=${encodeURIComponent(query)}`;
   }
   return res;
+};
+
+export const useCreateShader = () => {
+  const queryClient = useQueryClient();
+  const router = useRouter();
+  return useMutation({
+    mutationFn: createShaderWithPreview,
+    onError: toastAxiosErrors,
+    onSuccess: (data: { id: string }) => {
+      queryClient.invalidateQueries({ queryKey: ["shaders", data.id] });
+      router.push(`/view/${data.id}`);
+    },
+  });
 };
