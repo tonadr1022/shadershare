@@ -6,7 +6,9 @@ import { Suspense } from "react";
 const BrowsePage = () => {
   return (
     <Suspense>
-      <ShaderBrowser urlPath="/browse" show={{ usernames: true }} />
+      <div className="p-4">
+        <ShaderBrowser urlPath="/browse" show={{ usernames: true }} />
+      </div>
     </Suspense>
   );
 };

@@ -1,7 +1,7 @@
 "use client";
 import { getUserShaders } from "@/api/shader-api";
 import { useQuery } from "@tanstack/react-query";
-import React, { Suspense, useCallback, useState } from "react";
+import React, { Suspense, useCallback, useEffect, useState } from "react";
 import ShaderTable from "../_components/ShaderTable";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -26,28 +26,35 @@ const getUrl = (
 };
 
 const ProfileShaders = () => {
-  const { page, perPage, desc, sort } = useSortParams();
+  const { page, perPage, desc, sort, query } = useSortParams();
   const router = useRouter();
   const searchParams = useSearchParams();
   const view = searchParams.get("view") || "table";
-  const query = searchParams.get("query");
   if (!perPages.includes(perPage)) {
     router.replace(getUrl(0, perPages[0], view, sort, desc, query));
   }
 
-  const { data, isPending, isError } = useQuery({
-    queryKey: [
-      "shaders",
-      { isUserShaders: true },
-      page,
-      perPage,
-      sort,
-      desc,
-      query,
-    ],
+  const userQuery = useGetMeRedirect();
+  const {
+    data,
+    isPending: shadersPending,
+    isError: shadersError,
+    refetch,
+  } = useQuery({
+    queryKey: ["shaders", page, perPage, sort, desc, query],
     queryFn: () =>
       getUserShaders((page - 1) * perPage, perPage, false, sort, desc, query),
+    enabled: !!userQuery.data,
   });
+
+  useEffect(() => {
+    if (!data && userQuery.data) {
+      refetch();
+    }
+  }, [data, refetch, userQuery.data]);
+
+  const isPending = shadersPending || userQuery.isPending;
+  const isError = shadersError || userQuery.isError;
 
   const onPageButtonClick = useCallback(
     (page: number) => {

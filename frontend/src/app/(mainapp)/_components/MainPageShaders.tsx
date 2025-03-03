@@ -1,62 +1,26 @@
 "use client";
 import { getShadersWithUsernamesDetailed } from "@/api/shader-api";
-import { Spinner } from "@/components/ui/spinner";
-import { RendererProvider } from "@/context/RendererContext";
-import { ShaderDataWithUser } from "@/types/shader";
+import ShaderPreviewCard from "@/components/ShaderPreviewCard";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import React, { useCallback } from "react";
-import ShaderRenderer from "../view/components/renderer/ShaderRenderer";
-
-type Props = {
-  data: ShaderDataWithUser;
-  show?: { usernames: boolean };
-};
-const ShaderRenderPreviewCard = ({ data: shader, show }: Props) => {
-  const router = useRouter();
-  const handleClick = useCallback(() => {
-    router.push(`/view/${shader.id}`);
-  }, [router, shader.id]);
-  return (
-    <div className="w-full h-auto" key={shader.id}>
-      <RendererProvider username={shader.username} initialShaderData={shader}>
-        <div className="cursor-pointer" onClick={handleClick}>
-          <ShaderRenderer
-            keepAspectRatio={false}
-            hoverOnlyPlay
-            hideControls={true}
-          />
-        </div>
-      </RendererProvider>
-      <div className="flex flex-row justify-between">
-        <div className="flex flex-row gap-2 items-center">
-          <p className="font-bold cursor-pointer" onClick={handleClick}>
-            {shader.title}
-          </p>
-          {(!show || show.usernames) && (
-            <p className="text-sm">
-              by <span className="">{shader.username || "no username"}</span>
-            </p>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
+import React from "react";
 
 const MainPageShaders = () => {
-  const { data, isPending, isError } = useQuery({
+  const { data, isError } = useQuery({
     queryKey: ["randomShaders"],
     queryFn: () => getShadersWithUsernamesDetailed(0, 1),
   });
+  const router = useRouter();
   if (isError) return <p>Error loading shaders.</p>;
-  if (isPending) return <Spinner />;
-  if (!data || data.shaders.length === 0) return <p>No shaders found.</p>;
-
   return (
     <div className="w-full max-w-xl h-full">
       <p>Here&apos;s a random shader...</p>
-      <ShaderRenderPreviewCard data={data.shaders[0]} />
+      <ShaderPreviewCard
+        autoPlay={true}
+        show={{ usernames: true }}
+        onClick={() => router.push(`/view/${data?.shaders[0].id}`)}
+        shader={data?.shaders[0]}
+      />
     </div>
   );
 };

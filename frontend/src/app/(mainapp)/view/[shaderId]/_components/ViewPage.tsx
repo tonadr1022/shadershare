@@ -4,14 +4,14 @@ import { Spinner } from "@/components/ui/spinner";
 import { useQuery } from "@tanstack/react-query";
 import ShaderEditor from "@/components/ShaderEditor";
 import { useGetMe } from "@/hooks/hooks";
-import { getShader } from "@/api/shader-api";
+import { getShaderWithUsername } from "@/api/shader-api";
 import { useParams } from "next/navigation";
 
 const ViewPage = () => {
   const meQuery = useGetMe();
   const params = useParams<{ shaderId: string }>();
   const dataQuery = useQuery({
-    queryFn: () => getShader(params.shaderId, true),
+    queryFn: () => getShaderWithUsername(params.shaderId, true),
     queryKey: ["shaders", params.shaderId],
   });
   const anyLoading = meQuery.isLoading || dataQuery.isLoading;

@@ -1,5 +1,5 @@
 "use client";
-import { getShadersWithUsernames } from "@/api/shader-api";
+import { getShadersWithUsernamesImpl, shaderPerPages } from "@/api/shader-api";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import React, { useCallback } from "react";
@@ -13,23 +13,26 @@ import { Label } from "./ui/label";
 type Props = {
   show: { usernames: boolean };
   urlPath: string;
+  userID?: string;
+  hideTestShaders?: boolean;
 };
 
-const perPages = [12, 25, 50];
-
-const ShaderBrowser = ({ show = { usernames: false } }: Props) => {
-  const getUrl = (
-    page: number,
-    perPage: number,
-    autoPlay: string,
-    query: string | null,
-  ) => {
-    let res = `/browse?page=${page}&perpage=${perPage}&autoplay=${autoPlay}`;
-    if (query) {
-      res += `&query=${query}`;
-    }
-    return res;
-  };
+const ShaderBrowser = ({
+  userID,
+  urlPath,
+  hideTestShaders,
+  show = { usernames: false },
+}: Props) => {
+  const getUrl = useCallback(
+    (page: number, perPage: number, autoPlay: string, query: string | null) => {
+      let res = `${urlPath}?page=${page}&perpage=${perPage}&autoplay=${autoPlay}`;
+      if (query) {
+        res += `&query=${query}`;
+      }
+      return res;
+    },
+    [urlPath],
+  );
 
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -37,25 +40,19 @@ const ShaderBrowser = ({ show = { usernames: false } }: Props) => {
   const autoPlay = searchParams.get("autoplay") || "true";
   const perPage = parseInt(searchParams.get("perpage") || "12");
   const query = searchParams.get("query");
-  if (!perPages.includes(perPage)) {
-    router.replace(getUrl(1, perPages[0], autoPlay, query));
+  if (!shaderPerPages.includes(perPage)) {
+    router.replace(getUrl(1, shaderPerPages[0], autoPlay, query));
   }
   if (autoPlay === "true" && perPage !== 12) {
     router.push(getUrl(1, 12, autoPlay, query));
   }
 
   const { data: data, isError } = useQuery({
-    queryKey: [
-      "shaders",
-      { isUserShaders: false },
-      autoPlay,
-      page,
-      perPage,
-      query,
-    ],
+    queryKey: ["shaders", userID, autoPlay, page, perPage, query],
     queryFn: () =>
-      getShadersWithUsernames(
+      getShadersWithUsernamesImpl(
         autoPlay === "true",
+        userID,
         (page - 1) * perPage,
         perPage,
         query,
@@ -66,11 +63,11 @@ const ShaderBrowser = ({ show = { usernames: false } }: Props) => {
     (page: number) => {
       router.push(getUrl(page, perPage, autoPlay, query));
     },
-    [autoPlay, perPage, query, router],
+    [autoPlay, getUrl, perPage, query, router],
   );
 
   return (
-    <div className="p-4 flex flex-col w-full gap-4">
+    <div className="flex flex-col w-full gap-4">
       {isError ? (
         <p>Error loading shaders.</p>
       ) : (
@@ -105,7 +102,7 @@ const ShaderBrowser = ({ show = { usernames: false } }: Props) => {
               />
             </div>
           </div>
-          {process.env.NODE_ENV === "development" && (
+          {!hideTestShaders && process.env.NODE_ENV === "development" && (
             <div className="self-center">
               <AddTestShaders />
             </div>

@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/markbates/goth/gothic"
 )
 
@@ -36,6 +37,22 @@ func RegisterHandlers(baseUrl string, e *gin.Engine, r *gin.RouterGroup, shaderS
 	r.GET("/me", middleware.Auth(), h.me)
 	r.GET("/me/shaders", middleware.Auth(), h.getUserShaders)
 	r.POST("/logout", h.logout)
+	r.GET("/user/:id", h.getUser)
+}
+
+func (h userHandler) getUser(c *gin.Context) {
+	userID := c.Param("id")
+	parsedID, err := uuid.Parse(userID)
+	if err != nil {
+		util.SetErrorResponse(c, http.StatusBadRequest, "Bad UserID")
+	}
+	user, err := h.userService.GetUserByID(c, parsedID)
+	if err != nil {
+		fmt.Println("get user err", err)
+		util.SetErrorResponse(c, http.StatusInternalServerError, "Internal Server Error")
+		return
+	}
+	c.JSON(http.StatusOK, user)
 }
 
 func (h userHandler) logout(c *gin.Context) {

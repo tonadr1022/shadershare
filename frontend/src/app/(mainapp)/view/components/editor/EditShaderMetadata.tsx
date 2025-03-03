@@ -41,10 +41,16 @@ import { Trash } from "lucide-react";
 import DeleteShaderDialog from "@/components/shader/DeleteShaderDialog";
 
 const formSchema = z.object({
-  title: z.string().min(2, {
-    message: "Title must be at least 2 characters.",
-  }),
-  description: z.string().optional(),
+  title: z
+    .string()
+    .min(2, {
+      message: "Title must be at least 2 characters.",
+    })
+    .max(30, { message: "Title must be at most 20 characters" }),
+  description: z
+    .string()
+    .max(1000, { message: "Description must be at most 500 characters" })
+    .optional(),
   tags: z.string(),
   access_level: z.string(),
 });
@@ -215,6 +221,8 @@ const EditShaderMetadata = ({ initialData }: Props) => {
                     {...field}
                     placeholder="Name your shader here."
                     className="w-96"
+                    maxLength={30}
+                    minLength={3}
                   />
                 </FormControl>
                 <FormMessage />
@@ -232,6 +240,7 @@ const EditShaderMetadata = ({ initialData }: Props) => {
                     {...field}
                     placeholder="Describe your shader here."
                     rows={6}
+                    maxLength={1000}
                   />
                 </FormControl>
               </FormItem>

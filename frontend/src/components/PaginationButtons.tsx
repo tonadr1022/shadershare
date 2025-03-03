@@ -37,7 +37,7 @@ const PaginationButtons = ({
 
   return (
     <div className="flex flex-row gap-2">
-      {showPageSizeSelect ? (
+      {showPageSizeSelect && pageSizes?.length ? (
         <Select
           value={perPage.toString()}
           onValueChange={(val: string) => {

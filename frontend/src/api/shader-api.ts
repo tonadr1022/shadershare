@@ -11,6 +11,7 @@ import {
   ShaderUpdateCreatePayload,
 } from "@/types/shader";
 import axiosInstance from "./api";
+import { User } from "@/types/auth";
 
 // TODO: type
 export const createShader = async (data: ShaderUpdateCreatePayload) => {
@@ -108,7 +109,7 @@ export const deleteShader = async (id: string) => {
   return res.data;
 };
 
-const getShadersWithUsernamesImpl = async (
+export const getShadersWithUsernamesImpl = async (
   detailed: boolean,
   user_id?: string,
   offset?: number,
@@ -216,5 +217,11 @@ export const getShadertoyShader = async (
   id: string,
 ): Promise<ShaderToyShaderResp> => {
   const res = await axiosInstance.get(`/shadertoy/${id}`);
+  return res.data;
+};
+export const shaderPerPages = [12, 25, 50];
+
+export const getUser = async (id: string): Promise<User> => {
+  const res = await axiosInstance.get(`/user/${id}`);
   return res.data;
 };
