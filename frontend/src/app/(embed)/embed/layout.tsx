@@ -36,6 +36,8 @@ export const metadata: Metadata = {
   },
   authors: [{ name: "Tony Adriansen", url: "https://tadriansen.dev" }],
   keywords: [
+    "shader",
+    "share",
     "shaders",
     "graphics",
     "programming",
@@ -43,7 +45,6 @@ export const metadata: Metadata = {
     "demoscene",
     "real time rendering",
   ],
-  robots: "index, follow",
 };
 
 export default function RootLayout({

@@ -22,6 +22,7 @@ export const metadata: Metadata = {
   ),
   title: "Shader Share",
   description: "Share and discover shaders",
+
   openGraph: {
     title: "Shader Share",
     description: "Share and discover shaders",
@@ -37,6 +38,8 @@ export const metadata: Metadata = {
   },
   authors: [{ name: "Tony Adriansen", url: "https://tadriansen.dev" }],
   keywords: [
+    "shader",
+    "share",
     "shaders",
     "graphics",
     "programming",

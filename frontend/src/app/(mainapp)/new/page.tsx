@@ -40,7 +40,7 @@ const Page = () => {
       {shaderToyId ? (
         <EditFromShadertoy shadertoyId={shaderToyId} />
       ) : (
-        <ShaderEditor isAuth={false} editable={true} />
+        <ShaderEditor editable={true} />
       )}
     </div>
   );

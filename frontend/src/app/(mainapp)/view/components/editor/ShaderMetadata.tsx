@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { useRendererCtx } from "@/context/RendererContext";
-import { useCreateShader, useGetMe } from "@/hooks/hooks";
+import { useCreateShader } from "@/hooks/hooks";
 import {
   AccessLevel,
   ShaderDataWithUser,
@@ -16,14 +16,13 @@ import { toast } from "sonner";
 
 type Props = {
   shaderData: ShaderDataWithUser;
-  isAuth: boolean;
+  userID?: string;
 };
-const ShaderMetadata = ({ shaderData, isAuth }: Props) => {
+const ShaderMetadata = ({ shaderData, userID }: Props) => {
   const createShaderMut = useCreateShader();
   const { renderer } = useRendererCtx();
-  const { data: user } = useGetMe();
   const handleFork = useCallback(async () => {
-    if (renderer === null || !user) {
+    if (renderer === null || !userID) {
       return;
     }
     let title = "";
@@ -41,7 +40,7 @@ const ShaderMetadata = ({ shaderData, isAuth }: Props) => {
       tags: shaderData.tags,
       access_level: AccessLevel.PRIVATE,
       title,
-      user_id: user.id,
+      user_id: userID,
     };
 
     const previewFile = await getPreviewImgFile2(renderer);
@@ -51,12 +50,12 @@ const ShaderMetadata = ({ shaderData, isAuth }: Props) => {
     }
 
     createShaderMut.mutate({ shader, previewFile });
-  }, [createShaderMut, renderer, shaderData, user]);
+  }, [createShaderMut, renderer, shaderData, userID]);
   return (
     <div id="shader-metadata" className="flex flex-col gap-4">
       <div className="flex justify-between items-center">
         <h6>{shaderData.title}</h6>
-        {isAuth ? (
+        {userID ? (
           <Button size="icon" variant="secondary" onClick={handleFork}>
             <GitFork />
           </Button>

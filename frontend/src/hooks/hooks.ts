@@ -1,5 +1,5 @@
 "use client";
-import { getMe, getMeAuth, logoutUser } from "@/api/auth-api";
+import { getMeAuth, logoutUser } from "@/api/auth-api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback } from "react";
@@ -7,12 +7,33 @@ import { useTheme } from "next-themes";
 import { useMemo, useEffect, useState } from "react";
 import { createShaderWithPreview, deleteShader } from "@/api/shader-api";
 import { toastAxiosErrors } from "@/lib/utils";
+import axiosInstance from "@/api/api";
+import { AxiosError } from "axios";
+import { User } from "@/types/auth";
 
 export const useGetMe = () => {
+  const queryClient = useQueryClient();
   return useQuery({
     queryKey: ["me"],
-    retry: false,
-    queryFn: getMe,
+    retry: (failureCount, error) => {
+      const err = error as AxiosError;
+      if (err.status === 401) {
+        return false;
+      }
+      return failureCount < 3;
+    },
+    queryFn: async (): Promise<User> => {
+      try {
+        const res = await axiosInstance.get("/me");
+        return res.data;
+      } catch (error) {
+        const err = error as AxiosError;
+        if (err.status === 401) {
+          queryClient.setQueryData(["me"], { error: "Unauthorized" });
+        }
+        throw err;
+      }
+    },
     staleTime: 1000 * 60 * 5,
     refetchOnWindowFocus: false,
   });

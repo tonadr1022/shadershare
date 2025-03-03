@@ -48,7 +48,7 @@ const ShaderSearch = () => {
 };
 
 export default function Navbar() {
-  const { data: user, isPending } = useGetMe();
+  const { data: user, isPending, isError } = useGetMe();
 
   return (
     <div
@@ -102,7 +102,7 @@ export default function Navbar() {
         </div>
         <div className="flex items-center gap-2">
           <div>
-            {user ? (
+            {user && !isError ? (
               <ProfileDropdown />
             ) : isPending ? (
               <Avatar className="text-background select-none w-8 h-8 transition-none">
