@@ -12,7 +12,8 @@ export const useGetMe = () => {
     queryKey: ["me"],
     retry: false,
     queryFn: getMe,
-    staleTime: 1000 * 60,
+    staleTime: 1000 * 60 * 5,
+    refetchOnWindowFocus: false,
   });
 };
 
@@ -28,7 +29,8 @@ export const useGetMeRedirect = () => {
       }
       return res.data;
     },
-    staleTime: 1000 * 60,
+    staleTime: 1000 * 60 * 5,
+    refetchOnWindowFocus: false,
   });
 };
 

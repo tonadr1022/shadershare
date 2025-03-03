@@ -27,6 +27,28 @@ export type CompileShaderReq = {
   callback?: CompileReqCallback;
 };
 
+export const getPreviewImgFile2 = async (
+  renderer: IRenderer,
+): Promise<File | null> => {
+  return new Promise(async (resolve, reject) => {
+    const canvas = renderer.getCanvas();
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) {
+          reject();
+          return;
+        }
+        const file = new File([blob], "preview.webp", {
+          type: "image/webp",
+        });
+        resolve(file);
+      },
+      "image/webp",
+      0.4,
+    );
+  });
+};
+
 // TODO: higher res?
 export const getPreviewImgFile = async (
   shaderData: Partial<ShaderData> | ShaderUpdateCreatePayload,
@@ -920,7 +942,12 @@ const webGL2Renderer = () => {
   const compileShaders = async (
     req: ShaderOutputFull[],
     parseErrors: boolean,
-  ): Promise<{ res: ShaderCompileErrMsgState; error: boolean }> => {
+  ): Promise<{
+    res: ShaderCompileErrMsgState;
+    error: boolean;
+    time: number;
+  }> => {
+    const startTime = performance.now();
     for (const out of req) {
       if (out.shader_inputs === null) {
         out.shader_inputs = [];
@@ -990,7 +1017,7 @@ const webGL2Renderer = () => {
         }
       }),
     );
-    return { res, error: anyError };
+    return { res, error: anyError, time: performance.now() - startTime };
   };
 
   const stopRecording = () => {
@@ -1605,6 +1632,7 @@ ${commonBufferText}
 
     canvas: () => canvas,
     saveScreenshot,
+    getCanvas: () => canvas,
     screenshot: () => {
       canvas.toBlob((blob) => {
         if (!blob) {
@@ -1671,7 +1699,6 @@ ${commonBufferText}
       }
       state.outputs[name].dirty = true;
     },
-    // TODO: initialize should return shader compile errors
     initialize: async (params: IRendererInitPararms): Promise<boolean> => {
       if (initialized) return true;
       canvas = params.canvas;
@@ -1679,7 +1706,7 @@ ${commonBufferText}
         return false;
       }
 
-      if (params.ignoreInputs) {
+      if (!params.ignoreInputs) {
         // mouse state
         canvas.onmouseout = () => {
           mouseState.mouseSignalDown = false;

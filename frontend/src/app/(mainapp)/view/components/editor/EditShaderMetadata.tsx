@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import React, { useCallback } from "react";
-import { getPreviewImgFile } from "../renderer/Renderer";
+import { getPreviewImgFile2 } from "../renderer/Renderer";
 import {
   AccessLevel,
   ShaderData,
@@ -46,7 +46,7 @@ const formSchema = z.object({
     .min(2, {
       message: "Title must be at least 2 characters.",
     })
-    .max(30, { message: "Title must be at most 20 characters" }),
+    .max(50, { message: "Title must be at most 50 characters" }),
   description: z
     .string()
     .max(1000, { message: "Description must be at most 500 characters" })
@@ -117,6 +117,9 @@ const EditShaderMetadata = ({ initialData }: Props) => {
         return;
       }
 
+      if (res.time > 10000) {
+      }
+
       const isUpdate = initialData?.id;
 
       const payload: ShaderUpdateCreatePayload = {
@@ -181,7 +184,7 @@ const EditShaderMetadata = ({ initialData }: Props) => {
         payload.preview_img_url = initialData.preview_img_url;
       }
       if (needNewPreview) {
-        previewFile = await getPreviewImgFile(shaderDataRef.current);
+        previewFile = await getPreviewImgFile2(renderer);
         if (previewFile == null) {
           toast.error("Failed to generate preview image");
           return;
@@ -221,7 +224,7 @@ const EditShaderMetadata = ({ initialData }: Props) => {
                     {...field}
                     placeholder="Name your shader here."
                     className="w-96"
-                    maxLength={30}
+                    maxLength={50}
                     minLength={3}
                   />
                 </FormControl>

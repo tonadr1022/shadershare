@@ -80,7 +80,7 @@ const ProfileShaders = () => {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              router.push(getUrl(page, perPage, view, sort, desc, inputQuery));
+              router.push(getUrl(1, perPage, view, sort, desc, inputQuery));
             }}
             id="shader-page-query"
             className="flex gap-2 w-fit"

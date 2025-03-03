@@ -144,7 +144,7 @@ func (s shaderService) GetShaders(ctx context.Context, req domain.ShaderListReq)
 }
 
 func (s shaderService) CreateShader(ctx context.Context, userID uuid.UUID, shaderPayload domain.CreateShaderPayload, file *multipart.FileHeader) (uuid.UUID, error) {
-	file.Filename = randomFileName(".png")
+	file.Filename = randomFileName(".webp")
 	fileUrl, err := s.fileStore.UploadFile(file)
 	if err != nil {
 		return uuid.Nil, err
