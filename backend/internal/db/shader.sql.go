@@ -12,6 +12,27 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const addShaderToPlaylist = `-- name: AddShaderToPlaylist :exec
+INSERT INTO shader_playlist_junction (playlist_id, shader_id)
+SELECT $1, $2
+FROM shader_playlists p, shaders s
+WHERE p.id = $1
+  AND s.id = $2
+  AND p.user_id = $3
+  AND s.user_id = $3
+`
+
+type AddShaderToPlaylistParams struct {
+	PlaylistID uuid.UUID
+	ShaderID   uuid.UUID
+	UserID     uuid.UUID
+}
+
+func (q *Queries) AddShaderToPlaylist(ctx context.Context, arg AddShaderToPlaylistParams) error {
+	_, err := q.db.Exec(ctx, addShaderToPlaylist, arg.PlaylistID, arg.ShaderID, arg.UserID)
+	return err
+}
+
 const countShaders = `-- name: CountShaders :one
 SELECT COUNT(*)
 FROM shaders
@@ -100,6 +121,44 @@ func (q *Queries) CreateShader(ctx context.Context, arg CreateShaderParams) (Cre
 	return i, err
 }
 
+const createShaderPlaylist = `-- name: CreateShaderPlaylist :one
+INSERT INTO shader_playlists (
+    title, access_level, description, user_id, tags
+) VALUES (
+    $1, $2, $3, $4, $5
+) RETURNING id, title, access_level, description, user_id, tags, created_at, updated_at
+`
+
+type CreateShaderPlaylistParams struct {
+	Title       string
+	AccessLevel int16
+	Description pgtype.Text
+	UserID      uuid.UUID
+	Tags        []string
+}
+
+func (q *Queries) CreateShaderPlaylist(ctx context.Context, arg CreateShaderPlaylistParams) (ShaderPlaylist, error) {
+	row := q.db.QueryRow(ctx, createShaderPlaylist,
+		arg.Title,
+		arg.AccessLevel,
+		arg.Description,
+		arg.UserID,
+		arg.Tags,
+	)
+	var i ShaderPlaylist
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.AccessLevel,
+		&i.Description,
+		&i.UserID,
+		&i.Tags,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const deleteShader = `-- name: DeleteShader :one
 DELETE FROM shaders
 WHERE id = $1 AND user_id = $2 RETURNING 
@@ -140,6 +199,60 @@ func (q *Queries) DeleteShader(ctx context.Context, arg DeleteShaderParams) (Del
 		&i.UpdatedAt,
 		&i.Flags,
 		&i.Tags,
+	)
+	return i, err
+}
+
+const deleteShaderPlaylist = `-- name: DeleteShaderPlaylist :exec
+DELETE FROM shader_playlists
+WHERE id = $1 AND user_id = $2
+`
+
+type DeleteShaderPlaylistParams struct {
+	ID     uuid.UUID
+	UserID uuid.UUID
+}
+
+func (q *Queries) DeleteShaderPlaylist(ctx context.Context, arg DeleteShaderPlaylistParams) error {
+	_, err := q.db.Exec(ctx, deleteShaderPlaylist, arg.ID, arg.UserID)
+	return err
+}
+
+const getPlaylistWithShaders = `-- name: GetPlaylistWithShaders :one
+SELECT p.id, p.title, p.access_level, p.description, p.user_id, p.tags, p.created_at, p.updated_at,
+    COALESCE(json_agg(s.*), '[]'::json) AS shaders
+FROM shader_playlists p
+LEFT JOIN shader_playlist_junction j 
+ON j.playlist_id = p.id
+LEFT JOIN shaders s ON s.id = j.shader_id
+WHERE p.id = $1::uuid
+`
+
+type GetPlaylistWithShadersRow struct {
+	ID          uuid.UUID
+	Title       string
+	AccessLevel int16
+	Description pgtype.Text
+	UserID      uuid.UUID
+	Tags        []string
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+	Shaders     interface{}
+}
+
+func (q *Queries) GetPlaylistWithShaders(ctx context.Context, id uuid.UUID) (GetPlaylistWithShadersRow, error) {
+	row := q.db.QueryRow(ctx, getPlaylistWithShaders, id)
+	var i GetPlaylistWithShadersRow
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.AccessLevel,
+		&i.Description,
+		&i.UserID,
+		&i.Tags,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Shaders,
 	)
 	return i, err
 }
@@ -266,6 +379,27 @@ func (q *Queries) GetShaderDetailedWithUser(ctx context.Context, id uuid.UUID) (
 	return i, err
 }
 
+const getShaderPlaylist = `-- name: GetShaderPlaylist :one
+SELECT id, title, access_level, description, user_id, tags, created_at, updated_at FROM shader_playlists
+WHERE id = $1
+`
+
+func (q *Queries) GetShaderPlaylist(ctx context.Context, id uuid.UUID) (ShaderPlaylist, error) {
+	row := q.db.QueryRow(ctx, getShaderPlaylist, id)
+	var i ShaderPlaylist
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.AccessLevel,
+		&i.Description,
+		&i.UserID,
+		&i.Tags,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getShaderWithUser = `-- name: GetShaderWithUser :one
 SELECT s.id, s.title, s.description, s.user_id, 
     s.access_level, s.preview_img_url, s.created_at, 
@@ -337,6 +471,97 @@ func (q *Queries) GetTopTags(ctx context.Context) ([]GetTopTagsRow, error) {
 	for rows.Next() {
 		var i GetTopTagsRow
 		if err := rows.Scan(&i.Word, &i.Frequency); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listShaderPlaylist = `-- name: ListShaderPlaylist :many
+SELECT id, title, access_level, description, user_id, tags, created_at, updated_at FROM shader_playlists
+WHERE access_level = $1
+LIMIT $3::int
+OFFSET $2::int
+`
+
+type ListShaderPlaylistParams struct {
+	AccessLevel int16
+	Off         int32
+	Lim         pgtype.Int4
+}
+
+func (q *Queries) ListShaderPlaylist(ctx context.Context, arg ListShaderPlaylistParams) ([]ShaderPlaylist, error) {
+	rows, err := q.db.Query(ctx, listShaderPlaylist, arg.AccessLevel, arg.Off, arg.Lim)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ShaderPlaylist
+	for rows.Next() {
+		var i ShaderPlaylist
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.AccessLevel,
+			&i.Description,
+			&i.UserID,
+			&i.Tags,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listShaderPlaylistOfUser = `-- name: ListShaderPlaylistOfUser :many
+SELECT id, title, access_level, description, user_id, tags, created_at, updated_at FROM shader_playlists
+WHERE user_id = $1 AND 
+      access_level = $2
+LIMIT $4::int
+OFFSET $3::int
+`
+
+type ListShaderPlaylistOfUserParams struct {
+	UserID      uuid.UUID
+	AccessLevel int16
+	Off         int32
+	Lim         pgtype.Int4
+}
+
+func (q *Queries) ListShaderPlaylistOfUser(ctx context.Context, arg ListShaderPlaylistOfUserParams) ([]ShaderPlaylist, error) {
+	rows, err := q.db.Query(ctx, listShaderPlaylistOfUser,
+		arg.UserID,
+		arg.AccessLevel,
+		arg.Off,
+		arg.Lim,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ShaderPlaylist
+	for rows.Next() {
+		var i ShaderPlaylist
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.AccessLevel,
+			&i.Description,
+			&i.UserID,
+			&i.Tags,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -782,4 +1007,34 @@ func (q *Queries) UpdateShader(ctx context.Context, arg UpdateShaderParams) (Upd
 		&i.Tags,
 	)
 	return i, err
+}
+
+const updateShaderPlaylist = `-- name: UpdateShaderPlaylist :exec
+UPDATE shader_playlists
+SET title = COALESCE(NULLIF($3::TEXT,''), title),
+    access_level = COALESCE($4, access_level),
+    description = COALESCE($5, description),
+    tags = COALESCE($6, tags)
+WHERE id = $1 AND user_id = $2
+`
+
+type UpdateShaderPlaylistParams struct {
+	ID          uuid.UUID
+	UserID      uuid.UUID
+	Column3     string
+	AccessLevel int16
+	Description pgtype.Text
+	Tags        []string
+}
+
+func (q *Queries) UpdateShaderPlaylist(ctx context.Context, arg UpdateShaderPlaylistParams) error {
+	_, err := q.db.Exec(ctx, updateShaderPlaylist,
+		arg.ID,
+		arg.UserID,
+		arg.Column3,
+		arg.AccessLevel,
+		arg.Description,
+		arg.Tags,
+	)
+	return err
 }

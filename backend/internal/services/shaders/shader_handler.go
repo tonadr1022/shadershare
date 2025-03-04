@@ -49,17 +49,145 @@ func RegisterHandlers(r *gin.RouterGroup, service domain.ShaderService) {
 	r.DELETE("/shaders/input/:id", middleware.Auth(), h.deleteShaderInput)
 	r.DELETE("/shaders/output/:id", middleware.Auth(), h.deleteShaderOutput)
 	r.GET("/shadertoy/:id", h.getShadertoyShader)
+
+	r.POST("/playlists/shaders", middleware.Auth(), h.createShaderPlaylist)
+	r.GET("/playlists/shaders/:id", h.getPlaylist)
+	r.DELETE("/playlists/shaders/:id", middleware.Auth(), h.deleteShaderPlaylist)
+	r.GET("/playlists/shaders", h.getShaderPlaylists)
+	r.PUT("/playlists/shaders/:id", middleware.Auth(), h.updateShaderPlaylist)
+}
+
+func (h ShaderHandler) updateShaderPlaylist(c *gin.Context) {
+	userctx, ok := middleware.CurrentUser(c)
+	if !ok {
+		util.SetInternalServiceErrorResponse(c)
+		return
+	}
+	var payload domain.UpdatePlaylistPayload
+	if ok := util.ValidateAndSetErrors(c, &payload); !ok {
+		return
+	}
+
+	err := h.service.UpdateShaderPlaylist(c, userctx.ID, &payload)
+	if err != nil {
+		util.SetErrorResponse(c, http.StatusBadRequest, "failed to update shader playlist")
+	}
+}
+
+func getUserIDAndSetErrors(c *gin.Context) (uuid.UUID, bool) {
+	userID := uuid.Nil
+	userIDStr := c.Query("user_id")
+	if userIDStr != "" {
+		id, err := uuid.Parse(userIDStr)
+		if err != nil {
+			util.SetErrorResponse(c, http.StatusBadRequest, "Invalid user ID")
+			return uuid.Nil, false
+		}
+		userID = id
+	}
+	return userID, true
+}
+
+func parseIDAndSetErrors(c *gin.Context) (uuid.UUID, bool) {
+	parsedID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		util.SetErrorResponse(c, http.StatusBadRequest, "invalid id")
+		return uuid.Nil, false
+	}
+	return parsedID, true
+}
+
+func (h ShaderHandler) getShaderPlaylists(c *gin.Context) {
+	userID, ok := getUserIDAndSetErrors(c)
+	if !ok {
+		return
+	}
+
+	limit, err := com.DefaultQueryIntCheck(c, "limit", -1)
+	if err != nil {
+		return
+	}
+	offset, err := com.DefaultQueryIntCheck(c, "offset", 0)
+	if err != nil {
+		return
+	}
+	res, err := h.service.ListShaderPlaylists(c, &domain.ListPlaylistReq{
+		Limit:  limit,
+		Offset: offset,
+		UserID: userID,
+	})
+	if err != nil {
+		util.SetInternalServiceErrorResponse(c)
+		return
+	}
+	c.JSON(http.StatusOK, res)
+}
+
+func (h ShaderHandler) deleteShaderPlaylist(c *gin.Context) {
+	userctx, ok := middleware.CurrentUser(c)
+	if !ok {
+		util.SetInternalServiceErrorResponse(c)
+		return
+	}
+	parsedID, ok := parseIDAndSetErrors(c)
+	if !ok {
+		return
+	}
+
+	err := h.service.DeletePlaylist(c, userctx.ID, parsedID)
+	if err != nil {
+		util.SetErrorResponse(c, http.StatusBadRequest, "failed to delete playlist, unauthorized or doesn't exist")
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
+func (h ShaderHandler) getPlaylist(c *gin.Context) {
+	userctx, _ := middleware.CurrentUser(c)
+	parsedID, ok := parseIDAndSetErrors(c)
+	if !ok {
+		return
+	}
+	res, err := h.service.GetPlaylist(c, userctx.ID, parsedID)
+	if err != nil {
+		if err == e.ErrUnauthorized {
+			util.SetErrorResponse(c, http.StatusUnauthorized, err.Error())
+		} else {
+			util.SetInternalServiceErrorResponse(c)
+		}
+		return
+	}
+	c.JSON(http.StatusOK, res)
+}
+
+func (h ShaderHandler) createShaderPlaylist(c *gin.Context) {
+	userctx, ok := middleware.CurrentUser(c)
+	if !ok {
+		util.SetInternalServiceErrorResponse(c)
+		return
+	}
+	var payload domain.CreatePlaylistPayload
+	if ok := util.ValidateAndSetErrors(c, payload); !ok {
+		return
+	}
+	res, err := h.service.CreateShaderPlaylist(c, userctx.ID, &payload)
+	if err != nil {
+		util.SetErrorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+	c.JSON(http.StatusOK, res)
 }
 
 func (h ShaderHandler) updateShader(c *gin.Context) {
 	userctx, ok := middleware.CurrentUser(c)
+	if !ok {
+		util.SetInternalServiceErrorResponse(c)
+	}
+
 	shaderID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		util.SetErrorResponse(c, http.StatusBadRequest, "Invalid shader ID")
 		return
-	}
-	if !ok {
-		util.SetInternalServiceErrorResponse(c)
 	}
 	if ok := util.ValidateContentTypeAndSetError(c, "multipart/form-data"); !ok {
 		return
@@ -184,17 +312,9 @@ func (h ShaderHandler) getShaders(c *gin.Context) {
 	var err error
 	detailed := com.StrToBool(c.DefaultQuery("detailed", "false"))
 
-	userID := uuid.Nil
-
-	userIDStr := c.Query("user_id")
-	if userIDStr != "" {
-		id, err := uuid.Parse(userIDStr)
-		if err != nil {
-
-			util.SetErrorResponse(c, http.StatusBadRequest, "Invalid user ID")
-			return
-		}
-		userID = id
+	userID, ok := getUserIDAndSetErrors(c)
+	if !ok {
+		return
 	}
 
 	limit, err := com.DefaultQueryIntCheck(c, "limit", -1)

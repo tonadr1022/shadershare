@@ -13,4 +13,5 @@ var (
 	ErrUserNotFound          = errors.New("user not found")
 	ErrShaderWithTitleExists = errors.New("shader with title exists")
 	ErrInvalidSort           = errors.New("invalid sort")
+	ErrUnauthorized          = errors.New("unauthorized")
 )

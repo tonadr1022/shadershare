@@ -247,3 +247,24 @@ export type ShaderToyShaderResp = {
 export type BulkDeleteResp = {
   deleted_count: number;
 };
+
+export type ShaderPlaylist = {
+  id: string;
+  title: string;
+  description: string;
+  user_id: string;
+  tags: string[];
+  created_at: Date;
+  updated_at: Date;
+  username?: string;
+  access_level: AccessLevel;
+};
+
+export type ShaderPlaylistCreateUpdatePayload = {
+  id?: string;
+  title?: string;
+  description?: string;
+  user_id?: string;
+  tags?: string[];
+  access_level?: AccessLevel;
+};

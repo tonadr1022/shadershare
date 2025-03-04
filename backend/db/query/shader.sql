@@ -209,3 +209,57 @@ OFFSET 1 LIMIT 20;
 -- name: DeleteShadersBulk :batchexec
 DELETE FROM shaders 
 WHERE id = sqlc.arg(id)::uuid;
+
+-- name: CreateShaderPlaylist :one
+INSERT INTO shader_playlists (
+    title, access_level, description, user_id, tags
+) VALUES (
+    $1, $2, $3, $4, $5
+) RETURNING *;
+
+-- name: DeleteShaderPlaylist :exec
+DELETE FROM shader_playlists
+WHERE id = $1 AND user_id = $2;
+
+-- name: UpdateShaderPlaylist :exec
+UPDATE shader_playlists
+SET title = COALESCE(NULLIF($3::TEXT,''), title),
+    access_level = COALESCE($4, access_level),
+    description = COALESCE($5, description),
+    tags = COALESCE($6, tags)
+WHERE id = $1 AND user_id = $2;
+
+-- name: GetShaderPlaylist :one
+SELECT * FROM shader_playlists
+WHERE id = $1;
+
+-- name: ListShaderPlaylistOfUser :many 
+SELECT * FROM shader_playlists
+WHERE user_id = sqlc.arg(user_id) AND 
+      access_level = sqlc.arg(access_level)
+LIMIT sqlc.narg(lim)::int
+OFFSET @off::int;
+
+-- name: ListShaderPlaylist :many 
+SELECT * FROM shader_playlists
+WHERE access_level = sqlc.arg(access_level)
+LIMIT sqlc.narg(lim)::int
+OFFSET @off::int;
+
+-- name: AddShaderToPlaylist :exec 
+INSERT INTO shader_playlist_junction (playlist_id, shader_id)
+SELECT $1, $2
+FROM shader_playlists p, shaders s
+WHERE p.id = $1
+  AND s.id = $2
+  AND p.user_id = $3
+  AND s.user_id = $3;
+
+-- name: GetPlaylistWithShaders :one 
+SELECT p.*,
+    COALESCE(json_agg(s.*), '[]'::json) AS shaders
+FROM shader_playlists p
+LEFT JOIN shader_playlist_junction j 
+ON j.playlist_id = p.id
+LEFT JOIN shaders s ON s.id = j.shader_id
+WHERE p.id = sqlc.arg(id)::uuid;

@@ -7,6 +7,8 @@ import {
   ShaderListDetailedResp,
   ShaderListResp,
   ShaderOutputFull,
+  ShaderPlaylist,
+  ShaderPlaylistCreateUpdatePayload,
   ShaderToyShaderResp,
   ShaderUpdateCreatePayload,
 } from "@/types/shader";
@@ -223,5 +225,21 @@ export const shaderPerPages = [12, 25, 50];
 
 export const getUser = async (id: string): Promise<User> => {
   const res = await axiosInstance.get(`/user/${id}`);
+  return res.data;
+};
+export const createShaderPlaylist = async (
+  data: ShaderPlaylistCreateUpdatePayload,
+): Promise<ShaderPlaylist> => {
+  const res = await axiosInstance.post("/playlists/shaders", data);
+  return res.data;
+};
+
+export const updateShaderPlaylist = async (
+  data: ShaderPlaylistCreateUpdatePayload,
+): Promise<void> => {
+  if (!data.id) {
+    throw new Error("no id to update playlist");
+  }
+  const res = await axiosInstance.post(`/playlists/shaders/${data.id}`, data);
   return res.data;
 };

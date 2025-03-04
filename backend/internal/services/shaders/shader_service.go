@@ -185,3 +185,34 @@ func (s shaderService) GetShaderCount(ctx context.Context, filter domain.GetShad
 func (s shaderService) DeleteShadersBulk(ctx context.Context, userID uuid.UUID, ids []uuid.UUID) (domain.BulkDeleteResp, error) {
 	return s.repo.DeleteShadersBulk(ctx, userID, ids)
 }
+
+func (s shaderService) CreateShaderPlaylist(ctx context.Context, userID uuid.UUID, payload *domain.CreatePlaylistPayload) (*domain.Playlist, error) {
+	return s.repo.CreateShaderPlaylist(ctx, userID, payload)
+}
+
+func (s shaderService) GetPlaylist(ctx context.Context, userID uuid.UUID, id uuid.UUID) (*domain.Playlist, error) {
+	res, err := s.repo.GetPlaylist(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if res.UserID != userID && res.AccessLevel != domain.AccessLevelPublic {
+		return nil, e.ErrUnauthorized
+	}
+	return res, nil
+}
+
+func (s shaderService) DeletePlaylist(ctx context.Context, userID uuid.UUID, id uuid.UUID) error {
+	return s.repo.DeletePlaylist(ctx, userID, id)
+}
+
+func (s shaderService) AddShaderToPlaylist(ctx context.Context, userID uuid.UUID, shaderID uuid.UUID, playlistID uuid.UUID) error {
+	return s.repo.AddShaderToPlaylist(ctx, userID, shaderID, playlistID)
+}
+
+func (s shaderService) ListShaderPlaylists(ctx context.Context, req *domain.ListPlaylistReq) ([]domain.Playlist, error) {
+	return s.repo.ListShaderPlaylists(ctx, req)
+}
+
+func (s shaderService) UpdateShaderPlaylist(ctx context.Context, userID uuid.UUID, payload *domain.UpdatePlaylistPayload) error {
+	return s.repo.UpdateShaderPlaylist(ctx, userID, payload)
+}

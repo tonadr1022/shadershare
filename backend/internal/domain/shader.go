@@ -135,6 +135,13 @@ type (
 		Filter      GetShaderFilter
 	}
 
+	ListPlaylistReq struct {
+		Limit       int
+		Offset      int
+		UserID      uuid.UUID
+		AccessLevel AccessLevel
+	}
+
 	ShaderResponse struct {
 		Shaders []Shader `json:"shaders"`
 		Total   int64    `json:"total"`
@@ -146,6 +153,32 @@ type (
 
 	BulkDeleteResp struct {
 		DeletedCount int `json:"deleted_count"`
+	}
+
+	CreatePlaylistPayload struct {
+		Title       string      `json:"title" binding:"required"`
+		Description string      `json:"description" binding:"required"`
+		Tags        []string    `json:"tags"`
+		AccessLevel AccessLevel `json:"access_level" binding:"required"`
+	}
+	UpdatePlaylistPayload struct {
+		ID          uuid.UUID   `json:"id" binding:"required"`
+		Title       string      `json:"title"`
+		Description string      `json:"description"`
+		Tags        []string    `json:"tags"`
+		AccessLevel AccessLevel `json:"access_level"`
+	}
+
+	Playlist struct {
+		ID          uuid.UUID   `json:"id"`
+		Title       string      `json:"title"`
+		AccessLevel AccessLevel `json:"access_level"`
+		Description string      `json:"description"`
+		UserID      uuid.UUID   `json:"user_id"`
+		Tags        []string    `json:"tags"`
+		CreatedAt   time.Time   `json:"created_at"`
+		UpdatedAt   time.Time   `json:"updated_at"`
+		Username    string      `json:"username,omitempty"`
 	}
 
 	ShaderRepository interface {
@@ -161,6 +194,12 @@ type (
 		DeleteShaderOutput(ctx context.Context, outputID uuid.UUID) error
 		DeleteShader(ctx context.Context, userID uuid.UUID, shaderID uuid.UUID) (*Shader, error)
 		DeleteShadersBulk(ctx context.Context, userID uuid.UUID, ids []uuid.UUID) (BulkDeleteResp, error)
+		CreateShaderPlaylist(ctx context.Context, userID uuid.UUID, payload *CreatePlaylistPayload) (*Playlist, error)
+		GetPlaylist(ctx context.Context, id uuid.UUID) (*Playlist, error)
+		DeletePlaylist(ctx context.Context, userID uuid.UUID, id uuid.UUID) error
+		AddShaderToPlaylist(ctx context.Context, userID uuid.UUID, shaderID uuid.UUID, playlistID uuid.UUID) error
+		ListShaderPlaylists(ctx context.Context, req *ListPlaylistReq) ([]Playlist, error)
+		UpdateShaderPlaylist(ctx context.Context, userID uuid.UUID, payload *UpdatePlaylistPayload) error
 	}
 
 	ShaderService interface {
@@ -175,5 +214,11 @@ type (
 		DeleteShaderOutput(ctx context.Context, outputID uuid.UUID) error
 		DeleteShader(ctx context.Context, userID uuid.UUID, shaderID uuid.UUID) error
 		DeleteShadersBulk(ctx context.Context, userID uuid.UUID, ids []uuid.UUID) (BulkDeleteResp, error)
+		CreateShaderPlaylist(ctx context.Context, userID uuid.UUID, payload *CreatePlaylistPayload) (*Playlist, error)
+		GetPlaylist(ctx context.Context, userID uuid.UUID, id uuid.UUID) (*Playlist, error)
+		DeletePlaylist(ctx context.Context, userID uuid.UUID, id uuid.UUID) error
+		AddShaderToPlaylist(ctx context.Context, userID uuid.UUID, shaderID uuid.UUID, playlistID uuid.UUID) error
+		ListShaderPlaylists(ctx context.Context, req *ListPlaylistReq) ([]Playlist, error)
+		UpdateShaderPlaylist(ctx context.Context, userID uuid.UUID, payload *UpdatePlaylistPayload) error
 	}
 )

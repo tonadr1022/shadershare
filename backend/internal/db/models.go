@@ -89,6 +89,22 @@ type ShaderOutput struct {
 	Flags    int32
 }
 
+type ShaderPlaylist struct {
+	ID          uuid.UUID
+	Title       string
+	AccessLevel int16
+	Description pgtype.Text
+	UserID      uuid.UUID
+	Tags        []string
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+}
+
+type ShaderPlaylistJunction struct {
+	PlaylistID uuid.UUID
+	ShaderID   uuid.UUID
+}
+
 type ShaderWithUser struct {
 	ID                     uuid.UUID
 	Title                  string

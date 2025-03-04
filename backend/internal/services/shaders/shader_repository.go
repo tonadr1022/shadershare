@@ -796,3 +796,102 @@ func (r shaderRepository) DeleteShadersBulk(ctx context.Context, userID uuid.UUI
 	result.DeletedCount = tot
 	return result, nil
 }
+
+func playlistFromDB(res db.ShaderPlaylist) *domain.Playlist {
+	playlist := &domain.Playlist{
+		ID:          res.ID,
+		Title:       res.Title,
+		Description: res.Description.String,
+		AccessLevel: domain.AccessLevel(res.AccessLevel),
+		UserID:      res.UserID,
+		Tags:        res.Tags,
+		CreatedAt:   res.CreatedAt.Time,
+		UpdatedAt:   res.UpdatedAt.Time,
+	}
+	return playlist
+}
+
+func (r shaderRepository) CreateShaderPlaylist(ctx context.Context, userID uuid.UUID, payload *domain.CreatePlaylistPayload) (*domain.Playlist, error) {
+	res, err := r.queries.CreateShaderPlaylist(ctx, db.CreateShaderPlaylistParams{
+		Title:       payload.Title,
+		Description: db.ToPgTypeText(payload.Description),
+		AccessLevel: int16(payload.AccessLevel),
+		UserID:      userID,
+		Tags:        payload.Tags,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return playlistFromDB(res), nil
+}
+
+func (r shaderRepository) GetPlaylist(ctx context.Context, id uuid.UUID) (*domain.Playlist, error) {
+	res, err := r.queries.GetShaderPlaylist(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return playlistFromDB(res), nil
+}
+
+func (r shaderRepository) DeletePlaylist(ctx context.Context, userID uuid.UUID, id uuid.UUID) error {
+	return r.queries.DeleteShaderPlaylist(ctx, db.DeleteShaderPlaylistParams{ID: id, UserID: userID})
+}
+
+func (r shaderRepository) AddShaderToPlaylist(ctx context.Context, userID uuid.UUID, shaderID uuid.UUID, playlistID uuid.UUID) error {
+	return r.queries.AddShaderToPlaylist(ctx, db.AddShaderToPlaylistParams{
+		PlaylistID: playlistID,
+		ShaderID:   shaderID,
+		UserID:     userID,
+	})
+}
+
+func (r shaderRepository) ListShaderPlaylists(ctx context.Context, req *domain.ListPlaylistReq) ([]domain.Playlist, error) {
+	lim := offLimToPgType(req.Limit)
+	var err error
+	var res interface{}
+	if req.UserID != uuid.Nil {
+		res, err = r.queries.ListShaderPlaylistOfUser(ctx, db.ListShaderPlaylistOfUserParams{
+			UserID: req.UserID,
+			Off:    int32(req.Offset),
+			Lim:    lim,
+		})
+	} else {
+		res, err = r.queries.ListShaderPlaylist(ctx, db.ListShaderPlaylistParams{
+			Off: int32(req.Offset),
+			Lim: lim,
+		})
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	switch v := res.(type) {
+	case []db.ShaderPlaylist:
+		return processPlaylists(v)
+	}
+	panic("invalid playlist type")
+}
+
+func mapPlaylistFields(row interface{}) domain.Playlist {
+	switch v := row.(type) {
+	case db.ShaderPlaylist:
+		return *playlistFromDB(v)
+	default:
+		panic("invalid playlist type")
+	}
+}
+
+func processPlaylists[T any](shaders []T) ([]domain.Playlist, error) {
+	result := make([]domain.Playlist, len(shaders))
+	for i, shader := range shaders {
+		result[i] = mapPlaylistFields(shader)
+	}
+	return result, nil
+}
+
+func (r shaderRepository) UpdateShaderPlaylist(ctx context.Context, userID uuid.UUID, payload *domain.UpdatePlaylistPayload) error {
+	return r.queries.UpdateShaderPlaylist(ctx, db.UpdateShaderPlaylistParams{
+		ID:     payload.ID,
+		UserID: userID,
+	})
+}
