@@ -2,6 +2,7 @@ package shaders
 
 import (
 	"context"
+	"fmt"
 	"mime/multipart"
 	"shadershare/internal/domain"
 	"shadershare/internal/e"
@@ -190,11 +191,12 @@ func (s shaderService) CreateShaderPlaylist(ctx context.Context, userID uuid.UUI
 	return s.repo.CreateShaderPlaylist(ctx, userID, payload)
 }
 
-func (s shaderService) GetPlaylist(ctx context.Context, userID uuid.UUID, id uuid.UUID) (*domain.Playlist, error) {
-	res, err := s.repo.GetPlaylist(ctx, id)
+func (s shaderService) GetPlaylist(ctx context.Context, userID uuid.UUID, id uuid.UUID, includeShaders bool) (*domain.Playlist, error) {
+	res, err := s.repo.GetPlaylist(ctx, id, includeShaders)
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println(res.UserID, userID, res.AccessLevel)
 	if res.UserID != userID && res.AccessLevel != domain.AccessLevelPublic {
 		return nil, e.ErrUnauthorized
 	}
@@ -215,4 +217,8 @@ func (s shaderService) ListShaderPlaylists(ctx context.Context, req *domain.List
 
 func (s shaderService) UpdateShaderPlaylist(ctx context.Context, userID uuid.UUID, payload *domain.UpdatePlaylistPayload) error {
 	return s.repo.UpdateShaderPlaylist(ctx, userID, payload)
+}
+
+func (s shaderService) AddShaderToPlaylistBulk(ctx context.Context, userID uuid.UUID, playlistID uuid.UUID, ids []uuid.UUID) error {
+	return s.repo.AddShaderToPlaylistBulk(ctx, userID, playlistID, ids)
 }

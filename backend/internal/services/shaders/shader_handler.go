@@ -51,10 +51,49 @@ func RegisterHandlers(r *gin.RouterGroup, service domain.ShaderService) {
 	r.GET("/shadertoy/:id", h.getShadertoyShader)
 
 	r.POST("/playlists/shaders", middleware.Auth(), h.createShaderPlaylist)
-	r.GET("/playlists/shaders/:id", h.getPlaylist)
+	r.GET("/playlists/shaders/:id", middleware.AuthOpt(), h.getPlaylist)
 	r.DELETE("/playlists/shaders/:id", middleware.Auth(), h.deleteShaderPlaylist)
 	r.GET("/playlists/shaders", h.getShaderPlaylists)
 	r.PUT("/playlists/shaders/:id", middleware.Auth(), h.updateShaderPlaylist)
+	r.POST("/playlists/shaders/:id/batch-add", middleware.Auth(), h.addShadersToPlaylist)
+}
+
+type bulkAddShaderPayload struct {
+	ShaderIDs []uuid.UUID `json:"shader_ids" binding:"required"`
+}
+
+func (h ShaderHandler) addShadersToPlaylist(c *gin.Context) {
+	userctx, ok := middleware.CurrentUser(c)
+	if !ok {
+		util.SetInternalServiceErrorResponse(c)
+		return
+	}
+	var payload bulkAddShaderPayload
+	if ok := util.ValidateAndSetErrors(c, &payload); !ok {
+		return
+	}
+
+	playlistID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		util.SetErrorResponse(c, http.StatusBadRequest, "bad id")
+		return
+	}
+
+	fmt.Println(playlistID, "ids", payload.ShaderIDs)
+	err = h.service.AddShaderToPlaylistBulk(c, userctx.ID, playlistID, payload.ShaderIDs)
+	if err != nil {
+		util.SetErrorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+	// for _, s := range payload.ShaderIDs {
+	// 	err := h.service.AddShaderToPlaylist(c, userctx.ID, s, playlistID)
+	// 	if err != nil {
+	// 		util.SetErrorResponse(c, http.StatusBadRequest, err.Error())
+	// 		return
+	// 	}
+	// }
+	//
+	c.Status(http.StatusOK)
 }
 
 func (h ShaderHandler) updateShaderPlaylist(c *gin.Context) {
@@ -143,12 +182,19 @@ func (h ShaderHandler) deleteShaderPlaylist(c *gin.Context) {
 }
 
 func (h ShaderHandler) getPlaylist(c *gin.Context) {
-	userctx, _ := middleware.CurrentUser(c)
+	// TODO: access level
+	userID := uuid.Nil
+	userctx, ok := middleware.CurrentUser(c)
+	if ok {
+		fmt.Println("user id", userctx.ID)
+		userID = userctx.ID
+	}
 	parsedID, ok := parseIDAndSetErrors(c)
 	if !ok {
 		return
 	}
-	res, err := h.service.GetPlaylist(c, userctx.ID, parsedID)
+	includeShaders := com.StrToBool(c.DefaultQuery("shaders", "false"))
+	res, err := h.service.GetPlaylist(c, userID, parsedID, includeShaders)
 	if err != nil {
 		if err == e.ErrUnauthorized {
 			util.SetErrorResponse(c, http.StatusUnauthorized, err.Error())
@@ -167,9 +213,10 @@ func (h ShaderHandler) createShaderPlaylist(c *gin.Context) {
 		return
 	}
 	var payload domain.CreatePlaylistPayload
-	if ok := util.ValidateAndSetErrors(c, payload); !ok {
+	if ok := util.ValidateAndSetErrors(c, &payload); !ok {
 		return
 	}
+	fmt.Println("p", payload)
 	res, err := h.service.CreateShaderPlaylist(c, userctx.ID, &payload)
 	if err != nil {
 		util.SetErrorResponse(c, http.StatusBadRequest, err.Error())
@@ -519,7 +566,7 @@ func (h ShaderHandler) getShadertoyShader(c *gin.Context) {
 		util.SetInternalServiceErrorResponse(c)
 		return
 	}
-	var jsonData map[string]interface{}
+	var jsonData map[string]any
 	if err := json.Unmarshal(body, &jsonData); err != nil {
 		util.SetInternalServiceErrorResponse(c)
 		return

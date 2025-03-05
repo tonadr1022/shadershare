@@ -12,11 +12,13 @@ import { RendererProvider } from "@/context/RendererContext";
 import { ShaderData } from "@/types/shader";
 import ShaderMetadata from "@/app/(mainapp)/view/components/editor/ShaderMetadata";
 import LocalSettingsProvider from "@/context/LocalSettingsContext";
+import ShareBar from "./shader/ShareBar";
 
 type Props = {
   shaderData?: ShaderData;
   editable: boolean;
   userID?: string;
+  isAuth?: boolean;
 };
 const ShaderEditor = ({ shaderData, editable, userID }: Props) => {
   return (
@@ -31,7 +33,12 @@ const ShaderEditor = ({ shaderData, editable, userID }: Props) => {
         >
           <ShaderRenderer keepAspectRatio={true} />
           {editable ? (
-            <EditShaderMetadata initialData={shaderData} />
+            <div>
+              <div className="flex justify-end">
+                <ShareBar userID={userID} shaderData={shaderData} />
+              </div>
+              <EditShaderMetadata initialData={shaderData} />
+            </div>
           ) : (
             <ShaderMetadata userID={userID} shaderData={shaderData!} />
           )}

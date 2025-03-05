@@ -1,3 +1,2 @@
 SELECT *
-from shaders
-limit 10;
+from shader_playlist_junction;

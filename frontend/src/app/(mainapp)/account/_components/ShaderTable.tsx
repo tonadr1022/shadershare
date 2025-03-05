@@ -31,9 +31,14 @@ import {
 import { assembleParams, useDeleteShader, useSortParams } from "@/hooks/hooks";
 import { usePathname, useRouter } from "next/navigation";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { deleteShaderBulk } from "@/api/shader-api";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  addShadersToPlaylist,
+  deleteShaderBulk,
+  getPlaylists,
+} from "@/api/shader-api";
 import { toast } from "sonner";
+import { Spinner } from "@/components/ui/spinner";
 
 const SortableHeader = ({
   column,
@@ -204,8 +209,10 @@ function ActionDropdown({ shader }: { shader: ShaderMetadata }) {
 
 type Props = {
   data: ShaderMetadata[];
+  userID?: string;
 };
-const ShaderTable = ({ data }: Props) => {
+
+const ShaderTable = ({ data, userID }: Props) => {
   const [rowSelection, setRowSelection] = useState({});
   const table = useReactTable({
     data,
@@ -232,10 +239,57 @@ const ShaderTable = ({ data }: Props) => {
       toast.error("Failed to delete shaders.");
     },
   });
+  const { data: userPlaylists, isPending: playlistsPending } = useQuery({
+    queryKey: ["playlists", userID],
+    queryFn: () => (!userID ? [] : getPlaylists(userID)),
+    enabled: !!userID,
+  });
+  const addToPlaylistMut = useMutation({
+    mutationFn: addShadersToPlaylist,
+    onSuccess: (_res, vars) => {
+      toast.success(`Added ${vars.shaderIDs.length} shaders to playlist`);
+      queryClient.invalidateQueries({
+        queryKey: ["playlist", vars.playlistID],
+      });
+    },
+  });
 
   return (
     <div>
       <div className="justify-end p-2 flex gap-2">
+        <DropdownMenu>
+          <DropdownMenuTrigger className="transition-none" asChild>
+            <Button
+              size="icon"
+              variant="secondary"
+              onClick={() => console.log("add")}
+            ></Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="transition-none mr-4 ">
+            {userPlaylists ? (
+              userPlaylists.map((playlist) => (
+                <DropdownMenuItem
+                  key={playlist.id}
+                  className="cursor-pointer"
+                  onClick={() =>
+                    addToPlaylistMut.mutate({
+                      playlistID: playlist.id,
+                      shaderIDs: table
+                        .getSelectedRowModel()
+                        .rows.map((val) => val.original.id),
+                    })
+                  }
+                >
+                  {playlist.title}
+                </DropdownMenuItem>
+              ))
+            ) : playlistsPending ? (
+              <Spinner />
+            ) : (
+              <p>error.</p>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
         <Button
           variant="destructive"
           onClick={() =>

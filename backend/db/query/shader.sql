@@ -1,7 +1,7 @@
 -- name: GetShader :one
 SELECT id, title, description, user_id, 
     access_level, preview_img_url, created_at, 
-    updated_at, flags, tags
+    updated_at, flags, tags, forked_from
 FROM full_shader_view
 WHERE id = $1 LIMIT 1;
 
@@ -175,8 +175,8 @@ WHERE s.id = $1;
 -- name: GetShaderDetailed :one
 SELECT sd.id, sd.title, sd.description, sd.user_id, 
     sd.access_level, sd.preview_img_url, sd.created_at, 
-    sd.updated_at, sd.flags, sd.tags, sd.outputs,
-    p.id AS parent_id, p.title AS parent_title
+    sd.updated_at, sd.flags, sd.tags, sd.outputs, sd.forked_from,
+    p.title AS parent_title
 FROM shader_details sd 
 LEFT JOIN shaders p ON sd.forked_from = p.id 
 WHERE sd.id = $1;
@@ -184,8 +184,8 @@ WHERE sd.id = $1;
 -- name: GetShaderDetailedWithUser :one
 SELECT sd.id, sd.title, sd.description, sd.user_id, 
     sd.access_level, sd.preview_img_url, sd.created_at, 
-    sd.updated_at, sd.flags, sd.tags, sd.outputs,sd.username,
-    p.id AS parent_id, p.title AS parent_title
+    sd.updated_at, sd.flags, sd.tags, sd.outputs,sd.username,sd.forked_from,
+    p.title AS parent_title
 FROM shader_details_with_user sd
 LEFT JOIN shaders p ON sd.forked_from = p.id 
 WHERE sd.id = $1;
@@ -246,6 +246,24 @@ WHERE access_level = sqlc.arg(access_level)
 LIMIT sqlc.narg(lim)::int
 OFFSET @off::int;
 
+-- name: AddShaderToPlaylistBulk :exec
+INSERT INTO shader_playlist_junction (playlist_id, shader_id)
+SELECT @playlist_id::uuid, s.id
+FROM unnest(@shader_ids::uuid[]) AS s(id)
+WHERE EXISTS (
+    SELECT 1
+    FROM shader_playlists p_check
+    WHERE p_check.id = @playlist_id::uuid
+      AND p_check.user_id = @user_id
+)
+AND EXISTS (
+    SELECT 1
+    FROM shaders s_check
+    WHERE s_check.id = s.id
+      AND s_check.user_id = @user_id
+);
+
+
 -- name: AddShaderToPlaylist :exec 
 INSERT INTO shader_playlist_junction (playlist_id, shader_id)
 SELECT $1, $2
@@ -253,13 +271,13 @@ FROM shader_playlists p, shaders s
 WHERE p.id = $1
   AND s.id = $2
   AND p.user_id = $3
-  AND s.user_id = $3;
+  AND s.user_id = $3 ON CONFLICT DO NOTHING;
 
 -- name: GetPlaylistWithShaders :one 
-SELECT p.*,
-    COALESCE(json_agg(s.*), '[]'::json) AS shaders
+SELECT sqlc.embed(p),
+    COALESCE(json_agg(s.*), '[]')::json AS shaders
 FROM shader_playlists p
 LEFT JOIN shader_playlist_junction j 
 ON j.playlist_id = p.id
 LEFT JOIN shaders s ON s.id = j.shader_id
-WHERE p.id = sqlc.arg(id)::uuid;
+WHERE p.id = @id::uuid GROUP BY p.id LIMIT 1;

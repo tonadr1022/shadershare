@@ -19,7 +19,7 @@ FROM shader_playlists p, shaders s
 WHERE p.id = $1
   AND s.id = $2
   AND p.user_id = $3
-  AND s.user_id = $3
+  AND s.user_id = $3 ON CONFLICT DO NOTHING
 `
 
 type AddShaderToPlaylistParams struct {
@@ -30,6 +30,35 @@ type AddShaderToPlaylistParams struct {
 
 func (q *Queries) AddShaderToPlaylist(ctx context.Context, arg AddShaderToPlaylistParams) error {
 	_, err := q.db.Exec(ctx, addShaderToPlaylist, arg.PlaylistID, arg.ShaderID, arg.UserID)
+	return err
+}
+
+const addShaderToPlaylistBulk = `-- name: AddShaderToPlaylistBulk :exec
+INSERT INTO shader_playlist_junction (playlist_id, shader_id)
+SELECT $1::uuid, s.id
+FROM unnest($2::uuid[]) AS s(id)
+WHERE EXISTS (
+    SELECT 1
+    FROM shader_playlists p_check
+    WHERE p_check.id = $1::uuid
+      AND p_check.user_id = $3
+)
+AND EXISTS (
+    SELECT 1
+    FROM shaders s_check
+    WHERE s_check.id = s.id
+      AND s_check.user_id = $3
+)
+`
+
+type AddShaderToPlaylistBulkParams struct {
+	PlaylistID uuid.UUID
+	ShaderIds  []uuid.UUID
+	UserID     uuid.UUID
+}
+
+func (q *Queries) AddShaderToPlaylistBulk(ctx context.Context, arg AddShaderToPlaylistBulkParams) error {
+	_, err := q.db.Exec(ctx, addShaderToPlaylistBulk, arg.PlaylistID, arg.ShaderIds, arg.UserID)
 	return err
 }
 
@@ -220,38 +249,31 @@ func (q *Queries) DeleteShaderPlaylist(ctx context.Context, arg DeleteShaderPlay
 
 const getPlaylistWithShaders = `-- name: GetPlaylistWithShaders :one
 SELECT p.id, p.title, p.access_level, p.description, p.user_id, p.tags, p.created_at, p.updated_at,
-    COALESCE(json_agg(s.*), '[]'::json) AS shaders
+    COALESCE(json_agg(s.*), '[]')::json AS shaders
 FROM shader_playlists p
 LEFT JOIN shader_playlist_junction j 
 ON j.playlist_id = p.id
 LEFT JOIN shaders s ON s.id = j.shader_id
-WHERE p.id = $1::uuid
+WHERE p.id = $1::uuid GROUP BY p.id LIMIT 1
 `
 
 type GetPlaylistWithShadersRow struct {
-	ID          uuid.UUID
-	Title       string
-	AccessLevel int16
-	Description pgtype.Text
-	UserID      uuid.UUID
-	Tags        []string
-	CreatedAt   pgtype.Timestamptz
-	UpdatedAt   pgtype.Timestamptz
-	Shaders     interface{}
+	ShaderPlaylist ShaderPlaylist
+	Shaders        []byte
 }
 
 func (q *Queries) GetPlaylistWithShaders(ctx context.Context, id uuid.UUID) (GetPlaylistWithShadersRow, error) {
 	row := q.db.QueryRow(ctx, getPlaylistWithShaders, id)
 	var i GetPlaylistWithShadersRow
 	err := row.Scan(
-		&i.ID,
-		&i.Title,
-		&i.AccessLevel,
-		&i.Description,
-		&i.UserID,
-		&i.Tags,
-		&i.CreatedAt,
-		&i.UpdatedAt,
+		&i.ShaderPlaylist.ID,
+		&i.ShaderPlaylist.Title,
+		&i.ShaderPlaylist.AccessLevel,
+		&i.ShaderPlaylist.Description,
+		&i.ShaderPlaylist.UserID,
+		&i.ShaderPlaylist.Tags,
+		&i.ShaderPlaylist.CreatedAt,
+		&i.ShaderPlaylist.UpdatedAt,
 		&i.Shaders,
 	)
 	return i, err
@@ -260,7 +282,7 @@ func (q *Queries) GetPlaylistWithShaders(ctx context.Context, id uuid.UUID) (Get
 const getShader = `-- name: GetShader :one
 SELECT id, title, description, user_id, 
     access_level, preview_img_url, created_at, 
-    updated_at, flags, tags
+    updated_at, flags, tags, forked_from
 FROM full_shader_view
 WHERE id = $1 LIMIT 1
 `
@@ -279,6 +301,7 @@ func (q *Queries) GetShader(ctx context.Context, id uuid.UUID) (FullShaderView, 
 		&i.UpdatedAt,
 		&i.Flags,
 		&i.Tags,
+		&i.ForkedFrom,
 	)
 	return i, err
 }
@@ -286,8 +309,8 @@ func (q *Queries) GetShader(ctx context.Context, id uuid.UUID) (FullShaderView, 
 const getShaderDetailed = `-- name: GetShaderDetailed :one
 SELECT sd.id, sd.title, sd.description, sd.user_id, 
     sd.access_level, sd.preview_img_url, sd.created_at, 
-    sd.updated_at, sd.flags, sd.tags, sd.outputs,
-    p.id AS parent_id, p.title AS parent_title
+    sd.updated_at, sd.flags, sd.tags, sd.outputs, sd.forked_from,
+    p.title AS parent_title
 FROM shader_details sd 
 LEFT JOIN shaders p ON sd.forked_from = p.id 
 WHERE sd.id = $1
@@ -305,7 +328,7 @@ type GetShaderDetailedRow struct {
 	Flags         int32
 	Tags          pgtype.Text
 	Outputs       []byte
-	ParentID      pgtype.UUID
+	ForkedFrom    pgtype.UUID
 	ParentTitle   pgtype.Text
 }
 
@@ -324,7 +347,7 @@ func (q *Queries) GetShaderDetailed(ctx context.Context, id uuid.UUID) (GetShade
 		&i.Flags,
 		&i.Tags,
 		&i.Outputs,
-		&i.ParentID,
+		&i.ForkedFrom,
 		&i.ParentTitle,
 	)
 	return i, err
@@ -333,8 +356,8 @@ func (q *Queries) GetShaderDetailed(ctx context.Context, id uuid.UUID) (GetShade
 const getShaderDetailedWithUser = `-- name: GetShaderDetailedWithUser :one
 SELECT sd.id, sd.title, sd.description, sd.user_id, 
     sd.access_level, sd.preview_img_url, sd.created_at, 
-    sd.updated_at, sd.flags, sd.tags, sd.outputs,sd.username,
-    p.id AS parent_id, p.title AS parent_title
+    sd.updated_at, sd.flags, sd.tags, sd.outputs,sd.username,sd.forked_from,
+    p.title AS parent_title
 FROM shader_details_with_user sd
 LEFT JOIN shaders p ON sd.forked_from = p.id 
 WHERE sd.id = $1
@@ -353,7 +376,7 @@ type GetShaderDetailedWithUserRow struct {
 	Tags          pgtype.Text
 	Outputs       []byte
 	Username      string
-	ParentID      pgtype.UUID
+	ForkedFrom    pgtype.UUID
 	ParentTitle   pgtype.Text
 }
 
@@ -373,7 +396,7 @@ func (q *Queries) GetShaderDetailedWithUser(ctx context.Context, id uuid.UUID) (
 		&i.Tags,
 		&i.Outputs,
 		&i.Username,
-		&i.ParentID,
+		&i.ForkedFrom,
 		&i.ParentTitle,
 	)
 	return i, err

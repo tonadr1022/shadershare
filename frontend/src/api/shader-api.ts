@@ -243,3 +243,31 @@ export const updateShaderPlaylist = async (
   const res = await axiosInstance.post(`/playlists/shaders/${data.id}`, data);
   return res.data;
 };
+
+export const addShadersToPlaylist = async ({
+  playlistID,
+  shaderIDs,
+}: {
+  playlistID: string;
+  shaderIDs: string[];
+}): Promise<void> => {
+  const res = await axiosInstance.post(
+    `/playlists/shaders/${playlistID}/batch-add`,
+    {
+      shader_ids: shaderIDs,
+    },
+  );
+  return res.data;
+};
+
+export const getPlaylist = async (id: string): Promise<ShaderPlaylist> => {
+  const res = await axiosInstance.get(`/playlists/shaders/${id}`);
+  return res.data;
+};
+
+export const getPlaylists = async (
+  userID: string,
+): Promise<ShaderPlaylist[]> => {
+  const res = await axiosInstance.get(`/playlists/shaders?user_id=${userID}`);
+  return res.data;
+};

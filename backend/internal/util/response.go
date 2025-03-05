@@ -42,7 +42,7 @@ func getValidationErrors(err error) []string {
 	return validationErrors
 }
 
-func ValidateMultiPartJSONAndSetErrors(c *gin.Context, payload interface{}) bool {
+func ValidateMultiPartJSONAndSetErrors(c *gin.Context, payload any) bool {
 	jsonData := c.PostForm("json")
 	if err := json.Unmarshal([]byte(jsonData), &payload); err != nil {
 
@@ -61,7 +61,7 @@ func ValidateContentTypeAndSetError(c *gin.Context, contentType string) bool {
 	return true
 }
 
-func ValidateAndSetErrors(c *gin.Context, payload interface{}) bool {
+func ValidateAndSetErrors(c *gin.Context, payload any) bool {
 	if err := c.ShouldBindJSON(&payload); err != nil {
 		SetErrorsResponse(c, http.StatusBadRequest, getValidationErrors(err))
 		return false

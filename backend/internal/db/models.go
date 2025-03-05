@@ -20,6 +20,7 @@ type FullShaderView struct {
 	UpdatedAt     pgtype.Timestamptz
 	Flags         int32
 	Tags          pgtype.Text
+	ForkedFrom    pgtype.UUID
 }
 
 type Shader struct {

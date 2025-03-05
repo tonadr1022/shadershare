@@ -2,7 +2,13 @@
 
 import Link from "next/link";
 import { useSelectedLayoutSegment } from "next/navigation";
-import { Settings, User, GalleryHorizontal, FileInput } from "lucide-react";
+import {
+  Settings,
+  User,
+  GalleryHorizontal,
+  FileInput,
+  ListVideo,
+} from "lucide-react";
 
 import {
   Sidebar,
@@ -18,6 +24,7 @@ import { url } from "@/utils/links";
 const menuItems = [
   { href: url.account, label: "Profile", icon: User },
   { href: url.usershaders, label: "Shaders", icon: GalleryHorizontal },
+  { href: "/account/playlists", label: "Playlists", icon: ListVideo },
   { href: url.settings, label: "Settings", icon: Settings },
   {
     href: "/account/import",

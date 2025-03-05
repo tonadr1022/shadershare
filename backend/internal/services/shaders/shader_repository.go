@@ -28,7 +28,7 @@ func makeStrFromTags(tags pgtype.Text) []string {
 }
 
 // https://github.com/golang/go/issues/36616
-func mapShaderFields(row interface{}) domain.Shader {
+func mapShaderFields(row any) domain.Shader {
 	res := domain.Shader{}
 	switch r := row.(type) {
 	case db.GetShaderWithUserRow:
@@ -214,16 +214,16 @@ func mapShaderFields(row interface{}) domain.Shader {
 
 	switch r := row.(type) {
 	case db.GetShaderDetailedWithUserRow:
-		if r.ParentID.Valid {
-			res.ParentID = r.ParentID.Bytes
+		if r.ForkedFrom.Valid {
+			res.ForkedFrom = r.ForkedFrom.Bytes
 		}
 		if r.ParentTitle.Valid {
 			res.ParentTitle = r.ParentTitle.String
 		}
 
 	case db.GetShaderDetailedRow:
-		if r.ParentID.Valid {
-			res.ParentID = r.ParentID.Bytes
+		if r.ForkedFrom.Valid {
+			res.ForkedFrom = r.ForkedFrom.Bytes
 		}
 		if r.ParentTitle.Valid {
 			res.ParentTitle = r.ParentTitle.String
@@ -328,7 +328,7 @@ func (r shaderRepository) DeleteShaderInput(ctx context.Context, shaderInputID u
 func (r shaderRepository) shaderInputFromDB(dbShaderInput db.ShaderInput) domain.ShaderInput {
 	// TODO: invalid strings?
 
-	var data map[string]interface{}
+	var data map[string]any
 	if err := json.Unmarshal(dbShaderInput.Properties, &data); err != nil {
 		fmt.Println("err")
 	}
@@ -440,12 +440,12 @@ func toPGUUID(id uuid.UUID) pgtype.UUID {
 	return pgtype.UUID{Bytes: id, Valid: true}
 }
 
-func toPGInt2(v *int) pgtype.Int2 {
-	if v == nil {
-		return pgtype.Int2{Valid: false}
-	}
-	return pgtype.Int2{Valid: true, Int16: int16(*v)}
-}
+// func toPGInt2(v *int) pgtype.Int2 {
+// 	if v == nil {
+// 		return pgtype.Int2{Valid: false}
+// 	}
+// 	return pgtype.Int2{Valid: true, Int16: int16(*v)}
+// }
 
 func accessLevelToPgInt(access domain.AccessLevel) pgtype.Int2 {
 	if access == domain.AccessLevelNull {
@@ -601,30 +601,8 @@ func (r shaderRepository) UpdateShader(ctx context.Context, userID uuid.UUID, sh
 	return &shader, nil
 }
 
-func (r shaderRepository) unmarshalShaderOutput(data []byte) ([]domain.ShaderOutput, error) {
-	if len(data) == 0 {
-		return []domain.ShaderOutput{}, nil
-	}
-	var shaderOutputs []domain.ShaderOutput
-	if err := json.Unmarshal(data, &shaderOutputs); err != nil {
-		return nil, fmt.Errorf("failed to decode shader outputs: %w", err)
-	}
-	return shaderOutputs, nil
-}
-
-func (r shaderRepository) unmarshalShaderInput(data []byte) ([]domain.ShaderInput, error) {
-	if len(data) == 0 {
-		return []domain.ShaderInput{}, nil
-	}
-	var shaderInputs []domain.ShaderInput
-	if err := json.Unmarshal(data, &shaderInputs); err != nil {
-		return nil, fmt.Errorf("failed to decode shader inputs: %w", err)
-	}
-	return shaderInputs, nil
-}
-
 func (r shaderRepository) GetShader(ctx context.Context, req domain.ShaderByIdReq) (*domain.Shader, error) {
-	var row interface{}
+	var row any
 	var err error
 	if req.Detailed {
 		if req.IncludeUserData {
@@ -672,7 +650,7 @@ func getSortString(sort string, rev bool) string {
 }
 
 func (r shaderRepository) GetShaders(ctx context.Context, req domain.ShaderListReq) ([]domain.Shader, error) {
-	var dbShaders interface{}
+	var dbShaders any
 	var err error
 	var orderBy pgtype.Text
 	if req.Sort != "" {
@@ -812,6 +790,7 @@ func playlistFromDB(res db.ShaderPlaylist) *domain.Playlist {
 }
 
 func (r shaderRepository) CreateShaderPlaylist(ctx context.Context, userID uuid.UUID, payload *domain.CreatePlaylistPayload) (*domain.Playlist, error) {
+	fmt.Println(payload)
 	res, err := r.queries.CreateShaderPlaylist(ctx, db.CreateShaderPlaylistParams{
 		Title:       payload.Title,
 		Description: db.ToPgTypeText(payload.Description),
@@ -822,19 +801,40 @@ func (r shaderRepository) CreateShaderPlaylist(ctx context.Context, userID uuid.
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("new playlist ", res)
 	return playlistFromDB(res), nil
 }
 
-func (r shaderRepository) GetPlaylist(ctx context.Context, id uuid.UUID) (*domain.Playlist, error) {
-	res, err := r.queries.GetShaderPlaylist(ctx, id)
-	if err != nil {
-		return nil, err
+func (r shaderRepository) GetPlaylist(ctx context.Context, id uuid.UUID, includeShaders bool) (*domain.Playlist, error) {
+	playlist := &domain.Playlist{}
+	if includeShaders {
+		res, err := r.queries.GetShaderPlaylist(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		playlist = playlistFromDB(res)
+	} else {
+		res, err := r.queries.GetPlaylistWithShaders(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		playlist = playlistFromDB(res.ShaderPlaylist)
+		playlist.Shaders = res.Shaders
+
 	}
-	return playlistFromDB(res), nil
+	return playlist, nil
 }
 
 func (r shaderRepository) DeletePlaylist(ctx context.Context, userID uuid.UUID, id uuid.UUID) error {
 	return r.queries.DeleteShaderPlaylist(ctx, db.DeleteShaderPlaylistParams{ID: id, UserID: userID})
+}
+
+func (r shaderRepository) AddShaderToPlaylistBulk(ctx context.Context, userID uuid.UUID, playlistID uuid.UUID, ids []uuid.UUID) error {
+	return r.queries.AddShaderToPlaylistBulk(ctx, db.AddShaderToPlaylistBulkParams{
+		PlaylistID: playlistID,
+		ShaderIds:  ids,
+		UserID:     userID,
+	})
 }
 
 func (r shaderRepository) AddShaderToPlaylist(ctx context.Context, userID uuid.UUID, shaderID uuid.UUID, playlistID uuid.UUID) error {
@@ -848,7 +848,7 @@ func (r shaderRepository) AddShaderToPlaylist(ctx context.Context, userID uuid.U
 func (r shaderRepository) ListShaderPlaylists(ctx context.Context, req *domain.ListPlaylistReq) ([]domain.Playlist, error) {
 	lim := offLimToPgType(req.Limit)
 	var err error
-	var res interface{}
+	var res any
 	if req.UserID != uuid.Nil {
 		res, err = r.queries.ListShaderPlaylistOfUser(ctx, db.ListShaderPlaylistOfUserParams{
 			UserID: req.UserID,
@@ -872,7 +872,7 @@ func (r shaderRepository) ListShaderPlaylists(ctx context.Context, req *domain.L
 	panic("invalid playlist type")
 }
 
-func mapPlaylistFields(row interface{}) domain.Playlist {
+func mapPlaylistFields(row any) domain.Playlist {
 	switch v := row.(type) {
 	case db.ShaderPlaylist:
 		return *playlistFromDB(v)

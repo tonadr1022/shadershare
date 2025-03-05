@@ -254,10 +254,11 @@ export type ShaderPlaylist = {
   description: string;
   user_id: string;
   tags: string[];
-  created_at: Date;
-  updated_at: Date;
+  created_at: string;
+  updated_at: string;
   username?: string;
   access_level: AccessLevel;
+  shaders?: ShaderData[];
 };
 
 export type ShaderPlaylistCreateUpdatePayload = {

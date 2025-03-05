@@ -23,7 +23,7 @@ const ViewPage = () => {
         <p>Error loading shader</p>
       ) : (
         <ShaderEditor
-          userID={dataQuery.data.user_id}
+          userID={meQuery.data?.id}
           editable={dataQuery.data.user_id === meQuery.data?.id}
           shaderData={dataQuery.data}
         />

@@ -121,7 +121,7 @@ const ProfileShaders = () => {
             </div>
             <TabsContent value="table">
               <div className="rounded-md border">
-                <ShaderTable data={data.shaders} />
+                <ShaderTable data={data.shaders} userID={userQuery.data.id} />
               </div>
             </TabsContent>
             <TabsContent value="card">

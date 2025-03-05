@@ -23,18 +23,18 @@ type (
 		UpdatedAt     time.Time       `json:"updated_at"`
 		Username      string          `json:"username,omitempty"`
 		ShaderOutput  json.RawMessage `json:"shader_outputs,omitempty"`
-		ParentID      uuid.UUID       `json:"parent_id,omitempty"`
+		ForkedFrom    uuid.UUID       `json:"forked_from"`
 		ParentTitle   string          `json:"parent_title,omitempty"`
 	}
 
 	ShaderInput struct {
-		ID         uuid.UUID              `json:"id"`
-		ShaderID   uuid.UUID              `json:"shader_id"`
-		OutputID   uuid.UUID              `json:"output_id"`
-		Url        string                 `json:"url"`
-		Type       string                 `json:"type"`
-		Idx        int                    `json:"idx"`
-		Properties map[string]interface{} `json:"properties"`
+		ID         uuid.UUID      `json:"id"`
+		ShaderID   uuid.UUID      `json:"shader_id"`
+		OutputID   uuid.UUID      `json:"output_id"`
+		Url        string         `json:"url"`
+		Type       string         `json:"type"`
+		Idx        int            `json:"idx"`
+		Properties map[string]any `json:"properties"`
 	}
 
 	ShaderOutput struct {
@@ -48,21 +48,21 @@ type (
 	}
 
 	UpdateShaderInputPayload struct {
-		ID         uuid.UUID               `json:"id"`
-		New        bool                    `json:"new"`
-		Url        *string                 `json:"url,omitempty"`
-		Type       *string                 `json:"type,omitempty"`
-		Idx        *int                    `json:"idx,omitempty"`
-		Properties *map[string]interface{} `json:"properties,omitempty"`
+		ID         uuid.UUID       `json:"id"`
+		New        bool            `json:"new"`
+		Url        *string         `json:"url,omitempty"`
+		Type       *string         `json:"type,omitempty"`
+		Idx        *int            `json:"idx,omitempty"`
+		Properties *map[string]any `json:"properties,omitempty"`
 	}
 
 	CreateShaderInputPayload struct {
-		ShaderID   uuid.UUID               `json:"shader_id" binding:"required"`
-		OutputID   uuid.UUID               `json:"output_id,omitempty"`
-		Url        *string                 `json:"url,omitempty"`
-		Type       string                  `json:"type" binding:"required"`
-		Idx        int                     `json:"idx"`
-		Properties *map[string]interface{} `json:"properties" binding:"required"`
+		ShaderID   uuid.UUID       `json:"shader_id" binding:"required"`
+		OutputID   uuid.UUID       `json:"output_id,omitempty"`
+		Url        *string         `json:"url,omitempty"`
+		Type       string          `json:"type" binding:"required"`
+		Idx        int             `json:"idx"`
+		Properties *map[string]any `json:"properties" binding:"required"`
 	}
 
 	UpdateShaderOutputPayload struct {
@@ -159,7 +159,7 @@ type (
 		Title       string      `json:"title" binding:"required"`
 		Description string      `json:"description" binding:"required"`
 		Tags        []string    `json:"tags"`
-		AccessLevel AccessLevel `json:"access_level" binding:"required"`
+		AccessLevel AccessLevel `json:"access_level"`
 	}
 	UpdatePlaylistPayload struct {
 		ID          uuid.UUID   `json:"id" binding:"required"`
@@ -170,15 +170,16 @@ type (
 	}
 
 	Playlist struct {
-		ID          uuid.UUID   `json:"id"`
-		Title       string      `json:"title"`
-		AccessLevel AccessLevel `json:"access_level"`
-		Description string      `json:"description"`
-		UserID      uuid.UUID   `json:"user_id"`
-		Tags        []string    `json:"tags"`
-		CreatedAt   time.Time   `json:"created_at"`
-		UpdatedAt   time.Time   `json:"updated_at"`
-		Username    string      `json:"username,omitempty"`
+		ID          uuid.UUID       `json:"id"`
+		Title       string          `json:"title"`
+		AccessLevel AccessLevel     `json:"access_level"`
+		Description string          `json:"description"`
+		UserID      uuid.UUID       `json:"user_id"`
+		Tags        []string        `json:"tags"`
+		CreatedAt   time.Time       `json:"created_at"`
+		UpdatedAt   time.Time       `json:"updated_at"`
+		Username    string          `json:"username,omitempty"`
+		Shaders     json.RawMessage `json:"shaders,omitempty"`
 	}
 
 	ShaderRepository interface {
@@ -195,9 +196,10 @@ type (
 		DeleteShader(ctx context.Context, userID uuid.UUID, shaderID uuid.UUID) (*Shader, error)
 		DeleteShadersBulk(ctx context.Context, userID uuid.UUID, ids []uuid.UUID) (BulkDeleteResp, error)
 		CreateShaderPlaylist(ctx context.Context, userID uuid.UUID, payload *CreatePlaylistPayload) (*Playlist, error)
-		GetPlaylist(ctx context.Context, id uuid.UUID) (*Playlist, error)
+		GetPlaylist(ctx context.Context, id uuid.UUID, includeShaders bool) (*Playlist, error)
 		DeletePlaylist(ctx context.Context, userID uuid.UUID, id uuid.UUID) error
 		AddShaderToPlaylist(ctx context.Context, userID uuid.UUID, shaderID uuid.UUID, playlistID uuid.UUID) error
+		AddShaderToPlaylistBulk(ctx context.Context, userID uuid.UUID, playlistID uuid.UUID, ids []uuid.UUID) error
 		ListShaderPlaylists(ctx context.Context, req *ListPlaylistReq) ([]Playlist, error)
 		UpdateShaderPlaylist(ctx context.Context, userID uuid.UUID, payload *UpdatePlaylistPayload) error
 	}
@@ -215,9 +217,10 @@ type (
 		DeleteShader(ctx context.Context, userID uuid.UUID, shaderID uuid.UUID) error
 		DeleteShadersBulk(ctx context.Context, userID uuid.UUID, ids []uuid.UUID) (BulkDeleteResp, error)
 		CreateShaderPlaylist(ctx context.Context, userID uuid.UUID, payload *CreatePlaylistPayload) (*Playlist, error)
-		GetPlaylist(ctx context.Context, userID uuid.UUID, id uuid.UUID) (*Playlist, error)
+		GetPlaylist(ctx context.Context, userID uuid.UUID, id uuid.UUID, includeShaders bool) (*Playlist, error)
 		DeletePlaylist(ctx context.Context, userID uuid.UUID, id uuid.UUID) error
 		AddShaderToPlaylist(ctx context.Context, userID uuid.UUID, shaderID uuid.UUID, playlistID uuid.UUID) error
+		AddShaderToPlaylistBulk(ctx context.Context, userID uuid.UUID, playlistID uuid.UUID, ids []uuid.UUID) error
 		ListShaderPlaylists(ctx context.Context, req *ListPlaylistReq) ([]Playlist, error)
 		UpdateShaderPlaylist(ctx context.Context, userID uuid.UUID, payload *UpdatePlaylistPayload) error
 	}
