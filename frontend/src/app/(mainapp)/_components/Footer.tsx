@@ -5,7 +5,7 @@ import { FaGithub } from "react-icons/fa";
 export default function Footer() {
   return (
     <footer className={cn("bg-primary-foreground py-6 text-center mt-12")}>
-      <div className="container mx-auto flex flex-col md:flex-row justify-between items-center space-y-6 md:space-y-0 px-2">
+      <div className="container mx-auto flex flex-col md:flex-row justify-between items-center space-y-6 md:space-y-0 px-12">
         <div className="flex space-x-4">
           <a
             href="https://github.com/tonadr1022/shadershare"
@@ -30,9 +30,12 @@ export default function Footer() {
           (btw)
         </p>
 
-        <div>
+        <div className="flex gap-4">
           <Link href="/terms" className="hover:text-gray-400">
             Terms & Privacy
+          </Link>
+          <Link href="/about" className="hover:text-gray-400">
+            About
           </Link>
         </div>
       </div>

@@ -109,7 +109,20 @@ export default function Navbar() {
                 <AvatarFallback></AvatarFallback>
               </Avatar>
             ) : (
-              <Link href={url.login}>Login</Link>
+              <div className="flex gap-2">
+                <Link
+                  href="/about"
+                  className="group flex w-full items-center rounded-md border border-transparent px-2 py-1 "
+                >
+                  About
+                </Link>
+                <Link
+                  href={url.login}
+                  className="group flex w-full items-center rounded-md border border-transparent px-2 py-1 "
+                >
+                  Login
+                </Link>
+              </div>
             )}
           </div>
         </div>

@@ -29,7 +29,7 @@ const ShaderMetadata = ({ shaderData, userID }: Props) => {
                     className="font-semibold tracking-tight m-0 p-0 text-xs h-fit"
                     key={i}
                   >
-                    <Link href={`/browse?query=tag=${tag}`}>{tag}</Link>
+                    <Link href={`/browse/shaders?query=tag=${tag}`}>{tag}</Link>
                   </Button>
                 ))}
               </p>
