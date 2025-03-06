@@ -2,9 +2,8 @@
 
 [ShaderShare](https://shader-share.com) is a platform for sharing and discovering shaders, built with [Next.js](https://nextjs.org/), [TypeScript](https://www.typescriptlang.org/), and [Go](https://go.dev). Multi-pass shaders can be composed and edited in real-time, browsed by category, and shared with a unique URL. I built this app to replicate much of [ShaderToy's](https://www.shadertoy.com/) functionality with the goal of improving performance while adding additional features. Vim-bindings in the editor was the initial motivation, which quickly led to a rapid attempt to shake off my web-dev rust after strictly graphics programming in C++ for 8 months.
 
-Here's the first shader on the site!
-
-<iframe title="Shadershare Player" allowfullscreen="" allow="clipboard-write; web-share" width="640" height="360" style="border: none" src="https://www.shader-share.com/embed/shader/d16b208f-5e47-4855-987a-fed51782c86a"></iframe>
+[Here's](https://www.shader-share.com/view/d16b208f-5e47-4855-987a-fed51782c86a) the first shader on the site!
+![first shader](./screenshots/nyan.png)
 
 ## Features
 
