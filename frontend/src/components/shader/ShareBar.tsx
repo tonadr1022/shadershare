@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from "react";
-import { GitFork } from "lucide-react";
+import { Code, GitFork, ListPlus } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,6 +21,8 @@ import { getPreviewImgFile2 } from "@/app/(mainapp)/view/components/renderer/Ren
 import { toast } from "sonner";
 import { Spinner } from "../ui/spinner";
 import NewPlaylistDialog from "./NewPlaylistDialog";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import EmbedShaderText from "@/app/(mainapp)/view/components/renderer/EmbedShaderText";
 type Props = {
   shaderData?: ShaderDataWithUser;
   userID?: string;
@@ -77,6 +79,19 @@ const ShareBar = ({ userID, shaderData }: Props) => {
 
   return (
     <div className="flex gap-2">
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button size="icon" variant="secondary">
+            <Code />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="flex flex-col gap-4">
+          <h6>Embed Shader</h6>
+          <EmbedShaderText
+            link={`https://www.shader-share.com/embed/shader/${shaderData?.id}`}
+          />
+        </PopoverContent>
+      </Popover>
       {userID ? (
         <Button size="icon" variant="secondary" onClick={handleFork}>
           <GitFork />
@@ -86,7 +101,9 @@ const ShareBar = ({ userID, shaderData }: Props) => {
       )}
       <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
         <DropdownMenuTrigger className="transition-none" asChild>
-          <Button variant="secondary">Add to Playlist</Button>
+          <Button size="icon" variant="secondary">
+            <ListPlus />
+          </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="transition-none mr-4 ">
           {userPlaylists ? (
