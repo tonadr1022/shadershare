@@ -5,5 +5,5 @@ export const url = {
   usershaders: "/account/shaders",
   account: "/account",
   new: "/new",
-  browse: "/browse",
+  browseShaders: "/browse/shaders",
 };

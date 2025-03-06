@@ -107,6 +107,38 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 	return i, err
 }
 
+const getUserWithDetails = `-- name: GetUserWithDetails :one
+SELECT 
+    u.id, u.username, u.email, u.avatar_url, u.created_at, u.updated_at,
+    COUNT(s.*) AS num_shaders,
+    COUNT(p.*) AS num_playlists
+FROM users u
+LEFT JOIN shaders s on u.id = s.user_id 
+LEFT JOIN shader_playlist_junction p on p.user_id = u.id
+`
+
+type GetUserWithDetailsRow struct {
+	User         User
+	NumShaders   int64
+	NumPlaylists int64
+}
+
+func (q *Queries) GetUserWithDetails(ctx context.Context) (GetUserWithDetailsRow, error) {
+	row := q.db.QueryRow(ctx, getUserWithDetails)
+	var i GetUserWithDetailsRow
+	err := row.Scan(
+		&i.User.ID,
+		&i.User.Username,
+		&i.User.Email,
+		&i.User.AvatarUrl,
+		&i.User.CreatedAt,
+		&i.User.UpdatedAt,
+		&i.NumShaders,
+		&i.NumPlaylists,
+	)
+	return i, err
+}
+
 const getUsernames = `-- name: GetUsernames :many
 SELECT username FROM users
 WHERE id = ANY($1)

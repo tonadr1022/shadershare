@@ -18,15 +18,19 @@ const ShaderPreviewCards = ({ data, autoPlay, show }: Props) => {
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 justify-center gap-4">
       {data
-        ? data.map((shader) => (
-            <ShaderPreviewCard
-              autoPlay={autoPlay}
-              show={show}
-              key={shader.id}
-              onClick={() => router.push(`/view/${shader.id}`)}
-              shader={shader}
-            />
-          ))
+        ? data.map((shader, i) =>
+            !shader ? (
+              <ShaderPreviewCardSkeleton key={i} />
+            ) : (
+              <ShaderPreviewCard
+                autoPlay={autoPlay}
+                show={show}
+                key={shader.id}
+                onClick={() => router.push(`/view/${shader.id}`)}
+                shader={shader}
+              />
+            ),
+          )
         : [...Array(12)].map((_n, i) => <ShaderPreviewCardSkeleton key={i} />)}
     </div>
   );

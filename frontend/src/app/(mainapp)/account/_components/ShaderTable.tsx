@@ -89,64 +89,64 @@ const SortableHeader = ({
   );
 };
 
-const columns: ColumnDef<ShaderMetadata>[] = [
-  {
-    id: "select",
-    header: ({ table }) => (
-      <Checkbox
-        checked={
-          table.getIsAllPageRowsSelected() ||
-          (table.getIsSomePageRowsSelected() && "indeterminate")
-        }
-        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-        aria-label="Select all"
-      />
-    ),
-    cell: ({ row }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={(value) => row.toggleSelected(!!value)}
-        aria-label="Select row"
-      />
-    ),
-    enableSorting: false,
-    enableHiding: false,
-  },
-  {
-    accessorKey: "preview_img_url",
-    header: "",
-    cell: ({ row }) => {
-      const previewImgUrl = row.getValue("preview_img_url") as string;
-      if (previewImgUrl) {
-        return (
-          <div className="w-24">
-            <Link href={`/view/${row.original.id}`}>
-              <Image
-                width={320}
-                height={180}
-                alt="preview"
-                src={previewImgUrl}
-              />
-            </Link>
-          </div>
-        );
+export const selectColumnDef: ColumnDef<ShaderMetadata> = {
+  id: "select",
+  header: ({ table }) => (
+    <Checkbox
+      checked={
+        table.getIsAllPageRowsSelected() ||
+        (table.getIsSomePageRowsSelected() && "indeterminate")
       }
-    },
-    enableSorting: false,
-  },
-  {
-    accessorKey: "title",
-    header: ({ column }) => (
-      <SortableHeader id={"title"} column={column} name="Title" />
-    ),
-    cell: ({ row }) => {
+      onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+      aria-label="Select all"
+    />
+  ),
+  cell: ({ row }) => (
+    <Checkbox
+      checked={row.getIsSelected()}
+      onCheckedChange={(value) => row.toggleSelected(!!value)}
+      aria-label="Select row"
+    />
+  ),
+  enableSorting: false,
+  enableHiding: false,
+};
+export const previewImgColumnDef: ColumnDef<ShaderMetadata> = {
+  accessorKey: "preview_img_url",
+  header: "",
+  cell: ({ row }) => {
+    const previewImgUrl = row.getValue("preview_img_url") as string;
+    if (previewImgUrl) {
       return (
-        <Button asChild variant="link">
-          <Link href={`/view/${row.original.id}`}>{row.getValue("title")}</Link>
-        </Button>
+        <div className="w-24">
+          <Link href={`/view/${row.original.id}`}>
+            <Image width={320} height={180} alt="preview" src={previewImgUrl} />
+          </Link>
+        </div>
       );
-    },
+    }
   },
+  enableSorting: false,
+};
+
+export const titleColumnDef: ColumnDef<ShaderMetadata> = {
+  accessorKey: "title",
+  header: ({ column }) => (
+    <SortableHeader id={"title"} column={column} name="Title" />
+  ),
+  cell: ({ row }) => {
+    return (
+      <Button asChild variant="link">
+        <Link href={`/view/${row.original.id}`}>{row.getValue("title")}</Link>
+      </Button>
+    );
+  },
+};
+
+const columns: ColumnDef<ShaderMetadata>[] = [
+  selectColumnDef,
+  previewImgColumnDef,
+  titleColumnDef,
   {
     accessorKey: "created_at",
     header: ({ column }) => (
@@ -256,14 +256,16 @@ const ShaderTable = ({ data, userID }: Props) => {
 
   return (
     <div>
-      <div className="justify-end p-2 flex gap-2">
+      <div className="font-semibold items-center justify-end p-2 flex gap-2">
+        <p>{table.getSelectedRowModel().rows.length} selected</p>
         <DropdownMenu>
           <DropdownMenuTrigger className="transition-none" asChild>
             <Button
-              size="icon"
               variant="secondary"
-              onClick={() => console.log("add")}
-            ></Button>
+              disabled={table.getSelectedRowModel().rows.length === 0}
+            >
+              Add to playlist
+            </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="transition-none mr-4 ">
             {userPlaylists ? (
@@ -299,7 +301,7 @@ const ShaderTable = ({ data, userID }: Props) => {
           }
           disabled={table.getSelectedRowModel().rows.length === 0}
         >
-          Delete {table.getSelectedRowModel().rows.length} Shaders
+          Delete Shaders
         </Button>
       </div>
       <Table>

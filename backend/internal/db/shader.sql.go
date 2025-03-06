@@ -13,8 +13,8 @@ import (
 )
 
 const addShaderToPlaylist = `-- name: AddShaderToPlaylist :exec
-INSERT INTO shader_playlist_junction (playlist_id, shader_id)
-SELECT $1, $2
+INSERT INTO shader_playlist_junction (playlist_id, shader_id,user_id)
+SELECT $1, $2, $3
 FROM shader_playlists p, shaders s
 WHERE p.id = $1
   AND s.id = $2
@@ -34,31 +34,31 @@ func (q *Queries) AddShaderToPlaylist(ctx context.Context, arg AddShaderToPlayli
 }
 
 const addShaderToPlaylistBulk = `-- name: AddShaderToPlaylistBulk :exec
-INSERT INTO shader_playlist_junction (playlist_id, shader_id)
-SELECT $1::uuid, s.id
-FROM unnest($2::uuid[]) AS s(id)
+INSERT INTO shader_playlist_junction (playlist_id, shader_id, user_id)
+SELECT $1::uuid, s.id, $2::uuid
+FROM unnest($3::uuid[]) AS s(id)
 WHERE EXISTS (
     SELECT 1
     FROM shader_playlists p_check
     WHERE p_check.id = $1::uuid
-      AND p_check.user_id = $3
+      AND p_check.user_id = $2
 )
 AND EXISTS (
     SELECT 1
     FROM shaders s_check
     WHERE s_check.id = s.id
-      AND s_check.user_id = $3
+      AND s_check.user_id = $2
 )
 `
 
 type AddShaderToPlaylistBulkParams struct {
 	PlaylistID uuid.UUID
-	ShaderIds  []uuid.UUID
 	UserID     uuid.UUID
+	ShaderIds  []uuid.UUID
 }
 
 func (q *Queries) AddShaderToPlaylistBulk(ctx context.Context, arg AddShaderToPlaylistBulkParams) error {
-	_, err := q.db.Exec(ctx, addShaderToPlaylistBulk, arg.PlaylistID, arg.ShaderIds, arg.UserID)
+	_, err := q.db.Exec(ctx, addShaderToPlaylistBulk, arg.PlaylistID, arg.UserID, arg.ShaderIds)
 	return err
 }
 
@@ -107,7 +107,7 @@ type CreateShaderParams struct {
 	AccessLevel   int16
 	Flags         int32
 	Tags          pgtype.Text
-	ForkedFrom    uuid.UUID
+	ForkedFrom    pgtype.UUID
 }
 
 type CreateShaderRow struct {
@@ -247,6 +247,22 @@ func (q *Queries) DeleteShaderPlaylist(ctx context.Context, arg DeleteShaderPlay
 	return err
 }
 
+const deleteShadersFromPlaylist = `-- name: DeleteShadersFromPlaylist :exec
+DELETE FROM shader_playlist_junction
+WHERE shader_id = ANY($1)
+AND playlist_id = $2::uuid
+`
+
+type DeleteShadersFromPlaylistParams struct {
+	ShaderIds  []uuid.UUID
+	PlaylistID uuid.UUID
+}
+
+func (q *Queries) DeleteShadersFromPlaylist(ctx context.Context, arg DeleteShadersFromPlaylistParams) error {
+	_, err := q.db.Exec(ctx, deleteShadersFromPlaylist, arg.ShaderIds, arg.PlaylistID)
+	return err
+}
+
 const getPlaylistWithShaders = `-- name: GetPlaylistWithShaders :one
 SELECT p.id, p.title, p.access_level, p.description, p.user_id, p.tags, p.created_at, p.updated_at,
     COALESCE(json_agg(s.*), '[]')::json AS shaders
@@ -275,6 +291,44 @@ func (q *Queries) GetPlaylistWithShaders(ctx context.Context, id uuid.UUID) (Get
 		&i.ShaderPlaylist.CreatedAt,
 		&i.ShaderPlaylist.UpdatedAt,
 		&i.Shaders,
+	)
+	return i, err
+}
+
+const getPlaylistWithShadersWithUser = `-- name: GetPlaylistWithShadersWithUser :one
+SELECT p.id, p.title, p.access_level, p.description, p.user_id, p.tags, p.created_at, p.updated_at, u.username,
+    COALESCE(json_agg(s.*), '[]')::json AS shaders,
+    COUNT(s.*) AS num_shaders
+FROM shader_playlists p
+LEFT JOIN users u ON u.id = p.user_id
+LEFT JOIN shader_playlist_junction j 
+ON j.playlist_id = p.id
+LEFT JOIN shaders s ON s.id = j.shader_id
+WHERE p.id = $1::uuid GROUP BY p.id, u.username LIMIT 1
+`
+
+type GetPlaylistWithShadersWithUserRow struct {
+	ShaderPlaylist ShaderPlaylist
+	Username       pgtype.Text
+	Shaders        []byte
+	NumShaders     int64
+}
+
+func (q *Queries) GetPlaylistWithShadersWithUser(ctx context.Context, id uuid.UUID) (GetPlaylistWithShadersWithUserRow, error) {
+	row := q.db.QueryRow(ctx, getPlaylistWithShadersWithUser, id)
+	var i GetPlaylistWithShadersWithUserRow
+	err := row.Scan(
+		&i.ShaderPlaylist.ID,
+		&i.ShaderPlaylist.Title,
+		&i.ShaderPlaylist.AccessLevel,
+		&i.ShaderPlaylist.Description,
+		&i.ShaderPlaylist.UserID,
+		&i.ShaderPlaylist.Tags,
+		&i.ShaderPlaylist.CreatedAt,
+		&i.ShaderPlaylist.UpdatedAt,
+		&i.Username,
+		&i.Shaders,
+		&i.NumShaders,
 	)
 	return i, err
 }
@@ -419,6 +473,67 @@ func (q *Queries) GetShaderPlaylist(ctx context.Context, id uuid.UUID) (ShaderPl
 		&i.Tags,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getShaderPlaylistWithUser = `-- name: GetShaderPlaylistWithUser :one
+SELECT s.id, s.title, s.access_level, s.description, s.user_id, s.tags, s.created_at, s.updated_at,u.username FROM shader_playlists s 
+LEFT JOIN users u ON s.user_id = u.id
+WHERE id = $1::uuid
+`
+
+type GetShaderPlaylistWithUserRow struct {
+	ShaderPlaylist ShaderPlaylist
+	Username       pgtype.Text
+}
+
+func (q *Queries) GetShaderPlaylistWithUser(ctx context.Context, id uuid.UUID) (GetShaderPlaylistWithUserRow, error) {
+	row := q.db.QueryRow(ctx, getShaderPlaylistWithUser, id)
+	var i GetShaderPlaylistWithUserRow
+	err := row.Scan(
+		&i.ShaderPlaylist.ID,
+		&i.ShaderPlaylist.Title,
+		&i.ShaderPlaylist.AccessLevel,
+		&i.ShaderPlaylist.Description,
+		&i.ShaderPlaylist.UserID,
+		&i.ShaderPlaylist.Tags,
+		&i.ShaderPlaylist.CreatedAt,
+		&i.ShaderPlaylist.UpdatedAt,
+		&i.Username,
+	)
+	return i, err
+}
+
+const getShaderPlaylistWithUserAndCount = `-- name: GetShaderPlaylistWithUserAndCount :one
+SELECT p.id, p.title, p.access_level, p.description, p.user_id, p.tags, p.created_at, p.updated_at,u.username, COUNT(j.*) AS num_shaders
+FROM shader_playlists p
+LEFT JOIN users u ON p.user_id = u.id
+LEFT JOIN shader_playlist_junction j 
+ON j.playlist_id = p.id
+WHERE p.id = $1::uuid  GROUP BY p.id, u.username LIMIT 1
+`
+
+type GetShaderPlaylistWithUserAndCountRow struct {
+	ShaderPlaylist ShaderPlaylist
+	Username       pgtype.Text
+	NumShaders     int64
+}
+
+func (q *Queries) GetShaderPlaylistWithUserAndCount(ctx context.Context, id uuid.UUID) (GetShaderPlaylistWithUserAndCountRow, error) {
+	row := q.db.QueryRow(ctx, getShaderPlaylistWithUserAndCount, id)
+	var i GetShaderPlaylistWithUserAndCountRow
+	err := row.Scan(
+		&i.ShaderPlaylist.ID,
+		&i.ShaderPlaylist.Title,
+		&i.ShaderPlaylist.AccessLevel,
+		&i.ShaderPlaylist.Description,
+		&i.ShaderPlaylist.UserID,
+		&i.ShaderPlaylist.Tags,
+		&i.ShaderPlaylist.CreatedAt,
+		&i.ShaderPlaylist.UpdatedAt,
+		&i.Username,
+		&i.NumShaders,
 	)
 	return i, err
 }
@@ -595,6 +710,63 @@ func (q *Queries) ListShaderPlaylistOfUser(ctx context.Context, arg ListShaderPl
 	return items, nil
 }
 
+const listShaderPlaylistOfUserWithCount = `-- name: ListShaderPlaylistOfUserWithCount :many
+SELECT p.id, p.title, p.access_level, p.description, p.user_id, p.tags, p.created_at, p.updated_at,COUNT(j.*) AS num_shaders FROM shader_playlists p
+LEFT JOIN shader_playlist_junction j ON j.playlist_id = p.id
+WHERE p.user_id = $1 AND 
+      ($2::int2 IS NULL OR p.access_level = $2)
+GROUP BY p.id
+LIMIT $4::int
+OFFSET $3::int
+`
+
+type ListShaderPlaylistOfUserWithCountParams struct {
+	UserID      uuid.UUID
+	AccessLevel pgtype.Int2
+	Off         int32
+	Lim         pgtype.Int4
+}
+
+type ListShaderPlaylistOfUserWithCountRow struct {
+	ShaderPlaylist ShaderPlaylist
+	NumShaders     int64
+}
+
+func (q *Queries) ListShaderPlaylistOfUserWithCount(ctx context.Context, arg ListShaderPlaylistOfUserWithCountParams) ([]ListShaderPlaylistOfUserWithCountRow, error) {
+	rows, err := q.db.Query(ctx, listShaderPlaylistOfUserWithCount,
+		arg.UserID,
+		arg.AccessLevel,
+		arg.Off,
+		arg.Lim,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListShaderPlaylistOfUserWithCountRow
+	for rows.Next() {
+		var i ListShaderPlaylistOfUserWithCountRow
+		if err := rows.Scan(
+			&i.ShaderPlaylist.ID,
+			&i.ShaderPlaylist.Title,
+			&i.ShaderPlaylist.AccessLevel,
+			&i.ShaderPlaylist.Description,
+			&i.ShaderPlaylist.UserID,
+			&i.ShaderPlaylist.Tags,
+			&i.ShaderPlaylist.CreatedAt,
+			&i.ShaderPlaylist.UpdatedAt,
+			&i.NumShaders,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listShaders4 = `-- name: ListShaders4 :many
 
 SELECT id, title, description, user_id, 
@@ -603,7 +775,7 @@ SELECT id, title, description, user_id,
 FROM shaders
 WHERE 
   (user_id = $1 OR $1 IS NULL) AND
-  (access_level = $2 OR $2 IS NULL) AND 
+  ($2::int2 IS NULL OR access_level = $2) AND 
   (
     $3::text IS NULL OR $3::text = '' OR
     (
@@ -698,7 +870,7 @@ SELECT sd.id, sd.title, sd.description, sd.user_id,
 FROM shader_details sd
 WHERE 
   (user_id = $1 OR $1 IS NULL) AND
-  (access_level = $2 OR $2 IS NULL) AND 
+  ($2::int2 IS NULL OR access_level = $2) AND 
   (
     $3::text IS NULL OR $3::text = '' OR
     (
@@ -791,7 +963,7 @@ SELECT sd.id, sd.title, sd.description, sd.user_id,
 FROM shader_details_with_user sd
 JOIN users u ON sd.user_id = u.id
 WHERE 
-  (access_level = $1 OR $1 IS NULL) AND 
+  ($1::int2 IS NULL OR access_level = $1) AND 
   (
     $2::text IS NULL OR $2::text = '' OR
     (
@@ -883,7 +1055,7 @@ SELECT s.id, s.title, s.description, s.user_id,
     s.updated_at, s.flags, s.tags, s.username
 FROM shader_with_user s
 WHERE 
-  (s.access_level = $1 OR $1 IS NULL) AND
+  ($1::int2 IS NULL OR access_level = $1) AND 
   (
     $2::text IS NULL OR $2::text = '' OR
     (

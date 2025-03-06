@@ -6,7 +6,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { AccessLevel, ShaderPlaylist } from "@/types/shader";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
 import React, { useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -37,16 +36,16 @@ const formSchema = z.object({
     .max(50, { message: "Title must be at most 50 characters" }),
   description: z
     .string()
-    .max(1000, { message: "Description must be at most 500 characters" })
-    .optional(),
+    .max(1000, { message: "Description must be at most 500 characters" }),
   tags: z.string(),
   access_level: z.string(),
 });
 
 type Props = {
   initialData: ShaderPlaylist;
+  onSuccess?: () => void;
 };
-const EditPlaylist = ({ initialData }: Props) => {
+const EditPlaylist = ({ initialData, onSuccess }: Props) => {
   let accessLevel = AccessLevel.PRIVATE;
   if (initialData) {
     accessLevel = initialData.access_level;
@@ -61,13 +60,13 @@ const EditPlaylist = ({ initialData }: Props) => {
     },
   });
   const queryClient = useQueryClient();
-  const router = useRouter();
   const createMut = useMutation({
     mutationFn: createShaderPlaylist,
     onError: toastAxiosErrors,
     onSuccess: (playlist) => {
       queryClient.invalidateQueries({ queryKey: ["shaders", playlist.id] });
-      router.push(`/playlist/view/${playlist.id}`);
+      queryClient.invalidateQueries({ queryKey: ["playlists"] });
+      if (onSuccess) onSuccess();
     },
   });
 
@@ -120,28 +119,29 @@ const EditPlaylist = ({ initialData }: Props) => {
                   placeholder="Description of your playlist."
                   rows={6}
                   maxLength={1000}
+                  minLength={3}
                 />
               </FormControl>
             </FormItem>
           )}
         />
-        <FormField
-          control={form.control}
-          name="tags"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Tags</FormLabel>
-              <FormControl>
-                <Input
-                  {...field}
-                  placeholder="Tags for search."
-                  className="w-96"
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        {/* <FormField */}
+        {/*   control={form.control} */}
+        {/*   name="tags" */}
+        {/*   render={({ field }) => ( */}
+        {/*     <FormItem> */}
+        {/*       <FormLabel>Tags</FormLabel> */}
+        {/*       <FormControl> */}
+        {/*         <Input */}
+        {/*           {...field} */}
+        {/*           placeholder="Tags for search." */}
+        {/*           className="w-96" */}
+        {/*         /> */}
+        {/*       </FormControl> */}
+        {/*       <FormMessage /> */}
+        {/*     </FormItem> */}
+        {/*   )} */}
+        {/* /> */}
         <FormField
           control={form.control}
           name="access_level"

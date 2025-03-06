@@ -258,6 +258,7 @@ export type ShaderPlaylist = {
   updated_at: string;
   username?: string;
   access_level: AccessLevel;
+  num_shaders?: number | null;
   shaders?: ShaderData[];
 };
 
@@ -268,4 +269,15 @@ export type ShaderPlaylistCreateUpdatePayload = {
   user_id?: string;
   tags?: string[];
   access_level?: AccessLevel;
+};
+export const initialPlaylistData: ShaderPlaylist = {
+  id: "",
+  title: "",
+  description: "",
+  user_id: "",
+  tags: [],
+  created_at: "",
+  updated_at: "",
+  username: "",
+  access_level: AccessLevel.PRIVATE,
 };

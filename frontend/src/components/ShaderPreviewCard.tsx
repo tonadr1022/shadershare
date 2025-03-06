@@ -36,7 +36,7 @@ const ShaderPreviewCard = ({
   autoPlay?: boolean;
   onClick: MouseEventHandler<HTMLDivElement>;
   show?: { usernames: boolean };
-  shader?: ShaderDataWithUser | ShaderWithUser;
+  shader?: ShaderDataWithUser | ShaderWithUser | null;
 }) => {
   return !shader ? (
     <ShaderPreviewCardSkeleton />

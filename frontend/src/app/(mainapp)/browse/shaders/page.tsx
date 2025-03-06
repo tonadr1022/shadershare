@@ -9,7 +9,7 @@ const BrowsePage = () => {
     <Suspense>
       <div className="p-4">
         <LocalSettingsProvider>
-          <ShaderBrowser urlPath="/browse" show={{ usernames: true }} />
+          <ShaderBrowser urlPath="/browse/shaders" show={{ usernames: true }} />
         </LocalSettingsProvider>
       </div>
     </Suspense>

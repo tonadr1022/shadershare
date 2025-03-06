@@ -35,8 +35,8 @@ func generateTokenPair(userID uuid.UUID, email string) (auth.JWTPair, error) {
 	return auth.JWTPair{AccessToken: access_token, RefreshToken: refresh_token}, err
 }
 
-func (s service) GetUserByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
-	return s.repo.GetUserByID(ctx, id)
+func (s service) GetUserByID(ctx context.Context, id uuid.UUID, includeDetails bool) (*domain.User, error) {
+	return s.repo.GetUserByID(ctx, id, includeDetails)
 }
 
 func (s service) CompleteOAuthLogin(ctx context.Context, payload *domain.OAuthPayload) (auth.JWTPair, error) {

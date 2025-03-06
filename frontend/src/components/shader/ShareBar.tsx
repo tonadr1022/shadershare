@@ -1,5 +1,5 @@
-import React, { useCallback } from "react";
-import { GitFork, Plus } from "lucide-react";
+import React, { useCallback, useState } from "react";
+import { GitFork } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,11 +15,12 @@ import {
 } from "@/types/shader";
 
 import { Button } from "@/components/ui/button";
-import { useQuery } from "@tanstack/react-query";
-import { getPlaylists } from "@/api/shader-api";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { addShadersToPlaylist, getPlaylists } from "@/api/shader-api";
 import { getPreviewImgFile2 } from "@/app/(mainapp)/view/components/renderer/Renderer";
 import { toast } from "sonner";
 import { Spinner } from "../ui/spinner";
+import NewPlaylistDialog from "./NewPlaylistDialog";
 type Props = {
   shaderData?: ShaderDataWithUser;
   userID?: string;
@@ -61,6 +62,19 @@ const ShareBar = ({ userID, shaderData }: Props) => {
     }
     createShaderMut.mutate({ shader, previewFile });
   }, [createShaderMut, renderer, shaderData, userID]);
+  const [addPlaylistDialogOpen, setAddPlaylistDialogOpen] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const queryClient = useQueryClient();
+  const addToPlaylistMut = useMutation({
+    mutationFn: addShadersToPlaylist,
+    onSuccess: (_res, vars) => {
+      toast.success(`Added ${shaderData?.title} to playlist`);
+      queryClient.invalidateQueries({
+        queryKey: ["playlist", vars.playlistID],
+      });
+    },
+  });
+
   return (
     <div className="flex gap-2">
       {userID ? (
@@ -70,16 +84,25 @@ const ShareBar = ({ userID, shaderData }: Props) => {
       ) : (
         <></>
       )}
-      <DropdownMenu>
+      <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
         <DropdownMenuTrigger className="transition-none" asChild>
-          <Button size="icon" variant="secondary" onClick={handleFork}>
-            <Plus />
-          </Button>
+          <Button variant="secondary">Add to Playlist</Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="transition-none mr-4 ">
           {userPlaylists ? (
             userPlaylists.map((playlist) => (
-              <DropdownMenuItem key={playlist.id} className="cursor-pointer">
+              <DropdownMenuItem
+                onClick={() => {
+                  if (shaderData?.id) {
+                    addToPlaylistMut.mutate({
+                      playlistID: playlist.id,
+                      shaderIDs: [shaderData.id],
+                    });
+                  }
+                }}
+                key={playlist.id}
+                className="cursor-pointer"
+              >
                 {playlist.title}
               </DropdownMenuItem>
             ))
@@ -88,8 +111,27 @@ const ShareBar = ({ userID, shaderData }: Props) => {
           ) : (
             <p>error.</p>
           )}
+
+          <DropdownMenuItem
+            onSelect={() => {
+              setAddPlaylistDialogOpen(true);
+            }}
+            asChild
+          >
+            <Button className="w-full" variant="ghost">
+              New Playlist
+            </Button>
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <NewPlaylistDialog
+        open={addPlaylistDialogOpen}
+        onOpenChange={() => {
+          setDropdownOpen(true);
+          setAddPlaylistDialogOpen(false);
+        }}
+      />
     </div>
   );
 };

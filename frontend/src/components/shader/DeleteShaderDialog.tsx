@@ -28,7 +28,8 @@ const DeleteShaderDialog = ({
   const router = useRouter();
   const deleteShaderMut = useDeleteShader(() => {
     if (redirectUrl) {
-      router.push(redirectUrl);
+      router.back();
+      // router.push(redirectUrl);
     }
     setIsOpen(false);
     onClose?.();

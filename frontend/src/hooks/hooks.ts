@@ -125,6 +125,9 @@ export const useDeleteShader = (onSuccess?: () => void) => {
     mutationFn: deleteShader,
     onSuccess: () => {
       queryClient.invalidateQueries({
+        queryKey: ["playlist"],
+      });
+      queryClient.invalidateQueries({
         queryKey: ["shaders"],
       });
       router.refresh();

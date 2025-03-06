@@ -13,9 +13,11 @@ CREATE TABLE shader_playlists (
 CREATE TABLE shader_playlist_junction (
     playlist_id UUID NOT NULL,
     shader_id UUID NOT NULL,
+    user_id UUID NOT NULL,
     PRIMARY KEY (playlist_id, shader_id),
     FOREIGN KEY (playlist_id) REFERENCES shader_playlists(id) ON DELETE CASCADE,
-    FOREIGN KEY (shader_id) REFERENCES shaders(id) ON DELETE CASCADE
+    FOREIGN KEY (shader_id) REFERENCES shaders(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 CREATE TRIGGER trigger_update_shader_playlist_timestamp

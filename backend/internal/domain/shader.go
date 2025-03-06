@@ -138,6 +138,7 @@ type (
 	ListPlaylistReq struct {
 		Limit       int
 		Offset      int
+		SortReverse bool
 		UserID      uuid.UUID
 		AccessLevel AccessLevel
 	}
@@ -179,6 +180,7 @@ type (
 		CreatedAt   time.Time       `json:"created_at"`
 		UpdatedAt   time.Time       `json:"updated_at"`
 		Username    string          `json:"username,omitempty"`
+		NumShaders  int             `json:"num_shaders",omitempty`
 		Shaders     json.RawMessage `json:"shaders,omitempty"`
 	}
 
@@ -202,6 +204,7 @@ type (
 		AddShaderToPlaylistBulk(ctx context.Context, userID uuid.UUID, playlistID uuid.UUID, ids []uuid.UUID) error
 		ListShaderPlaylists(ctx context.Context, req *ListPlaylistReq) ([]Playlist, error)
 		UpdateShaderPlaylist(ctx context.Context, userID uuid.UUID, payload *UpdatePlaylistPayload) error
+		RemoveShadersFromPlaylist(ctx context.Context, userID uuid.UUID, shaderIDs []uuid.UUID, playlistID uuid.UUID) error
 	}
 
 	ShaderService interface {
@@ -223,5 +226,6 @@ type (
 		AddShaderToPlaylistBulk(ctx context.Context, userID uuid.UUID, playlistID uuid.UUID, ids []uuid.UUID) error
 		ListShaderPlaylists(ctx context.Context, req *ListPlaylistReq) ([]Playlist, error)
 		UpdateShaderPlaylist(ctx context.Context, userID uuid.UUID, payload *UpdatePlaylistPayload) error
+		RemoveShadersFromPlaylist(ctx context.Context, userID uuid.UUID, shaderIDs []uuid.UUID, playlistID uuid.UUID) error
 	}
 )

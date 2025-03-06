@@ -38,3 +38,12 @@ WHERE id = $1;
 -- name: GetUsernames :many 
 SELECT username FROM users
 WHERE id = ANY($1);
+
+-- name: GetUserWithDetails :one 
+SELECT 
+    sqlc.embed(u),
+    COUNT(s.*) AS num_shaders,
+    COUNT(p.*) AS num_playlists
+FROM users u
+LEFT JOIN shaders s on u.id = s.user_id 
+LEFT JOIN shader_playlist_junction p on p.user_id = u.id;

@@ -1,21 +1,13 @@
 import React from "react";
 import EditPlaylist from "../_components/EditPlaylist";
-import { AccessLevel, ShaderPlaylist } from "@/types/shader";
-
-const initialPlaylistData: ShaderPlaylist = {
-  id: "",
-  title: "",
-  description: "",
-  user_id: "",
-  tags: [],
-  created_at: new Date(),
-  updated_at: new Date(),
-  username: "",
-  access_level: AccessLevel.PRIVATE,
-};
+import { initialPlaylistData } from "@/types/shader";
 
 const NewPlaylistPage = () => {
-  return <EditPlaylist initialData={initialPlaylistData} />;
+  return (
+    <div className="flex flex-col min-h-[50vh] h-full w-full items-center justify-center px-4">
+      <EditPlaylist initialData={initialPlaylistData} />
+    </div>
+  );
 };
 
 export default NewPlaylistPage;

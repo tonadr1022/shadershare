@@ -21,7 +21,7 @@ func NewUserRepository(db *pgxpool.Pool, queries *db.Queries) userRepository {
 	}
 }
 
-func (r userRepository) GetUserByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+func (r userRepository) GetUserByID(ctx context.Context, id uuid.UUID, includeDetails bool) (*domain.User, error) {
 	dbuser, err := r.queries.GetUserByID(ctx, id)
 	if err != nil {
 		return nil, db.TransformErrNoRows(err)

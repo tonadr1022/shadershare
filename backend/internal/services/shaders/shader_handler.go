@@ -56,10 +56,34 @@ func RegisterHandlers(r *gin.RouterGroup, service domain.ShaderService) {
 	r.GET("/playlists/shaders", h.getShaderPlaylists)
 	r.PUT("/playlists/shaders/:id", middleware.Auth(), h.updateShaderPlaylist)
 	r.POST("/playlists/shaders/:id/batch-add", middleware.Auth(), h.addShadersToPlaylist)
+	r.POST("/playlists/shaders/:id/bulk-delete", middleware.Auth(), h.removeShadersFromPlaylist)
 }
 
-type bulkAddShaderPayload struct {
+type bulkShaderIDPayload struct {
 	ShaderIDs []uuid.UUID `json:"shader_ids" binding:"required"`
+}
+
+func (h ShaderHandler) removeShadersFromPlaylist(c *gin.Context) {
+	userctx, ok := middleware.CurrentUser(c)
+	if !ok {
+		util.SetInternalServiceErrorResponse(c)
+		return
+	}
+	var payload bulkShaderIDPayload
+	if ok := util.ValidateAndSetErrors(c, &payload); !ok {
+		return
+	}
+	playlistID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		util.SetErrorResponse(c, http.StatusBadRequest, "bad id")
+		return
+	}
+	err = h.service.RemoveShadersFromPlaylist(c, userctx.ID, payload.ShaderIDs, playlistID)
+	if err != nil {
+		util.SetInternalServiceErrorResponse(c)
+		return
+	}
+	c.Status(http.StatusNoContent)
 }
 
 func (h ShaderHandler) addShadersToPlaylist(c *gin.Context) {
@@ -68,7 +92,7 @@ func (h ShaderHandler) addShadersToPlaylist(c *gin.Context) {
 		util.SetInternalServiceErrorResponse(c)
 		return
 	}
-	var payload bulkAddShaderPayload
+	var payload bulkShaderIDPayload
 	if ok := util.ValidateAndSetErrors(c, &payload); !ok {
 		return
 	}
@@ -78,8 +102,6 @@ func (h ShaderHandler) addShadersToPlaylist(c *gin.Context) {
 		util.SetErrorResponse(c, http.StatusBadRequest, "bad id")
 		return
 	}
-
-	fmt.Println(playlistID, "ids", payload.ShaderIDs)
 	err = h.service.AddShaderToPlaylistBulk(c, userctx.ID, playlistID, payload.ShaderIDs)
 	if err != nil {
 		util.SetErrorResponse(c, http.StatusBadRequest, err.Error())

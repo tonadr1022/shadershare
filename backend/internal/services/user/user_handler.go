@@ -46,7 +46,9 @@ func (h userHandler) getUser(c *gin.Context) {
 	if err != nil {
 		util.SetErrorResponse(c, http.StatusBadRequest, "Bad UserID")
 	}
-	user, err := h.userService.GetUserByID(c, parsedID)
+	includeDetails := c.DefaultQuery("details", "false") == "true"
+
+	user, err := h.userService.GetUserByID(c, parsedID, includeDetails)
 	if err != nil {
 		fmt.Println("get user err", err)
 		util.SetErrorResponse(c, http.StatusInternalServerError, "Internal Server Error")
@@ -153,7 +155,7 @@ func (h userHandler) me(c *gin.Context) {
 		util.SetInternalServiceErrorResponse(c)
 		return
 	}
-	user, err := h.userService.GetUserByID(c, userctx.ID)
+	user, err := h.userService.GetUserByID(c, userctx.ID, false)
 	if err != nil {
 		fmt.Println("get user err", err)
 		util.SetErrorResponse(c, http.StatusInternalServerError, "Internal Server Error")

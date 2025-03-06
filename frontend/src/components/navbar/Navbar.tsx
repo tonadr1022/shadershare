@@ -19,7 +19,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 const navbarItems = [
-  { href: url.browse, label: "Browse" },
+  { href: url.browseShaders, label: "Browse" },
   { href: url.usershaders, label: "My Shaders" },
   { href: url.new, label: "New" },
 ];
@@ -31,7 +31,7 @@ const ShaderSearch = () => {
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        router.push(`/browse?query=${encodeURIComponent(inputQuery)}`);
+        router.push(`/browse/shaders?query=${encodeURIComponent(inputQuery)}`);
       }}
       id="shader-page-query"
       className="flex gap-2 w-fit"

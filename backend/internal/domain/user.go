@@ -46,14 +46,14 @@ type (
 		// RegisterUser(ctx context.Context, payload CreateUserPayload) (auth.JWTPair, error)
 		CompleteOAuthLogin(ctx context.Context, payload *OAuthPayload) (auth.JWTPair, error)
 		// LoginUser(ctx context.Context, payload LoginPayload) (auth.JWTPair, error)
-		GetUserByID(ctx context.Context, id uuid.UUID) (*User, error)
+		GetUserByID(ctx context.Context, id uuid.UUID, includeDetails bool) (*User, error)
 		UpdateProfile(ctx context.Context, id uuid.UUID, payload UserUpdatePayload) (*User, error)
 	}
 
 	UserRepository interface {
 		GetUsernames(ctx context.Context, userIDs []uuid.UUID) ([]string, error)
 		CreateUser(ctx context.Context, payload CreateUserPayload) (*User, error)
-		GetUserByID(ctx context.Context, id uuid.UUID) (*User, error)
+		GetUserByID(ctx context.Context, id uuid.UUID, includeDetails bool) (*User, error)
 		GetUserByEmail(ctx context.Context, email string) (*User, error)
 		GetUserByEmailOrUsername(ctx context.Context, email_or_username string) (*User, error)
 		UpdateUser(ctx context.Context, id uuid.UUID, payload UserUpdatePayload) (*User, error)

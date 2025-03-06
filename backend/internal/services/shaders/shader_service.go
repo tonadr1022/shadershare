@@ -222,3 +222,7 @@ func (s shaderService) UpdateShaderPlaylist(ctx context.Context, userID uuid.UUI
 func (s shaderService) AddShaderToPlaylistBulk(ctx context.Context, userID uuid.UUID, playlistID uuid.UUID, ids []uuid.UUID) error {
 	return s.repo.AddShaderToPlaylistBulk(ctx, userID, playlistID, ids)
 }
+
+func (s shaderService) RemoveShadersFromPlaylist(ctx context.Context, userID uuid.UUID, shaderIDs []uuid.UUID, playlistID uuid.UUID) error {
+	return s.repo.RemoveShadersFromPlaylist(ctx, userID, shaderIDs, playlistID)
+}

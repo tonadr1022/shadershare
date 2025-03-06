@@ -104,6 +104,7 @@ type ShaderPlaylist struct {
 type ShaderPlaylistJunction struct {
 	PlaylistID uuid.UUID
 	ShaderID   uuid.UUID
+	UserID     uuid.UUID
 }
 
 type ShaderWithUser struct {
