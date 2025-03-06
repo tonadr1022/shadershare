@@ -223,8 +223,13 @@ export const getShadertoyShader = async (
 };
 export const shaderPerPages = [12, 25, 50];
 
-export const getUser = async (id: string): Promise<User> => {
-  const res = await axiosInstance.get(`/user/${id}`);
+export const getUser = async (
+  id: string,
+  includeDetails?: boolean,
+): Promise<User> => {
+  const res = await axiosInstance.get(`/user/${id}`, {
+    params: { details: includeDetails },
+  });
   return res.data;
 };
 export const createShaderPlaylist = async (

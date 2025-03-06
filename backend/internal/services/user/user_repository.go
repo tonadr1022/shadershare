@@ -2,6 +2,7 @@ package user
 
 import (
 	"context"
+	"fmt"
 	"shadershare/internal/db"
 	"shadershare/internal/domain"
 
@@ -22,12 +23,27 @@ func NewUserRepository(db *pgxpool.Pool, queries *db.Queries) userRepository {
 }
 
 func (r userRepository) GetUserByID(ctx context.Context, id uuid.UUID, includeDetails bool) (*domain.User, error) {
-	dbuser, err := r.queries.GetUserByID(ctx, id)
-	if err != nil {
-		return nil, db.TransformErrNoRows(err)
+	if includeDetails {
+		dbuser, err := r.queries.GetUserWithDetails(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		user := r.ToDomainUser(dbuser.User)
+		user.Details = &domain.UserDetails{
+			NumShaders:   int(dbuser.NumShaders),
+			NumPlaylists: int(dbuser.NumPlaylists),
+		}
+		fmt.Println(user.Details)
+		return &user, nil
+	} else {
+
+		dbuser, err := r.queries.GetUserByID(ctx, id)
+		if err != nil {
+			return nil, db.TransformErrNoRows(err)
+		}
+		user := r.ToDomainUser(dbuser)
+		return &user, nil
 	}
-	user := r.ToDomainUser(dbuser)
-	return &user, nil
 }
 
 func (r userRepository) GetUserByEmail(ctx context.Context, email string) (*domain.User, error) {

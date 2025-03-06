@@ -42,8 +42,11 @@ WHERE id = ANY($1);
 -- name: GetUserWithDetails :one 
 SELECT 
     sqlc.embed(u),
-    COUNT(s.*) AS num_shaders,
-    COUNT(p.*) AS num_playlists
+    COUNT(DISTINCT sp.id) AS num_playlists,
+    COUNT(DISTINCT s.id) AS num_shaders
 FROM users u
-LEFT JOIN shaders s on u.id = s.user_id 
-LEFT JOIN shader_playlist_junction p on p.user_id = u.id;
+LEFT JOIN shader_playlists sp ON sp.user_id = u.id
+LEFT JOIN shaders s ON s.user_id = u.id
+WHERE u.id = @id::uuid
+GROUP BY u.id
+LIMIT 1;

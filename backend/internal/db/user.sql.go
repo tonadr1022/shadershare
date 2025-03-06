@@ -110,21 +110,24 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 const getUserWithDetails = `-- name: GetUserWithDetails :one
 SELECT 
     u.id, u.username, u.email, u.avatar_url, u.created_at, u.updated_at,
-    COUNT(s.*) AS num_shaders,
-    COUNT(p.*) AS num_playlists
+    COUNT(DISTINCT sp.id) AS num_playlists,
+    COUNT(DISTINCT s.id) AS num_shaders
 FROM users u
-LEFT JOIN shaders s on u.id = s.user_id 
-LEFT JOIN shader_playlist_junction p on p.user_id = u.id
+LEFT JOIN shader_playlists sp ON sp.user_id = u.id
+LEFT JOIN shaders s ON s.user_id = u.id
+WHERE u.id = $1::uuid
+GROUP BY u.id
+LIMIT 1
 `
 
 type GetUserWithDetailsRow struct {
 	User         User
-	NumShaders   int64
 	NumPlaylists int64
+	NumShaders   int64
 }
 
-func (q *Queries) GetUserWithDetails(ctx context.Context) (GetUserWithDetailsRow, error) {
-	row := q.db.QueryRow(ctx, getUserWithDetails)
+func (q *Queries) GetUserWithDetails(ctx context.Context, id uuid.UUID) (GetUserWithDetailsRow, error) {
+	row := q.db.QueryRow(ctx, getUserWithDetails, id)
 	var i GetUserWithDetailsRow
 	err := row.Scan(
 		&i.User.ID,
@@ -133,8 +136,8 @@ func (q *Queries) GetUserWithDetails(ctx context.Context) (GetUserWithDetailsRow
 		&i.User.AvatarUrl,
 		&i.User.CreatedAt,
 		&i.User.UpdatedAt,
-		&i.NumShaders,
 		&i.NumPlaylists,
+		&i.NumShaders,
 	)
 	return i, err
 }

@@ -9,6 +9,10 @@ import (
 )
 
 type (
+	UserDetails struct {
+		NumShaders   int `json:"num_shaders"`
+		NumPlaylists int `json:"num_playlists"`
+	}
 	User struct {
 		ID        uuid.UUID `json:"id"`
 		Username  string    `json:"username"`
@@ -16,6 +20,7 @@ type (
 		AvatarUrl string    `json:"avatar_url"`
 		CreatedAt time.Time
 		UpdatedAt time.Time
+		Details   *UserDetails `json:"details,omitempty"`
 	}
 
 	UserCtx struct {
